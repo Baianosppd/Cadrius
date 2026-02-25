@@ -1,0 +1,62 @@
+# Arquivos de sistema
+*.DS_Store
+*.log
+*.pot
+*.pyc
+__pycache__/
+*.so
+
+# Ambiente virtual
+venv/
+.env/
+env/
+.venv/
+ENV/
+
+# Arquivos de configuração locais
+*.sqlite3
+db.sqlite3
+.env.local
+.env.*.local
+
+# Configurações do editor/IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Arquivos de compilação
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Cache do Django
+*.mo
+*.pot
+*.py[cod]
+__pycache__/
+*.coverage
+*.cover
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.pyo
+
+# Arquivos de testes
+htmlcov/
+.tox/
+.pytest_cache/
+.coverage
+
+# Arquivos estáticos coletados
+/staticfiles/
+/media/
+
+# Docker e outros
+*.pid
+*.seed
+*.pid.lock
+.env

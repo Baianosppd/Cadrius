@@ -1,0 +1,59 @@
+services:
+  # 1. Banco de Dados (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=cadrius
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+
+  # 2. Redis (Cache e Filas)
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  # 3. Aplicação Web (Django)
+  web:
+    build: .
+    # CORREÇÃO AQUI: Usamos 'sh -c' para rodar múltiplos comandos em sequência.
+    # O '|| true' serve para o container não morrer se o usuário já existir.
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py createsuperuser --noinput || true &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/cadrius
+      - REDIS_URL=redis://redis:6379/0
+      # Variáveis para criar o Admin automaticamente
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_EMAIL=admin@email.com
+      - DJANGO_SUPERUSER_PASSWORD=admin123
+    depends_on:
+      - db
+      - redis
+
+  # 4. Worker (Processamento em Background)
+  worker:
+    build: .
+    command: python manage.py qcluster
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/cadrius
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
