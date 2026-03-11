@@ -229,7 +229,7 @@ IMAP_PASSWORD = env('IMAP_PASSWORD', default=None)
 
 
 AUTHENTICATION_BACKENDS = [
-    'axes.backends.AxesBackend', # <-- Axes deve ser o primeiro
+    'axes.backends.AxesBackend', 
     'django.contrib.auth.backends.ModelBackend',
 ]
 
