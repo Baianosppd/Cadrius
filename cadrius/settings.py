@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 import environ
 from datetime import timedelta
+import sentry_sdk 
+from sentry_sdk.integrations.django import DjangoIntegration
 
 # 1. Inicialização do Ambiente
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -19,6 +21,16 @@ env = environ.Env(
 
 # Lê o arquivo .env se ele existir
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+
+SENTRY_DSN = env('SENTRY_DSN', default=None)
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=1.0,
+        send_default_pii=True
+    )
 
 # --- CORE SETTINGS ---
 
@@ -47,7 +59,9 @@ INSTALLED_APPS = [
     'rest_framework',         # API Core
     'rest_framework_simplejwt', # Autenticação
     'drf_yasg',               # Documentação Swagger
-    'django_q',               # Thales: Task Broker
+    'django_q',
+    'axes',                
+
 
     # Local apps (Cadrius Modules)
     'core',
@@ -59,8 +73,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',              # Deve ser o primeiro!
+    'corsheaders.middleware.CorsMiddleware',              
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware'
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -71,6 +87,7 @@ MIDDLEWARE = [
     
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware', # Para segurança de login
 ]
 
 ROOT_URLCONF = 'cadrius.urls'
@@ -209,3 +226,24 @@ IMAP_HOST = env('IMAP_HOST', default=None)
 IMAP_PORT = env.int('IMAP_PORT')
 IMAP_USERNAME = env('IMAP_USERNAME', default=None)
 IMAP_PASSWORD = env('IMAP_PASSWORD', default=None)
+
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesBackend', # <-- Axes deve ser o primeiro
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# Configurações do Axes
+AXES_FAILURE_LIMIT = 5 # Bloqueia após 5 tentativas falhadas
+AXES_COOLOFF_TIME = 1 # Bloqueio dura 1 hora
+AXES_LOCKOUT_TEMPLATE = None # Retornará erro 403 padrão (útil para APIs)
+AXES_ENABLE_ACCESS_LOG = True
+
+
+# Configurações CSP
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com")
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com")
+CSP_FONT_SRC = ("'self'", "data:")
+CSP_IMG_SRC = ("'self'", "data:", "blob:")
+CSP_CONNECT_SRC = ("'self'",) # Limita as conexões de API apenas ao seu próprio domínio
