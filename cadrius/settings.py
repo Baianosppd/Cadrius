@@ -63,7 +63,7 @@ INSTALLED_APPS = [
     'axes',                
 
 
-    # Local apps (Cadrius Modules)
+    # Local apps 
     'core',
     'accounts',
     'emails',
@@ -82,7 +82,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     
-    # Jullio: Middleware de Multi-tenancy (Deve vir APÓS Auth e ANTES de View)
+    #Middleware de Multi-tenancy 
     'cadrius.middleware.TenantMiddleware',
     
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -229,14 +229,14 @@ IMAP_PASSWORD = env('IMAP_PASSWORD', default=None)
 
 
 AUTHENTICATION_BACKENDS = [
-    'axes.backends.AxesBackend', # <-- Axes deve ser o primeiro
+    'axes.backends.AxesBackend', 
     'django.contrib.auth.backends.ModelBackend',
 ]
 
 # Configurações do Axes
-AXES_FAILURE_LIMIT = 5 # Bloqueia após 5 tentativas falhadas
-AXES_COOLOFF_TIME = 1 # Bloqueio dura 1 hora
-AXES_LOCKOUT_TEMPLATE = None # Retornará erro 403 padrão (útil para APIs)
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 1 
+AXES_LOCKOUT_TEMPLATE = None 
 AXES_ENABLE_ACCESS_LOG = True
 
 
@@ -246,4 +246,4 @@ CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com")
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com")
 CSP_FONT_SRC = ("'self'", "data:")
 CSP_IMG_SRC = ("'self'", "data:", "blob:")
-CSP_CONNECT_SRC = ("'self'",) # Limita as conexões de API apenas ao seu próprio domínio
+CSP_CONNECT_SRC = ("'self'",) # Limita as conexões de API 
