@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 
 
 User = get_user_model()
-# NOVO MODELO: Para definir dinamicamente o prompt e a função da IA
+
 class ExtractionProfile(models.Model):
     """
     Define um perfil de extração com um System Prompt customizado e 
@@ -23,13 +23,13 @@ class ExtractionProfile(models.Model):
     
     name = models.CharField(max_length=100, unique=True, verbose_name="Nome do Perfil")
     
-    # O prompt base que a IA usará. O corpo do email será anexado.
+    
     system_prompt_template = models.TextField(
         verbose_name="System Prompt Template",
         help_text="Instrução detalhada para a IA. Use {data_atual} para a data de hoje."
     )
     
-    # Qual schema Pydantic esse perfil deve usar para validação (Ex: ProcessoJuridicoSchema)
+    
     pydantic_schema_name = models.CharField(
         max_length=100,
         verbose_name="Nome do Schema Pydantic",
@@ -43,4 +43,3 @@ class ExtractionProfile(models.Model):
     def __str__(self):
         return self.name
 
-# Create your models here.

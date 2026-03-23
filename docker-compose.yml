@@ -1,6 +1,5 @@
 version: '3.8'
 
-# --- DEFINIÇÃO DE REDES ISOLADAS ---
 networks:
   proxy_net:
     name: proxy_net
@@ -8,86 +7,104 @@ networks:
     name: backend_net
 
 services:
-  # --- 1. PROXY REVERSO (Única porta de entrada) ---
+  # --- 1. PROXY REVERSO ---
   traefik:
     image: traefik:v2.10
     command:
       - "--api.insecure=true" 
       - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false" # Só expõe quem tiver label 'traefik.enable=true'
+      - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
     ports:
-      - "80:80"       # Porta HTTP padrão para a API
-      - "8080:8080"   # Dashboard do Traefik (para debug local)
+      - "80:80"
+      - "8081:8080" 
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "//var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - proxy_net
 
-  # --- 2. BANCO DE DADOS  ---
+  # --- 2. BANCO DE DADOS ---
   db:
     image: postgres:15-alpine
     restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=cadrius
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     env_file:
-      - .env # Senhas injetadas dinamicamente
+      - .env
     networks:
       - backend_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cadrius"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # --- 3. BACKUP AUTOMÁTICO DO BANCO DE DADOS ---
+  # --- 3. BACKUP ---
   db-backup:
     image: prodrigestivill/postgres-backup-local
     restart: always
     volumes:
       - ./backups:/backups
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env
     environment:
       - POSTGRES_HOST=db
+      - POSTGRES_DB=cadrius
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
       - POSTGRES_CLUSTER=TRUE
       - SCHEDULE=@daily
       - BACKUP_KEEP_DAYS=7
-      - BACKUP_KEEP_WEEKS=4
-      - BACKUP_KEEP_MONTHS=3
     networks:
       - backend_net
 
-  # --- 4. REDIS (Fila e Cache) ---
+  # --- 4. REDIS ---
   redis:
     image: redis:alpine
     restart: always
     networks:
       - backend_net
 
-  # --- 5. APLICAÇÃO WEB (Backend / API Assíncrona) ---
+  # --- 5. APLICAÇÃO WEB (DJANGO) ---
   web:
     build: .
     restart: always
+    # Adicionado variáveis de ambiente diretamente no comando para o createsuperuser funcionar
     command: >
       sh -c "python manage.py migrate &&
+             DJANGO_SUPERUSER_USERNAME=admin 
+             DJANGO_SUPERUSER_EMAIL=admin@cadrius.com 
+             DJANGO_SUPERUSER_PASSWORD=admin123 
              python manage.py createsuperuser --noinput || true &&
              python manage.py collectstatic --noinput &&
              uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"  # EXPOSTO DIRETAMENTE PARA VOCÊ AGORA
     volumes:
       - .:/app
     env_file:
       - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
-      - proxy_net   # Expõe para o Traefik
-      - backend_net # Acede ao banco e ao redis
+      - proxy_net
+      - backend_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cadrius-web.rule=Host(`localhost`)" 
-      - "traefik.http.routers.cadrius-web.entrypoints=web"
+      - "traefik.http.routers.cadrius-web.rule=Host(`localhost`)"
       - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
 
-  # --- 6. WORKER (Robôs de Background do Django-Q) ---
+  # --- 6. WORKER ---
   worker:
     build: .
     restart: always
@@ -97,26 +114,22 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
-      - backend_net # Totalmente isolado da rede externa
+      - backend_net
 
-  # --- 7. OBSERVABILIDADE DE LOGS EM TEMPO REAL ---
+  # --- 7. DOZZLE (LOGS) ---
   dozzle:
     image: amir20/dozzle:latest
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - DOZZLE_LEVEL=info
-      - DOZZLE_TAILSIZE=300
+      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+    ports:
+      - "8888:8080" # Acesso direto via localhost:8888 se o traefik falhar
     networks:
       - proxy_net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dozzle.rule=Host(`logs.localhost`)" 
-      - "traefik.http.routers.dozzle.entrypoints=web"
-      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
 
 volumes:
   postgres_data:
