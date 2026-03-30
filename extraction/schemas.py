@@ -52,7 +52,7 @@ class ServiceOrderSchema(ExtractedData):
     """
     Schema de Pydantic para extrair informações de um Pedido de Serviço.
     """
-    # Sobrescreve o tipo base
+    
     document_type: Literal['SERVICE_ORDER']
 
     customer_name: str = Field(description="Nome completo ou Razão Social do cliente.")
@@ -66,8 +66,6 @@ class ServiceOrderSchema(ExtractedData):
     )
     contact_phone: str = Field(description="Telefone de contato preferencial do cliente.")
 
-
-# --- 2. Exemplo de Solicitação de Suporte (SUPPORT_REQUEST) ---
 
 class SupportRequestSchema(ExtractedData):
     """

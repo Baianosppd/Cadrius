@@ -1,59 +1,135 @@
+version: '3.8'
+
+networks:
+  proxy_net:
+    name: proxy_net
+  backend_net:
+    name: backend_net
+
 services:
-  # 1. Banco de Dados (PostgreSQL)
+  # --- 1. PROXY REVERSO ---
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true" 
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8081:8080" 
+    volumes:
+      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - proxy_net
+
+  # --- 2. BANCO DE DADOS ---
   db:
     image: postgres:15-alpine
+    restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=cadrius
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"
+    env_file:
+      - .env
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cadrius"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # 2. Redis (Cache e Filas)
+  # --- 3. BACKUP ---
+  db-backup:
+    image: prodrigestivill/postgres-backup-local
+    restart: always
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=cadrius
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_CLUSTER=TRUE
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=7
+    networks:
+      - backend_net
+
+  # --- 4. REDIS ---
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
+    restart: always
+    networks:
+      - backend_net
 
-  # 3. Aplicação Web (Django)
+  # --- 5. APLICAÇÃO WEB (DJANGO) ---
   web:
     build: .
-    # CORREÇÃO AQUI: Usamos 'sh -c' para rodar múltiplos comandos em sequência.
-    # O '|| true' serve para o container não morrer se o usuário já existir.
+    restart: always
+    # Adicionado variáveis de ambiente diretamente no comando para o createsuperuser funcionar
     command: >
       sh -c "python manage.py migrate &&
+             DJANGO_SUPERUSER_USERNAME=admin 
+             DJANGO_SUPERUSER_EMAIL=admin@cadrius.com 
+             DJANGO_SUPERUSER_PASSWORD=admin123 
              python manage.py createsuperuser --noinput || true &&
-             python manage.py runserver 0.0.0.0:8000"
+             python manage.py collectstatic --noinput &&
+             uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"  # EXPOSTO DIRETAMENTE PARA VOCÊ AGORA
     volumes:
       - .:/app
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=1
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/cadrius
-      - REDIS_URL=redis://redis:6379/0
-      # Variáveis para criar o Admin automaticamente
-      - DJANGO_SUPERUSER_USERNAME=admin
-      - DJANGO_SUPERUSER_EMAIL=admin@email.com
-      - DJANGO_SUPERUSER_PASSWORD=admin123
+    env_file:
+      - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - proxy_net
+      - backend_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cadrius-web.rule=Host(`localhost`)"
+      - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
 
-  # 4. Worker (Processamento em Background)
+  # --- 6. WORKER ---
   worker:
     build: .
+    restart: always
     command: python manage.py qcluster
     volumes:
       - .:/app
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/cadrius
-      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - backend_net
+
+  # --- 7. DOZZLE (LOGS) ---
+  dozzle:
+    image: amir20/dozzle:latest
+    volumes:
+      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+    ports:
+      - "8888:8080" # Acesso direto via localhost:8888 se o traefik falhar
+    networks:
+      - proxy_net
 
 volumes:
   postgres_data:
