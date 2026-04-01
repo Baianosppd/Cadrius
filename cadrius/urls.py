@@ -9,6 +9,7 @@ from drf_yasg import openapi
 from accounts.views import RegisterUserView, GetUserProfileView, CustomTokenObtainPairView
 from core.views import health_check, DashboardStatsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
+from workflows.views import WorkflowViewSet
 
 # --- Configuração do Swagger (Documentação da API) ---
 schema_view = get_schema_view(
@@ -26,6 +27,7 @@ router = routers.DefaultRouter()
 router.register(r'mailboxes', MailBoxViewSet, basename='mailbox')
 router.register(r'emails', EmailMessageViewSet, basename='email')
 router.register(r'extraction-profiles', ExtractionProfileViewSet, basename='extraction-profile')
+router.register(r'workflows', WorkflowViewSet, basename='workflow')
 
 # --- Mapeamento Final de URLs ---
 urlpatterns = [

@@ -1,21 +1,22 @@
 from django.db import models
 from django.conf import settings
 
+
 class Workflow(models.Model):
     """
     O contêiner principal de uma automação.
     Ex: "Monitorar Prazos Astrea e Notificar no WhatsApp"
     """
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.CASCADE, 
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name='workflows',
         verbose_name="Proprietário (Escritório)"
     )
     name = models.CharField(max_length=255, verbose_name="Nome da Automação")
     description = models.TextField(blank=True, null=True, verbose_name="Descrição")
     is_active = models.BooleanField(default=True, verbose_name="Ativo?")
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -30,9 +31,9 @@ class Workflow(models.Model):
 
 class Trigger(models.Model):
     """
-    O Evento que dá início ao Workflow.
-    Pode ser um Webhook do sistema jurídico, um E-mail ou um Agendamento.
+    Gatilho de entrada: tipo fixo (controle estático) + conexão genérica + template de payload.
     """
+
     TRIGGER_TYPES = (
         ('WEBHOOK', 'Webhook (Sistema Jurídico/Externo)'),
         ('EMAIL', 'Recebimento de E-mail'),
@@ -41,17 +42,21 @@ class Trigger(models.Model):
     )
 
     workflow = models.OneToOneField(
-        Workflow, 
-        on_delete=models.CASCADE, 
+        Workflow,
+        on_delete=models.CASCADE,
         related_name='trigger'
     )
     trigger_type = models.CharField(max_length=50, choices=TRIGGER_TYPES)
-    
-    # Configurações dinâmicas do gatilho (Ex: qual a URL do webhook ou qual ID da Mailbox)
-    config = models.JSONField(
-        default=dict, 
-        blank=True, 
-        help_text="Configurações específicas do gatilho em formato JSON"
+    app_connection = models.ForeignKey(
+        'integrations.AppConnection',
+        on_delete=models.PROTECT,
+        related_name='workflow_triggers',
+        verbose_name="Conexão de app",
+    )
+    payload_template = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Template / metadados de o que receber ou enviar neste gatilho (sem acoplar a um vendor).",
     )
 
     def __str__(self):
@@ -60,8 +65,9 @@ class Trigger(models.Model):
 
 class Action(models.Model):
     """
-    Os passos que a automação deve executar após o Gatilho.
+    Passo de saída: tipo fixo (controle estático) + conexão genérica + template de payload.
     """
+
     ACTION_TYPES = (
         ('AI_EXTRACTION', 'Extrair Dados com IA (Gemini/ChatGPT)'),
         ('CREATE_TASK', 'Criar Tarefa (Gestão Ágil)'),
@@ -70,20 +76,25 @@ class Action(models.Model):
     )
 
     workflow = models.ForeignKey(
-        Workflow, 
-        on_delete=models.CASCADE, 
+        Workflow,
+        on_delete=models.CASCADE,
         related_name='actions'
     )
+    order = models.PositiveIntegerField(
+        default=1,
+        help_text="Ordem no pipeline.",
+    )
     action_type = models.CharField(max_length=50, choices=ACTION_TYPES)
-    
-    # Define a ordem de execução. Passo 1, Passo 2, Passo 3...
-    order = models.PositiveIntegerField(default=1)
-    
-    # Configuração dinâmica (Ex: ID da Integração do WhatsApp, Prompt da IA, Mapeamento de Colunas)
-    config = models.JSONField(
-        default=dict, 
+    app_connection = models.ForeignKey(
+        'integrations.AppConnection',
+        on_delete=models.PROTECT,
+        related_name='workflow_actions',
+        verbose_name="Conexão de app",
+    )
+    payload_template = models.JSONField(
+        default=dict,
         blank=True,
-        help_text="Configurações de execução e mapeamento de campos"
+        help_text="Template de o que enviar/receber neste passo (mapeamentos, corpo da mensagem, etc.).",
     )
 
     class Meta:
@@ -102,28 +113,29 @@ class ExecutionLog(models.Model):
     STATUS_CHOICES = (
         ('SUCCESS', 'Sucesso'),
         ('FAILED', 'Falha'),
-        ('PENDING_REVIEW', 'Aguardando Revisão Humana'), # Para a funcionalidade de "Self-Healing/Aprovação"
+        ('PENDING_REVIEW', 'Aguardando Revisão Humana'),  # Para a funcionalidade de "Self-Healing/Aprovação"
     )
 
     workflow = models.ForeignKey(
-        Workflow, 
-        on_delete=models.CASCADE, 
+        Workflow,
+        on_delete=models.CASCADE,
         related_name='execution_logs'
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    
+
     # O payload inicial que disparou o fluxo (Ex: o JSON do webhook ou texto do e-mail)
     trigger_payload = models.JSONField(null=True, blank=True)
-    
+
     # O resultado final processado
     final_result = models.JSONField(null=True, blank=True)
-    
+
     # Rastreamento de falhas
     error_message = models.TextField(blank=True, null=True)
-    
+
     # Telemetria de Negócios (Quantos segundos esse processo levou vs tempo humano)
     execution_time_ms = models.PositiveIntegerField(
-        null=True, blank=True, 
+        null=True,
+        blank=True,
         help_text="Tempo de execução em milissegundos para cálculo de ROI"
     )
 
