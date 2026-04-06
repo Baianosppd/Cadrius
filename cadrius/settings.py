@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_q',
     'axes',
+    'drf_spectacular',
 
     # Local apps (O Core do Cadrius)
     'core',
@@ -148,6 +149,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
@@ -192,6 +194,25 @@ Q_CLUSTER = {
     'label': 'Django Q',
     'redis': env('REDIS_URL', default='redis://127.0.0.1:6379/0')
 }
+
+
+
+SENTRY_DSN = os.getenv('SENTRY_DSN')
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        
+        # Ajuste a taxa de amostragem de performance (0.0 a 1.0)
+        traces_sample_rate=0.2,
+        
+        # Se for True, envia informações do usuário logado que causou o erro
+        send_default_pii=True,
+        
+        # Define o ambiente (Development, Staging, Production)
+        environment=os.getenv('ENVIRONMENT', 'development')
+    )
 
 
 # --- 9. VARIÁVEIS DE INTEGRAÇÕES (FALLBACKS GLOBAIS) ---

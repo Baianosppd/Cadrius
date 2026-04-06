@@ -1,108 +1,54 @@
 from django.db import models
 from django.conf import settings
 
+from django.db import models
+from integrations.models import AppConnection
 
 class Workflow(models.Model):
-    """
-    O contêiner principal de uma automação.
-    Ex: "Monitorar Prazos Astrea e Notificar no WhatsApp"
-    """
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='workflows',
-        verbose_name="Proprietário (Escritório)"
-    )
-    name = models.CharField(max_length=255, verbose_name="Nome da Automação")
-    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
-    is_active = models.BooleanField(default=True, verbose_name="Ativo?")
-
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Workflow"
-        verbose_name_plural = "Workflows"
-        ordering = ['-created_at']
 
     def __str__(self):
         return self.name
 
-
 class Trigger(models.Model):
     """
-    Gatilho de entrada: tipo fixo (controle estático) + conexão genérica + template de payload.
+    O Gatilho: O que faz a automação iniciar.
+    Ex: event_type = 'message_received'
     """
-
-    TRIGGER_TYPES = (
-        ('WEBHOOK', 'Webhook (Sistema Jurídico/Externo)'),
-        ('EMAIL', 'Recebimento de E-mail'),
-        ('SCHEDULE', 'Agendamento (Cron)'),
-        ('MANUAL', 'Execução Manual'),
-    )
-
-    workflow = models.OneToOneField(
-        Workflow,
-        on_delete=models.CASCADE,
-        related_name='trigger'
-    )
-    trigger_type = models.CharField(max_length=50, choices=TRIGGER_TYPES)
-    app_connection = models.ForeignKey(
-        'integrations.AppConnection',
-        on_delete=models.PROTECT,
-        related_name='workflow_triggers',
-        verbose_name="Conexão de app",
-    )
-    payload_template = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Template / metadados de o que receber ou enviar neste gatilho (sem acoplar a um vendor).",
-    )
+    workflow = models.OneToOneField(Workflow, on_delete=models.CASCADE, related_name='trigger')
+    connection = models.ForeignKey(AppConnection, on_delete=models.CASCADE, related_name='triggers')
+    event_type = models.CharField(max_length=100)
+    
+    # Guarda como o sistema deve interpretar os dados que chegam
+    payload_mapping = models.JSONField(default=dict, blank=True) 
 
     def __str__(self):
-        return f"Gatilho: {self.get_trigger_type_display()} -> {self.workflow.name}"
-
+        return f"Trigger: {self.event_type} on {self.connection.name}"
 
 class Action(models.Model):
     """
-    Passo de saída: tipo fixo (controle estático) + conexão genérica + template de payload.
+    A Ação: O que o sistema deve fazer quando o gatilho disparar.
+    Ex: action_type = 'create_card'
     """
-
-    ACTION_TYPES = (
-        ('AI_EXTRACTION', 'Extrair Dados com IA (Gemini/ChatGPT)'),
-        ('CREATE_TASK', 'Criar Tarefa (Gestão Ágil)'),
-        ('SEND_WHATSAPP', 'Enviar Notificação (WhatsApp)'),
-        ('SHEETS_INSERT', 'Adicionar Linha (Planilha)'),
-    )
-
-    workflow = models.ForeignKey(
-        Workflow,
-        on_delete=models.CASCADE,
-        related_name='actions'
-    )
-    order = models.PositiveIntegerField(
-        default=1,
-        help_text="Ordem no pipeline.",
-    )
-    action_type = models.CharField(max_length=50, choices=ACTION_TYPES)
-    app_connection = models.ForeignKey(
-        'integrations.AppConnection',
-        on_delete=models.PROTECT,
-        related_name='workflow_actions',
-        verbose_name="Conexão de app",
-    )
-    payload_template = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Template de o que enviar/receber neste passo (mapeamentos, corpo da mensagem, etc.).",
-    )
+    workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='actions')
+    connection = models.ForeignKey(AppConnection, on_delete=models.CASCADE, related_name='actions')
+    action_type = models.CharField(max_length=100)
+    
+    # A ordem de execução (caso o workflow tenha múltiplas ações: Passo 1, Passo 2...)
+    order = models.PositiveIntegerField(default=1)
+    
+    # Guarda o "molde" do JSON que será enviado para a ferramenta de destino
+    payload_template = models.JSONField(default=dict, blank=True)
 
     class Meta:
-        ordering = ['workflow', 'order']
-        unique_together = ('workflow', 'order')
+        ordering = ['order']
 
     def __str__(self):
-        return f"Passo {self.order}: {self.get_action_type_display()} ({self.workflow.name})"
+        return f"Action {self.order}: {self.action_type} on {self.connection.name}" 
 
 
 class ExecutionLog(models.Model):
@@ -113,29 +59,28 @@ class ExecutionLog(models.Model):
     STATUS_CHOICES = (
         ('SUCCESS', 'Sucesso'),
         ('FAILED', 'Falha'),
-        ('PENDING_REVIEW', 'Aguardando Revisão Humana'),  # Para a funcionalidade de "Self-Healing/Aprovação"
+        ('PENDING_REVIEW', 'Aguardando Revisão Humana'), # Para a funcionalidade de "Self-Healing/Aprovação"
     )
 
     workflow = models.ForeignKey(
-        Workflow,
-        on_delete=models.CASCADE,
+        Workflow, 
+        on_delete=models.CASCADE, 
         related_name='execution_logs'
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-
+    
     # O payload inicial que disparou o fluxo (Ex: o JSON do webhook ou texto do e-mail)
     trigger_payload = models.JSONField(null=True, blank=True)
-
+    
     # O resultado final processado
     final_result = models.JSONField(null=True, blank=True)
-
+    
     # Rastreamento de falhas
     error_message = models.TextField(blank=True, null=True)
-
+    
     # Telemetria de Negócios (Quantos segundos esse processo levou vs tempo humano)
     execution_time_ms = models.PositiveIntegerField(
-        null=True,
-        blank=True,
+        null=True, blank=True, 
         help_text="Tempo de execução em milissegundos para cálculo de ROI"
     )
 

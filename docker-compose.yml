@@ -19,7 +19,7 @@ services:
       - "80:80"
       - "8081:8080" 
     volumes:
-      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - proxy_net
 
@@ -71,12 +71,16 @@ services:
     restart: always
     networks:
       - backend_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   # --- 5. APLICAÇÃO WEB (DJANGO) ---
   web:
     build: .
     restart: always
-    # Adicionado variáveis de ambiente diretamente no comando para o createsuperuser funcionar
     command: >
       sh -c "python manage.py migrate &&
              DJANGO_SUPERUSER_USERNAME=admin 
@@ -86,7 +90,7 @@ services:
              python manage.py collectstatic --noinput &&
              uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
     ports:
-      - "8000:8000"  # EXPOSTO DIRETAMENTE PARA VOCÊ AGORA
+      - "8000:8000"
     volumes:
       - .:/app
     env_file:
@@ -95,7 +99,7 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     networks:
       - proxy_net
       - backend_net
@@ -117,7 +121,7 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     networks:
       - backend_net
 
@@ -125,11 +129,53 @@ services:
   dozzle:
     image: amir20/dozzle:latest
     volumes:
-      - "//var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
     ports:
-      - "8888:8080" # Acesso direto via localhost:8888 se o traefik falhar
+      - "8888:8080"
     networks:
       - proxy_net
 
+  # --- 8. TÚNEL REVERSO (Acesso externo para Webhooks) ---
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command:
+      - "http"
+      - "http://traefik:80"
+    env_file:
+      - .env
+    networks:
+      - proxy_net
+    depends_on:
+      - traefik
+
+  # --- 9. EVOLUTION API (WHATSAPP) ---
+  evolution-api:
+    image: atendai/evolution-api:v2.1.1
+    container_name: cadrius_evolution
+    user: "root"  
+    ports:
+      - "8082:8080"
+    environment:
+      - SERVER_URL=http://localhost:8082
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=cadrius_mestre_secreto_123 
+      
+      # --- CONEXÃO COM O BANCO DE DADOS (POSTGRES) ---
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@db:5432/cadrius?schema=public
+
+      - CACHE_REDIS_ENABLED=false
+      
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - proxy_net
+      - backend_net
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+  evolution_instances:

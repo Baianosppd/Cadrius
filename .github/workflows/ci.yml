@@ -1,0 +1,61 @@
+name: Cadrius AI - CI/CD Avançado (Sprint 2)
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  security-and-lint:
+    name:  Segurança e Qualidade de Código
+    runs-on: ubuntu-latest
+    steps:
+    - name:  Clonar o repositório
+      uses: actions/checkout@v4
+
+    - name:  Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name:  Instalar Ferramentas de Auditoria
+      run: |
+        pip install flake8 bandit
+
+    - name:  Verificação de Estilo (Flake8)
+      # Ignoramos migrations e ficheiros automáticos do Django
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=*/migrations/*,venv,env
+
+    - name:  Auditoria de Segurança (Bandit)
+      # Procura falhas de segurança comuns em Python (ex: shell=True, hardcoded passwords)
+      run: bandit -r . -x ./tests,./venv --severity-level high
+
+  build-and-validate:
+    name:  Construção e Validação Docker
+    needs: security-and-lint # Só começa se a segurança passar!
+    runs-on: ubuntu-latest
+    steps:
+    - name:  Clonar o repositório
+      uses: actions/checkout@v4
+
+    - name:  Criar arquivo .env de Teste
+      run: |
+        echo "DEBUG=True" > .env
+        echo "SECRET_KEY=chave_secreta_para_ci_teste_123" >> .env
+        echo "ENCRYPTION_KEY=CHAVE_FALSA_PARA_TESTE_DE_32_BYTES_===" >> .env
+        echo "DATABASE_URL=postgres://postgres:postgres@db:5432/cadrius" >> .env
+        echo "REDIS_URL=redis://redis:6379/0" >> .env
+        echo "NGROK_AUTHTOKEN=dummy_token_ci" >> .env
+
+    - name:  Subir a Infraestrutura (Docker)
+      run: docker compose up -d db redis web
+
+    - name:  Aguardar o banco de dados
+      run: sleep 12
+
+    - name:  Checar integridade do Django
+      run: docker compose exec -T web python manage.py check
+
+    - name:  Validar Migrações Pendentes
+      run: docker compose exec -T web python manage.py makemigrations --check --dry-run

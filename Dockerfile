@@ -5,12 +5,15 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-
 # Define pasta de trabalho dentro do container
 WORKDIR /app
 
-# Instala dependências do sistema para o Postgres (psycopg2)
-RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+# Instala dependências do sistema para o Postgres e o Client (para pg_dump)
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copia e instala dependências do Python
 COPY requirements.txt /app/

@@ -4,8 +4,9 @@ from rest_framework import routers, permissions
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-# --- Suas Views ---
+# --- Views ---
 from accounts.views import RegisterUserView, GetUserProfileView, CustomTokenObtainPairView
 from core.views import health_check, DashboardStatsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
@@ -47,8 +48,13 @@ urlpatterns = [
     # --- Dashboards e Estatísticas ---
     path('api/v1/dashboard/stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
 
+    # --- Rotas de Workflows e Webhooks ---
+    path('api/workflows/', include('workflows.urls')),
+
     # --- Documentação da API (Swagger/ReDoc) ---
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
