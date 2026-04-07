@@ -30,7 +30,18 @@ if SENTRY_DSN:
 # --- 3. CORE SETTINGS E SEGURANÇA BÁSICA ---
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-prod')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok.io', 'nonvinous-debbie-unrelated.ngrok-free.dev']
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost',
+    'http://127.0.0.1',
+    'https://*.ngrok-free.app',
+    'https://*.ngrok.io',
+    'https://nonvinous-debbie-unrelated.ngrok-free.dev'
+]
+
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ENCRYPTION_KEY = env('ENCRYPTION_KEY', default=None) 
 
@@ -216,8 +227,8 @@ if SENTRY_DSN:
 
 
 # --- 9. VARIÁVEIS DE INTEGRAÇÕES (FALLBACKS GLOBAIS) ---
-# Nota Arquitetural: Preferir sempre buscar credenciais dos modelos 
-# AppConnection e MailBox do banco de dados ao invés daqui.
+
+
 OPENAI_API_KEY = env('OPENAI_API_KEY', default=None)
 OPENAI_MODEL = env('OPENAI_MODEL', default='gpt-3.5-turbo')
 
@@ -233,3 +244,18 @@ IMAP_HOST = env('IMAP_HOST', default=None)
 IMAP_PORT = env.int('IMAP_PORT')
 IMAP_USERNAME = env('IMAP_USERNAME', default=None)
 IMAP_PASSWORD = env('IMAP_PASSWORD', default=None)
+
+
+# --- 10. CONFIGURAÇÕES DE CACHE E SESSÃO (USANDO REDIS) ---
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/1"),
+    }
+}
+
+# 2. Transferindo o controle de sessão do Postgres para o Redis
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+
