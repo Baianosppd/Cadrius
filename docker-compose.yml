@@ -78,6 +78,7 @@ services:
       retries: 5
 
   # --- 5. APLICAÇÃO WEB (DJANGO) ---
+# --- 5. APLICAÇÃO WEB (DJANGO) ---
   web:
     build: .
     restart: always
@@ -105,8 +106,17 @@ services:
       - backend_net
     labels:
       - "traefik.enable=true"
+      # Pode manter apenas o localhost ou adicionar o vosso ngrok se desejar: Host(`localhost`) || Host(`nonvinous-debbie-unrelated.ngrok-free.dev`)
       - "traefik.http.routers.cadrius-web.rule=Host(`localhost`)"
       - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
+      
+      # ANTI-DDOS (RATE LIMITING)
+      # 1. Define o limite: média de 50 requisições por segundo, tolerando um pico (burst) momentâneo de 100
+      - "traefik.http.middlewares.rate-limit-cadrius.ratelimit.average=50"
+      - "traefik.http.middlewares.rate-limit-cadrius.ratelimit.burst=100"
+      
+      # 2. Aplica o middleware de limite à rota principal da aplicação web
+      - "traefik.http.routers.cadrius-web.middlewares=rate-limit-cadrius"
 
   # --- 6. WORKER ---
   worker:

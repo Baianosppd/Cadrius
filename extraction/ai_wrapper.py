@@ -1,43 +1,40 @@
+# extraction/ai_wrapper.py
 import os
 import json
 import logging
-from openai import OpenAI
 from pydantic import BaseModel, ValidationError
+
+# Bibliotecas das IAs
+from openai import OpenAI
+from groq import Groq
+from google import genai
+from google.genai import types
 
 # Importa os schemas definidos por Juliano
 from .schemas import ExtractedData, ServiceOrderSchema, SupportRequestSchema 
 
 logger = logging.getLogger(__name__)
 
-# Configuração do cliente OpenAI (lê a chave do settings.py via os.environ)
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-AI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo")
+# --- Configurações Iniciais de Clientes ---
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+gemini_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Número máximo de tentativas de re-prompt antes de falhar
 MAX_RETRY_ATTEMPTS = 2
-
 
 def extract_fields_from_text(
     text: str, 
     schema: type[BaseModel], 
     prompt_template: str, 
+    provider: str = 'OPENAI',
     examples: list = None
 ) -> dict | None:
     """
-    Extrai dados estruturados de um texto usando a API do OpenAI e valida com Pydantic.
-
-    Args:
-        text: O corpo do email a ser analisado.
-        schema: O modelo Pydantic (ex: ServiceOrderSchema) para validação.
-        prompt_template: O template de instrução para a IA.
-        examples: Exemplos few-shot para guiar a extração (opcional).
-
-    Returns:
-        Um dicionário Python (JSON validado) ou None em caso de falha.
+    Roteador universal para extração de dados com validação Pydantic.
     """
     schema_json = schema.model_json_schema()
     
-    # 1. Montagem do Prompt de Sistema (Instruções e Estrutura JSON)
+    # 1. Montagem do Prompt de Sistema
     system_prompt = (
         "Você é um extrator de dados altamente eficiente. Sua única tarefa é analisar o texto "
         "fornecido e retornar os dados estritamente no formato JSON, conforme o schema abaixo. "
@@ -51,54 +48,76 @@ def extract_fields_from_text(
     # Estratégia de Fallback com Retries
     for attempt in range(MAX_RETRY_ATTEMPTS):
         try:
-            logger.info(f"Tentativa {attempt + 1}: Chamando API OpenAI...")
+            logger.info(f"Tentativa {attempt + 1}: Chamando API {provider}...")
             
-            response = client.chat.completions.create(
-                model=AI_MODEL,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    # Adicionar exemplos few-shot aqui, se houver
-                    {"role": "user", "content": user_prompt}
-                ],
-                # Força a saída como JSON (necessita do modelo gpt-3.5-turbo ou superior)
-                response_format={"type": "json_object"} 
-            )
+            # ROTEADOR DE IA
+            if provider == 'OPENAI':
+                raw_json_output = _call_openai(system_prompt, user_prompt)
+            elif provider == 'GROQ':
+                raw_json_output = _call_groq(system_prompt, user_prompt)
+            elif provider == 'GEMINI':
+                raw_json_output = _call_gemini(system_prompt, user_prompt)
+            else:
+                raise ValueError(f"Provedor de IA desconhecido: {provider}")
 
-            raw_json_output = response.choices[0].message.content
-            
             # 3. VALIDAÇÃO PYDANTIC (CRÍTICO)
-            # Converte a string JSON para o modelo Pydantic, que valida tipos e restrições.
             validated_model = schema.model_validate_json(raw_json_output)
-            
-            # Retorna o modelo validado como um dicionário Python
             return validated_model.model_dump(mode='json')
 
         except json.JSONDecodeError:
-            logger.error(f"Tentativa {attempt + 1}: Resposta da IA não é um JSON válido.")
+            logger.error(f"Tentativa {attempt + 1}: Resposta da IA ({provider}) não é um JSON válido.")
             user_prompt += "\nA saída anterior não foi um JSON válido. Por favor, corrija e retorne APENAS o JSON."
             
         except ValidationError as e:
             logger.error(f"Tentativa {attempt + 1}: Falha na validação Pydantic. Erro: {e}")
-            # Se a validação falha, Juliano instrui a IA a tentar corrigir o JSON.
             error_message = f"O JSON retornado falhou na validação. Erros:\n{e}"
             user_prompt += f"\nCorrija os erros de schema no seu JSON:\n{error_message}"
 
         except Exception as e:
-            logger.critical(f"Erro na comunicação com a API OpenAI: {e}")
-            break # Falha crítica, não tentar novamente.
+            logger.critical(f"Erro na comunicação com a API {provider}: {e}")
+            break # Falha crítica de rede ou chave errada
 
-    # 4. FALLBACK FINAL: Marcação para Revisão Humana
     logger.error("Extração falhou após todas as tentativas. Retornando None.")
     return None
 
-# --------------------------------------------------------------------------------
-# MOCK DE TESTE (A ser usado por Juliano para testes unitários em CI)
-# --------------------------------------------------------------------------------
+# --- FUNÇÕES INTERNAS DE CHAMADA ÀS APIS ---
 
+def _call_openai(system_prompt, user_prompt):
+    response = openai_client.chat.completions.create(
+        model=os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo"),
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        response_format={"type": "json_object"} 
+    )
+    return response.choices[0].message.content
+
+def _call_groq(system_prompt, user_prompt):
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant", # NOVO: Modelo super-rápido atualizado
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        response_format={"type": "json_object"}
+    )
+    return response.choices[0].message.content
+
+def _call_gemini(system_prompt, user_prompt):
+    # NOVO: Implementação com a biblioteca moderna google-genai
+    full_prompt = f"{system_prompt}\n\n{user_prompt}"
+    response = gemini_client.models.generate_content(
+        model='gemini-2.5-flash', # <-- BASTA ALTERAR ISTO AQUI PARA A NOVA GERAÇÃO (Ou gemini-2.0-flash)
+        contents=full_prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    return response.text
+
+# --- MOCK DE TESTE PARA CI/CD ---
 def mock_extract_fields_from_text(text: str, schema: type[BaseModel], **kwargs) -> dict | None:
-    """
-    Simula a extração de IA para testes em ambientes onde a chave API não está disponível.
-    """
     logger.warning("Usando MOCK de extração de IA. Apenas para testes unitários.")
     if schema == ServiceOrderSchema:
         return ServiceOrderSchema(
@@ -111,6 +130,3 @@ def mock_extract_fields_from_text(text: str, schema: type[BaseModel], **kwargs) 
             contact_phone="9999-8888"
         ).model_dump()
     return None
-
-# No código de Juliano, ele pode usar uma variável de ambiente para chavear 
-# entre a função real e o mock durante os testes!.
