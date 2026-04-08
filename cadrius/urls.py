@@ -11,6 +11,7 @@ from accounts.views import RegisterUserView, GetUserProfileView, CustomTokenObta
 from core.views import health_check, DashboardStatsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
 from workflows.views import WorkflowViewSet
+from webhooks.views import WebhookGatewayView
 
 # --- Configuração do Swagger (Documentação da API) ---
 schema_view = get_schema_view(
@@ -35,6 +36,9 @@ urlpatterns = [
     # --- Rotas de Admin e Health ---
     path('admin/', admin.site.urls),
     path('healthz/', health_check, name='healthz'),
+
+    # --- Gateway de webhooks (público, sem /v1) ---
+    path('api/webhooks/<str:identifier>/', WebhookGatewayView.as_view(), name='webhook_gateway'),
 
     # --- Rotas Base da API V1 ---
     path('api/v1/', include(router.urls)),
