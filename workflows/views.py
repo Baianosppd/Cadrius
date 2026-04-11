@@ -42,10 +42,10 @@ class WebhookReceiverView(APIView):
             
             if numero_remetente and texto:
                 print("\n=======================================")
-                print(f"📱 [WhatsApp Cadrius] Nova Mensagem!")
-                print(f"🔗 Conexão ID: {connection_id}")
-                print(f"👤 De: {numero_remetente}")
-                print(f"💬 Texto: {texto}")
+                print(f" [WhatsApp Cadrius] Nova Mensagem!")
+                print(f" Conexão ID: {connection_id}")
+                print(f" De: {numero_remetente}")
+                print(f" Texto: {texto}")
                 print("=======================================\n")
 
         return Response({"status": "sucesso"}, status=status.HTTP_202_ACCEPTED)
