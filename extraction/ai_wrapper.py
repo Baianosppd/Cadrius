@@ -3,6 +3,7 @@ import os
 import json
 import logging
 from pydantic import BaseModel, ValidationError
+from billing.models import AIUsageLog
 
 # Bibliotecas das IAs
 from openai import OpenAI
@@ -130,3 +131,22 @@ def mock_extract_fields_from_text(text: str, schema: type[BaseModel], **kwargs) 
             contact_phone="9999-8888"
         ).model_dump()
     return None
+
+def check_and_update_quota(organization):
+    """ Verifica se o escritório ainda tem 'créditos' de IA este mês """
+    from django.utils import timezone
+    month_start = timezone.now().replace(day=1)
+    
+    usage, created = AIUsageLog.objects.get_or_create(
+        organization=organization,
+        billing_cycle_month=month_start
+    )
+    
+    # Se o plano do escritório permitir menos extrações do que o contador atual
+    if usage.extractions_count >= organization.plan.max_ai_extractions:
+        return False, "Limite de extrações do seu plano atingido."
+    
+    # Incrementa o uso
+    usage.extractions_count += 1
+    usage.save()
+    return True, ""

@@ -55,4 +55,7 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+
+   #-- Rotas de Cobrança e Assinaturas (Stripe) ---
+    path('api/billing/', include('billing.urls')),
 ]

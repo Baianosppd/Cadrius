@@ -1,21 +1,31 @@
 import os
 import logging
+import json
+import re
+import requests
+import imapclient 
+
 from django.utils import timezone
 from django.db import IntegrityError
 from django_q.tasks import async_task
-import imapclient 
 
 from email import policy
 from email.parser import BytesParser
 from email.header import decode_header, make_header
 from email.utils import parsedate_to_datetime
 
-# Importa apenas o que sobrou no app emails
+# --- Importações das Nossas Apps ---
 from emails.models import MailBox, EmailMessage
+from billing.decorators import check_quota_limit
+from workflows.models import Workflow, Action, ExecutionLog
+from integrations.evolution import send_whatsapp_message  # <-- Importação adicionada para o WhatsApp
 
 logger = logging.getLogger(__name__)
 
-# ----------------- Helpers -----------------
+# =====================================================================
+# 1. HELPERS E FUNÇÕES DE EMAIL (IMAP)
+# =====================================================================
+
 def _decode_str(value: str) -> str:
     if not value:
         return ""
@@ -50,8 +60,6 @@ def _extract_body(email_obj):
     except Exception:
         return ""
 
-
-# ----------------- FUNÇÃO PRINCIPAL DE LEITURA -----------------
 def fetch_emails(mailbox_id) -> int: 
     """
     Lê emails via IMAP e cria EmailMessage para cada mensagem nova.
@@ -150,13 +158,120 @@ def fetch_emails(mailbox_id) -> int:
         except Exception:
             pass
 
-
 def process_email(email_id):
     """
     [MOCK TEMPORÁRIO]
     A orquestração real será feita pelo novo app 'workflows' na Sprint 5.
-    Esta função fica aqui vazia apenas para não quebrar filas antigas do Redis 
-    que ainda possam tentar chamá-la.
     """
     logger.info(f"O email {email_id} foi recebido. Aguardando a nova engine de workflows assumir.")
     pass
+
+
+# =====================================================================
+# 2. MOTOR DE WORKFLOWS (HIPERAUTOMAÇÃO)
+# =====================================================================
+
+def parse_dynamic_variables(template_str, payload):
+    """
+    Procura por padrões {{chave}} no template e substitui pelo valor do JSON original.
+    Suporta aninhamento. Ex: {{cliente.nome}}
+    """
+    if not template_str:
+        return ""
+        
+    def replacer(match):
+        keys = match.group(1).strip().split('.')
+        value = payload
+        try:
+            for key in keys:
+                value = value[key]
+            return str(value)
+        except (KeyError, TypeError):
+            # Se a variável não existir no webhook recebido, mantém a original
+            return match.group(0) 
+
+    return re.sub(r'\{\{(.*?)\}\}', replacer, template_str)
+
+
+@check_quota_limit  # <-- Freio comercial B2B (verifica limites de IA e Uso)
+def execute_workflow_pipeline(workflow_id, payload):
+    """
+    A task independente isolada pelo Django-Q.
+    Recebe o ID e o payload, monta a requisição e atira para o mundo exterior.
+    """
+    workflow = Workflow.objects.get(id=workflow_id)
+    
+    # Criamos o registo inicial da execução (Pendente)
+    exec_log = ExecutionLog.objects.create(
+        workflow=workflow,
+        status='PROCESSING',
+        payload_received=payload
+    )
+
+    try:
+        # Pega na ação vinculada a este workflow
+        action = Action.objects.get(workflow=workflow)
+        
+        # 1. Carregar e substituir o payload template definido pelo utilizador
+        final_payload_str = parse_dynamic_variables(action.payload_template, payload)
+        
+        # Converte de volta para dicionário se for um JSON válido
+        try:
+            final_data = json.loads(final_payload_str) if final_payload_str else payload
+        except json.JSONDecodeError:
+            final_data = final_payload_str  # Se for text/plain ou outro formato
+
+        # ======================================================
+        # 2. ROTEAMENTO DE AÇÕES (Webhook vs Nativo)
+        # ======================================================
+        
+        if action.action_type == 'WHATSAPP_EVOLUTION':
+            # Disparo via Evolution API
+            if isinstance(final_data, dict) and 'number' in final_data and 'text' in final_data:
+                instance_name = f"instancia_org_{workflow.organization.id}" 
+                
+                resp_data = send_whatsapp_message(
+                    instance_name=instance_name,
+                    number=final_data['number'],
+                    message_text=final_data['text']
+                )
+                exec_log.response_data = json.dumps(resp_data)
+            else:
+                raise ValueError("Payload template para WhatsApp inválido. O JSON deve conter 'number' e 'text'.")
+
+        elif action.action_type == 'WEBHOOK' or action.action_type == '':
+            # Disparo genérico para CRMs (Astrea, Projuris, etc)
+            headers = {}
+            if action.headers:
+                headers = json.loads(action.headers)
+            
+            response = requests.request(
+                method=action.method.upper() if action.method else 'POST',
+                url=action.endpoint_url,
+                json=final_data if isinstance(final_data, dict) else None,
+                data=final_data if not isinstance(final_data, dict) else None,
+                headers=headers,
+                timeout=15 
+            )
+            
+            response.raise_for_status() # Lança erro se for 4xx ou 5xx
+            exec_log.response_data = response.text
+            
+        else:
+            raise ValueError(f"Tipo de Action '{action.action_type}' não suportada.")
+
+        # 3. Marca como Sucesso
+        exec_log.status = 'SUCCESS'
+        exec_log.save()
+        
+    except requests.exceptions.RequestException as e:
+        # Falha de rede ou de API externa
+        exec_log.status = 'FAILED'
+        exec_log.error_message = f"Erro na requisição externa: {str(e)}"
+        exec_log.save()
+        
+    except Exception as e:
+        # Falha interna nossa (ex: template mal formatado, variável faltando)
+        exec_log.status = 'ERROR'
+        exec_log.error_message = f"Erro interno do Cadrius: {str(e)}"
+        exec_log.save()

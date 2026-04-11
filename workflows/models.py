@@ -3,9 +3,11 @@ from django.conf import settings
 
 from django.db import models
 from integrations.models import AppConnection
+from accounts.models import Organization
 
 class Workflow(models.Model):
     name = models.CharField(max_length=255)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='workflows')
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -13,6 +15,8 @@ class Workflow(models.Model):
 
     def __str__(self):
         return self.name
+    
+
 
 class Trigger(models.Model):
     """
@@ -30,25 +34,25 @@ class Trigger(models.Model):
         return f"Trigger: {self.event_type} on {self.connection.name}"
 
 class Action(models.Model):
-    """
-    A Ação: O que o sistema deve fazer quando o gatilho disparar.
-    Ex: action_type = 'create_card'
-    """
+    ACTION_TYPES = (
+        ('WEBHOOK', 'Webhook Externo (Genérico)'),
+        ('WHATSAPP_EVOLUTION', 'Enviar WhatsApp (Evolution API)'),
+        ('EMAIL_SMTP', 'Enviar E-mail (Nativo)'),
+    )
+    
     workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='actions')
-    connection = models.ForeignKey(AppConnection, on_delete=models.CASCADE, related_name='actions')
-    action_type = models.CharField(max_length=100)
+    action_type = models.CharField(max_length=50, choices=ACTION_TYPES, default='WEBHOOK')
     
-    # A ordem de execução (caso o workflow tenha múltiplas ações: Passo 1, Passo 2...)
-    order = models.PositiveIntegerField(default=1)
+    # Usado para Webhooks genéricos
+    endpoint_url = models.URLField(blank=True, null=True)
+    method = models.CharField(max_length=10, default='POST')
+    headers = models.JSONField(blank=True, null=True)
     
-    # Guarda o "molde" do JSON que será enviado para a ferramenta de destino
-    payload_template = models.JSONField(default=dict, blank=True)
-
-    class Meta:
-        ordering = ['order']
+    # O Template dinâmico. Para WhatsApp, o JSON esperado será: {"number": "{{telefone}}", "text": "Olá {{nome}}"}
+    payload_template = models.TextField(help_text="Template JSON com variáveis {{chave}}")
 
     def __str__(self):
-        return f"Action {self.order}: {self.action_type} on {self.connection.name}" 
+        return f"{self.get_action_type_display()} - {self.workflow.name}"
 
 
 class ExecutionLog(models.Model):
