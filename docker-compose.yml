@@ -9,19 +9,22 @@ networks:
 services:
   # --- 1. PROXY REVERSO ---
   traefik:
-    image: traefik:v2.10
-    command:
-      - "--api.insecure=true" 
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8081:8080" 
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    networks:
-      - proxy_net
+      image: traefik:v2.10
+      container_name: cadrius_traefik
+      command:
+        - "--api.insecure=true"
+        - "--providers.docker=true"
+        - "--providers.docker.exposedbydefault=false"
+        - "--entrypoints.web.address=:80"
+      ports:
+        - "80:80"
+        - "8090:8080"
+      volumes:
+        # Ajustado para WSL2 Moderno
+        - "//var/run/docker.sock:/var/run/docker.sock:ro"
+      restart: unless-stopped
+      networks:
+        - proxy_net
 
   # --- 2. BANCO DE DADOS ---
   db:
@@ -79,34 +82,35 @@ services:
 
   # --- 5. APLICAÇÃO WEB (DJANGO) ---
   web:
-    build: .
-    restart: always
-    command: >
-      sh -c "python manage.py migrate &&
-             DJANGO_SUPERUSER_USERNAME=admin 
-             DJANGO_SUPERUSER_EMAIL=admin@cadrius.com 
-             DJANGO_SUPERUSER_PASSWORD=admin123 
-             python manage.py createsuperuser --noinput || true &&
-             python manage.py collectstatic --noinput &&
-             uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - proxy_net
-      - backend_net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cadrius-web.rule=Host(`localhost`)"
-      - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
+      build: .
+      restart: always
+      command: >
+        sh -c "python manage.py migrate &&
+               python manage.py collectstatic --noinput &&
+               uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
+      
+      # 👇 O BYPASS DE DESENVOLVIMENTO: Porta exposta diretamente 👇
+      ports:
+        - "8000:8000"
+      
+      volumes:
+        - .:/app
+      env_file:
+        - .env
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      networks:
+        - proxy_net
+        - backend_net
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=proxy_net"
+        - "traefik.http.routers.cadrius-web.rule=Host(`127.0.0.1`)"
+        - "traefik.http.routers.cadrius-web.entrypoints=web"
+        - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
 
   # --- 6. WORKER ---
   worker:

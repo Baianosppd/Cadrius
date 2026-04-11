@@ -9,7 +9,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
-    DEBUG=(bool, False),
+    DEBUG=(bool, True),
     ALLOWED_HOSTS=(list, ['localhost', '127.0.0.1']),
     CORS_ALLOWED_ORIGINS=(list, ["http://localhost:3000"]),
     IMAP_PORT=(int, 993),
@@ -30,7 +30,7 @@ if SENTRY_DSN:
 # --- 3. CORE SETTINGS E SEGURANÇA BÁSICA ---
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-prod')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok.io', 'nonvinous-debbie-unrelated.ngrok-free.dev']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok.io', 'nonvinous-debbie-unrelated.ngrok-free.dev','cadrius.local']
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
@@ -42,6 +42,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
 ENCRYPTION_KEY = env('ENCRYPTION_KEY', default=None) 
 
@@ -62,16 +63,23 @@ INSTALLED_APPS = [
     'django_q',
     'axes',
     'drf_spectacular',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.microsoft',
 
     # Local apps (O Core do Cadrius)
     'core',
     'accounts',
     'emails',
-    'integrations',
-    'extraction',
-    'tasks',
+    'integrations', 
+    'extraction', # Módulo de Extração de Dados (NLP, OCR, etc)
+    'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
     'webhooks',  # Recebedor de Eventos Externos
+    'billing',# Módulo de Assinaturas e Pagamentos
 ]
 
 MIDDLEWARE = [
@@ -89,6 +97,7 @@ MIDDLEWARE = [
     
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'axes.middleware.AxesMiddleware',
 ]
 
@@ -121,7 +130,16 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesBackend', 
     'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
+
+# Configurações do Django Allauth para SSO e Social Login
+# Configurações do Django Allauth para SSO e Social Login
+SITE_ID = 1
+SOCIALACCOUNT_ADAPTER = 'accounts.adapters.B2BSocialAccountAdapter'
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 
 AUTH_PASSWORD_VALIDATORS = [
     { 'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator', },
@@ -148,6 +166,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # --- 7. API, JWT E CORS ---
@@ -208,24 +227,6 @@ Q_CLUSTER = {
 
 
 
-SENTRY_DSN = os.getenv('SENTRY_DSN')
-
-if SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration()],
-        
-        # Ajuste a taxa de amostragem de performance (0.0 a 1.0)
-        traces_sample_rate=0.2,
-        
-        # Se for True, envia informações do usuário logado que causou o erro
-        send_default_pii=True,
-        
-        # Define o ambiente (Development, Staging, Production)
-        environment=os.getenv('ENVIRONMENT', 'development')
-    )
-
-
 # --- 9. VARIÁVEIS DE INTEGRAÇÕES (FALLBACKS GLOBAIS) ---
 
 
@@ -249,8 +250,12 @@ IMAP_PASSWORD = env('IMAP_PASSWORD', default=None)
 # --- 10. CONFIGURAÇÕES DE CACHE E SESSÃO (USANDO REDIS) ---
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://redis:6379/1"),
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env("REDIS_URL", default="redis://redis:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "IGNORE_EXCEPTIONS": True,
+        }
     }
 }
 
@@ -259,3 +264,6 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
 
+STRIPE_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY', default='')
+STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
