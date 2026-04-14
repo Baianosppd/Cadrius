@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'drf_yasg',
+    #'drf_yasg',
     'django_q',
     'axes',
     'drf_spectacular',
@@ -119,6 +119,10 @@ TEMPLATES = [
         },
     },
 ]
+
+
+EVOLUTION_API_BASE_URL = env('EVOLUTION_API_BASE_URL', default='http://evolution-api:8080')
+EVOLUTION_API_GLOBAL_KEY = env('EVOLUTION_API_GLOBAL_KEY', default='cadrius_mestre_secreto_123')
 
 # --- 5. BANCO DE DADOS E AUTENTICAÇÃO ---
 DATABASES = {

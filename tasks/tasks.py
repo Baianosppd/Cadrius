@@ -20,6 +20,10 @@ from billing.decorators import check_quota_limit
 from workflows.models import Workflow, Action, ExecutionLog
 from integrations.evolution import send_whatsapp_message  # <-- Importação adicionada para o WhatsApp
 
+from extraction.ai_wrapper import extract_fields_from_text
+from extraction.models import ExtractionProfile
+from extraction import schemas as extraction_schemas
+
 logger = logging.getLogger(__name__)
 
 # =====================================================================
@@ -158,13 +162,50 @@ def fetch_emails(mailbox_id) -> int:
         except Exception:
             pass
 
-def process_email(email_id):
+def process_email(email_id, profile_id, workflow_id):
     """
-    [MOCK TEMPORÁRIO]
-    A orquestração real será feita pelo novo app 'workflows' na Sprint 5.
+    O Coração da Hiperautomação: 
+    1. Lê o e-mail bruto.
+    2. Passa para a IA extrair e formatar (Pydantic).
+    3. Envia o JSON estruturado para o motor de workflows (Trello/WhatsApp).
     """
-    logger.info(f"O email {email_id} foi recebido. Aguardando a nova engine de workflows assumir.")
-    pass
+    try:
+        email_obj = EmailMessage.objects.get(id=email_id)
+        profile = ExtractionProfile.objects.get(id=profile_id)
+        workflow = Workflow.objects.get(id=workflow_id)
+        
+        logger.info(f"🧠 [Workflow {workflow.name}] A iniciar leitura IA para o E-mail ID {email_id}...")
+        
+        # 1. Busca dinamicamente qual a classe Pydantic que o utilizador escolheu no painel
+        schema_class = getattr(extraction_schemas, profile.pydantic_schema_name, None)
+        if not schema_class:
+            raise ValueError(f"Schema {profile.pydantic_schema_name} não encontrado no sistema.")
+            
+        # 2. Chama o Motor Universal de IA (OpenAI / Groq / Gemini)
+        extracted_json = extract_fields_from_text(
+            text=email_obj.body_text,
+            schema=schema_class,
+            prompt_template=profile.system_prompt_template,
+            provider=profile.ai_provider
+        )
+        
+        if not extracted_json:
+            logger.error(f"❌ [Workflow {workflow.name}] A IA falhou a extrair os dados (Erro de Schema/Timeout).")
+            return
+            
+        logger.info(f"✅ [Workflow {workflow.name}] IA extraiu o JSON com sucesso! A enviar para a Ação...")
+        
+        # 3. Marca o e-mail como processado
+        email_obj.is_dispatched = True
+        email_obj.save(update_fields=['is_dispatched'])
+        
+
+        execute_workflow_pipeline(workflow_id=workflow.id, payload=extracted_json)
+
+    except EmailMessage.DoesNotExist:
+        logger.error(f"E-mail {email_id} não encontrado.")
+    except Exception as e:
+        logger.exception(f"Erro crítico no processamento de IA do e-mail {email_id}: {e}")
 
 
 # =====================================================================
@@ -204,8 +245,8 @@ def execute_workflow_pipeline(workflow_id, payload):
     # Criamos o registo inicial da execução (Pendente)
     exec_log = ExecutionLog.objects.create(
         workflow=workflow,
-        status='PROCESSING',
-        payload_received=payload
+        status='PENDING_REVIEW', # Status válido na nossa model
+        trigger_payload=payload  # <-- O NOME CORRETO DO CAMPO!
     )
 
     try:
@@ -271,7 +312,10 @@ def execute_workflow_pipeline(workflow_id, payload):
         exec_log.save()
         
     except Exception as e:
-        # Falha interna nossa (ex: template mal formatado, variável faltando)
-        exec_log.status = 'ERROR'
+            
+        exec_log.status = 'FAILED' 
         exec_log.error_message = f"Erro interno do Cadrius: {str(e)}"
         exec_log.save()
+
+
+

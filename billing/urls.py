@@ -1,6 +1,10 @@
 from django.urls import path
-from .views import stripe_webhook
+from .views import CreateCheckoutSessionView, StripeWebhookView
 
 urlpatterns = [
-    path('webhooks/stripe/', stripe_webhook, name='stripe-webhook'),
+    # Front-end usa esta:
+    path('checkout/', CreateCheckoutSessionView.as_view(), name='stripe-checkout'),
+    
+    # O Stripe (robô) usa esta:
+    path('webhook/', StripeWebhookView.as_view(), name='stripe-webhook'),
 ]
