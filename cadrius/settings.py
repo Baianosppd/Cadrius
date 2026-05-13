@@ -13,6 +13,8 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, ['localhost', '127.0.0.1']),
     CORS_ALLOWED_ORIGINS=(list, ["http://localhost:3000"]),
     IMAP_PORT=(int, 993),
+    # Corpo máx. (JSON / multipart) alinhado com Traefik buffering (~2MB); evita payloads enormes.
+    DATA_UPLOAD_MAX_MEMORY_BYTES=(int, 2 * 1024 * 1024),
 )
 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
@@ -30,6 +32,8 @@ if SENTRY_DSN:
 # --- 3. CORE SETTINGS E SEGURANÇA BÁSICA ---
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-prod')
 DEBUG = env('DEBUG')
+DATA_UPLOAD_MAX_MEMORY_SIZE = env('DATA_UPLOAD_MAX_MEMORY_BYTES')
+FILE_UPLOAD_MAX_MEMORY_SIZE = env('DATA_UPLOAD_MAX_MEMORY_BYTES')
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok.io', 'nonvinous-debbie-unrelated.ngrok-free.dev','cadrius.local']
 
 CSRF_TRUSTED_ORIGINS = [
@@ -184,6 +188,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Throttling por scope (ScopedRateThrottle / SimpleRateThrottle com ``scope``).
+    'DEFAULT_THROTTLE_RATES': {
+        'webhook': '200/min',
+        'webhook_catch': '60/min',
+    },
 }
 
 SIMPLE_JWT = {

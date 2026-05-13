@@ -5,7 +5,12 @@ import json
 import logging
 
 from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -13,6 +18,7 @@ from rest_framework.views import APIView
 
 from .models import Trigger
 from .tasks import execute_workflow_pipeline
+from .throttles import WebhookCatchRateThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +58,7 @@ def extract_webhook_request_body(request):
 
 
 @api_view(["POST"])
+@throttle_classes([WebhookCatchRateThrottle])
 @authentication_classes([])
 @permission_classes([AllowAny])
 def catch_webhook_event(request, token):
@@ -62,6 +69,8 @@ def catch_webhook_event(request, token):
     Cria o ``ExecutionLog`` (via ``execute_workflow_pipeline``: quota + ``PENDING`` + payload),
     enfileira ``process_workflow_execution`` (runner CAD-001) e responde **202** com
     ``{"status": "accepted", "log_id": …}``.
+
+    Rate limit DRF (``webhook_catch``): mitiga abuso se o URL com token vazar.
     """
     try:
         trigger = Trigger.objects.select_related("workflow__organization").get(
