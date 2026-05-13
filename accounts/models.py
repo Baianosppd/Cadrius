@@ -37,6 +37,19 @@ class CustomUser(AbstractUser):
     # NOTA: Removemos o ForeignKey direto para a Organization daqui.
     # O vínculo agora é feito pela tabela OrganizationMembership abaixo.
 
+    @property
+    def organization(self):
+        """
+        Escritório ativo associado ao utilizador (primeira membership ativa).
+        Alinha ``request.user.organization`` com o modelo multi-tenant real.
+        """
+        membership = (
+            self.memberships.filter(is_active=True)
+            .select_related("organization")
+            .first()
+        )
+        return membership.organization if membership else None
+
     def __str__(self):
         return self.email or self.username
 
