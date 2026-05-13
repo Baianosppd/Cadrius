@@ -1,51 +1,110 @@
-from rest_framework import viewsets, status
-from rest_framework.views import APIView
+import logging
+
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+
 from .models import Workflow
 from .serializers import WorkflowSerializer
+from .services import generate_workflow_from_prompt
+
+logger = logging.getLogger(__name__)
+
 
 class WorkflowViewSet(viewsets.ModelViewSet):
     """
-    CRUD completo para o Front-end gerenciar as automações.
+    CRUD para automações + ações auxiliares (ex.: geração assistida por IA).
     """
-    queryset = Workflow.objects.all().order_by('-created_at')
+
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Workflow.objects.all().order_by("-created_at")
     serializer_class = WorkflowSerializer
 
+    @action(detail=False, methods=["post"], url_path="generate-from-prompt")
+    def generate_from_prompt(self, request):
+        """
+        POST /automations/generate-from-prompt/
+        Body: {"prompt": "<string não vazia>"}
+        Devolve JSON alinhado com WorkflowGenerationSchema (ainda não persiste na BD).
+        Se a IA não conseguir extrair/gerar um JSON válido, responde **422** para o front
+        pedir ao utilizador que reescreva o pedido.
+        """
+        if "prompt" not in request.data:
+            return Response(
+                {"detail": 'O corpo JSON deve incluir o campo "prompt".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-from django.http import HttpResponse
-# ... (mantenha os outros importes que já existem) ...
+        prompt = request.data.get("prompt")
+        if not isinstance(prompt, str):
+            return Response(
+                {"detail": 'O campo "prompt" tem de ser uma string.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        prompt_clean = prompt.strip()
+        if not prompt_clean:
+            return Response(
+                {"detail": 'O campo "prompt" não pode ser vazio nem só espaços.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = generate_workflow_from_prompt(prompt_clean)
+        if data is None:
+            return Response(
+                {
+                    "detail": (
+                        "Não conseguimos gerar o workflow a partir deste pedido. "
+                        "Reescreva o texto com mais detalhe (ex.: que evento dispara o fluxo, "
+                        "que ações quer e para onde enviar dados) e tente outra vez."
+                    ),
+                    "code": "workflow_generation_failed",
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class GenerateWorkflowView(APIView):
+    """
+    POST /api/workflows/generate/
+    Mesmo contrato que POST .../automations/generate-from-prompt/ (corpo JSON com "prompt").
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        return WorkflowViewSet().generate_from_prompt(request)
+
 
 class WebhookReceiverView(APIView):
     """
-    Gateway Universal: Recebe disparos da Evolution API (WhatsApp).
+    Gateway: recebe disparos da Evolution API (WhatsApp).
     """
+
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'webhook'
+    throttle_scope = "webhook"
 
     def post(self, request, connection_id):
         payload = request.data
-        
-        # A Evolution envia o tipo de evento no campo 'event'
-        evento = payload.get('event')
-        
-        # Filtramos para logar apenas quando uma MENSAGEM chegar
-        if evento == 'messages.upsert':
-            dados_mensagem = payload.get('data', {})
-            
-            # Pega o número do remente e o texto (pode vir de vários campos dependendo se for texto puro ou resposta)
-            numero_remetente = dados_mensagem.get('key', {}).get('remoteJid')
-            
-            # Tenta pegar a mensagem de texto simples
-            mensagem = dados_mensagem.get('message', {})
-            texto = mensagem.get('conversation') or mensagem.get('extendedTextMessage', {}).get('text')
-            
+
+        evento = payload.get("event")
+
+        if evento == "messages.upsert":
+            dados_mensagem = payload.get("data", {})
+            numero_remetente = dados_mensagem.get("key", {}).get("remoteJid")
+            mensagem = dados_mensagem.get("message", {})
+            texto = mensagem.get("conversation") or mensagem.get(
+                "extendedTextMessage", {}
+            ).get("text")
+
             if numero_remetente and texto:
-                print("\n=======================================")
-                print(f" [WhatsApp Cadrius] Nova Mensagem!")
-                print(f" Conexão ID: {connection_id}")
-                print(f" De: {numero_remetente}")
-                print(f" Texto: {texto}")
-                print("=======================================\n")
+                logger.info(
+                    "[WhatsApp Cadrius] connection=%s de=%s",
+                    connection_id,
+                    numero_remetente,
+                )
 
         return Response({"status": "sucesso"}, status=status.HTTP_202_ACCEPTED)
