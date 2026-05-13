@@ -5,8 +5,11 @@ import os
 
 from django.conf import settings
 
-from extraction.ai_wrapper import extract_fields_from_text
+from accounts.models import Organization
 
+from extraction.ai_wrapper import check_and_update_quota, extract_fields_from_text
+
+from .exceptions import WorkflowGenerationQuotaExceeded
 from .prompts import CADRIUS_DOMAIN_CONTEXT_TEMPLATE
 from .schemas import WorkflowGenerationSchema
 
@@ -14,6 +17,7 @@ __all__ = [
     "extract_fields_from_text",
     "CADRIUS_DOMAIN_CONTEXT_TEMPLATE",
     "generate_workflow_from_prompt",
+    "WorkflowGenerationQuotaExceeded",
 ]
 
 
@@ -34,12 +38,19 @@ def _workflow_ai_provider() -> str:
     return "GROQ"
 
 
-def generate_workflow_from_prompt(user_prompt: str) -> dict | None:
+def generate_workflow_from_prompt(user_prompt: str, organization: Organization) -> dict | None:
     """
     Chama a IA para gerar um objeto compatível com ``WorkflowGenerationSchema`` a partir
     de linguagem natural. Usa ``extract_fields_from_text`` (validação Pydantic) e o
     provedor definido em ``_workflow_ai_provider()`` (Groq/Gemini/OpenAI conforme chaves).
+
+    Antes de qualquer chamada ao LLM, usa ``check_and_update_quota(organization)`` para
+    respeitar o limite mensal de extrações/IA do plano do escritório.
     """
+    ok, quota_message = check_and_update_quota(organization)
+    if not ok:
+        raise WorkflowGenerationQuotaExceeded(quota_message)
+
     prompt_template = (
         f"{CADRIUS_DOMAIN_CONTEXT_TEMPLATE}\n\n"
         "## Objetivo\n"

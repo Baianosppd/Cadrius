@@ -1,11 +1,15 @@
 import logging
 
-from rest_framework import permissions, status, viewsets
+from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from accounts.models import Organization
+
+from .exceptions import WorkflowGenerationQuotaExceeded
 from .models import Workflow
 from .serializers import WorkflowSerializer
 from .services import generate_workflow_from_prompt
@@ -18,7 +22,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     CRUD para automações + ações auxiliares (ex.: geração assistida por IA).
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     queryset = Workflow.objects.all().order_by("-created_at")
     serializer_class = WorkflowSerializer
 
@@ -26,10 +30,13 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     def generate_from_prompt(self, request):
         """
         POST /automations/generate-from-prompt/
+        Requer autenticação: IsAuthenticated (JWT em Authorization: Bearer …).
         Body: {"prompt": "<string não vazia>"}
         Devolve JSON alinhado com WorkflowGenerationSchema (ainda não persiste na BD).
         Se a IA não conseguir extrair/gerar um JSON válido, responde **422** para o front
         pedir ao utilizador que reescreva o pedido.
+        Se o escritório não tiver vínculo ativo ou exceder o limite de IA do plano, **403**
+        com ``code`` ``no_organization`` ou ``quota_exceeded``.
         """
         if "prompt" not in request.data:
             return Response(
@@ -51,7 +58,29 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        data = generate_workflow_from_prompt(prompt_clean)
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return Response(
+                {
+                    "detail": (
+                        "Não há um escritório ativo associado à sua conta. "
+                        "Peça acesso a um escritório para usar a geração de fluxos por IA."
+                    ),
+                    "code": "no_organization",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        organization = Organization.objects.select_related("plan").get(pk=tenant.pk)
+
+        try:
+            data = generate_workflow_from_prompt(prompt_clean, organization)
+        except WorkflowGenerationQuotaExceeded as exc:
+            return Response(
+                {"detail": exc.detail, "code": "quota_exceeded"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if data is None:
             return Response(
                 {
@@ -70,10 +99,11 @@ class WorkflowViewSet(viewsets.ModelViewSet):
 class GenerateWorkflowView(APIView):
     """
     POST /api/workflows/generate/
+    Requer autenticação: IsAuthenticated (JWT em Authorization: Bearer …).
     Mesmo contrato que POST .../automations/generate-from-prompt/ (corpo JSON com "prompt").
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         return WorkflowViewSet().generate_from_prompt(request)
