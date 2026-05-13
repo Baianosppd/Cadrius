@@ -221,6 +221,13 @@ Q_CLUSTER = {
     'workers': 4,
     'recycle': 500,
     'timeout': 60,
+    # Segundos que o broker espera antes de voltar a entregar a task (Redis com receipts).
+    # Tem de ser > timeout para evitar reexecuções em cima de tasks ainda a correr.
+    'retry': 120,
+    # max_attempts: reentregas ao nível do broker/worker (task inteira; exceção não apanhada, timeout).
+    # As 3 tentativas antes de FAILED no ExecutionLog (chamadas HTTP) estão em workflows.tasks
+    # (_WORKFLOW_EXTERNAL_MAX_ATTEMPTS).
+    'max_attempts': 3,
     'compress': True,
     'save_limit': 250,
     'queue_limit': 500,

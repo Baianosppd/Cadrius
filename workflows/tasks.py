@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import time
+import traceback
 
 import requests
 from django_q.tasks import async_task
@@ -13,6 +14,24 @@ from integrations.webhook_executor import WebhookExecutor
 from workflows.models import Action, ExecutionLog, Workflow
 
 logger = logging.getLogger(__name__)
+
+# Tentativas para chamadas HTTP externas (webhook / Evolution) antes de gravar FAILED no log.
+_WORKFLOW_EXTERNAL_MAX_ATTEMPTS = 3
+# Pausa em segundos entre tentativas (após 1.ª e 2.ª falha).
+_WORKFLOW_RETRY_BACKOFF_SEC = (1.0, 2.0)
+
+# Limite para error_message (TextField); traceback completo pode ser enorme.
+_MAX_ERROR_MESSAGE_LEN = 8000
+
+
+def _failure_log_message(prefix: str, exc: BaseException) -> str:
+    """Mensagem para o campo error_message: prefixo + traceback resumido (truncado)."""
+    tb = traceback.format_exc()
+    body = f"{prefix}\n\n{type(exc).__name__}: {exc}\n\n--- Traceback ---\n{tb}"
+    if len(body) > _MAX_ERROR_MESSAGE_LEN:
+        return body[: _MAX_ERROR_MESSAGE_LEN - 30] + "\n...[mensagem truncada]"
+    return body
+
 
 # Marcadores {{ ... }} ainda presentes após o render = chave não existiu no gatilho.
 _TEMPLATE_VAR_PATTERN = re.compile(r"\{\{\s*(.*?)\s*\}\}", re.DOTALL)
@@ -191,24 +210,59 @@ def process_workflow_execution(execution_log_id):
             raise ValueError("Workflow sem ações configuradas.")
 
         final_data = parse_action_template_to_dict(action.payload_template, trigger_data)
-        exec_log.final_result = _dispatch_action_execution(action, workflow, final_data)
+
+        for attempt in range(1, _WORKFLOW_EXTERNAL_MAX_ATTEMPTS + 1):
+            try:
+                exec_log.final_result = _dispatch_action_execution(
+                    action, workflow, final_data
+                )
+                break
+            except requests.exceptions.RequestException as exc:
+                if attempt >= _WORKFLOW_EXTERNAL_MAX_ATTEMPTS:
+                    raise
+                wait_s = _WORKFLOW_RETRY_BACKOFF_SEC[
+                    min(attempt - 1, len(_WORKFLOW_RETRY_BACKOFF_SEC) - 1)
+                ]
+                logger.warning(
+                    "ExecutionLog %s: tentativa %s/%s falhou (%s). "
+                    "Nova tentativa em %.1fs.",
+                    execution_log_id,
+                    attempt,
+                    _WORKFLOW_EXTERNAL_MAX_ATTEMPTS,
+                    exc,
+                    wait_s,
+                )
+                time.sleep(wait_s)
 
         exec_log.status = "SUCCESS"
         exec_log.execution_time_ms = elapsed_ms()
-        exec_log.save()
+        exec_log.save(
+            update_fields=["status", "final_result", "execution_time_ms"]
+        )
 
     except requests.exceptions.RequestException as e:
         exec_log.status = "FAILED"
-        exec_log.error_message = f"Erro na requisição externa: {str(e)}"
+        exec_log.error_message = _failure_log_message(
+            f"Erro na requisição HTTP externa após {_WORKFLOW_EXTERNAL_MAX_ATTEMPTS} tentativas "
+            "(ex.: API indisponível ou resposta inválida).",
+            e,
+        )
         exec_log.execution_time_ms = elapsed_ms()
-        exec_log.save()
+        exec_log.save(
+            update_fields=["status", "error_message", "execution_time_ms"]
+        )
 
     except Exception as e:
         logger.exception("Erro no process_workflow_execution (log=%s)", execution_log_id)
         exec_log.status = "FAILED"
-        exec_log.error_message = f"Erro interno do Cadrius: {str(e)}"
+        exec_log.error_message = _failure_log_message(
+            "Erro interno ao processar a execução do workflow.",
+            e,
+        )
         exec_log.execution_time_ms = elapsed_ms()
-        exec_log.save()
+        exec_log.save(
+            update_fields=["status", "error_message", "execution_time_ms"]
+        )
 
 
 @check_quota_limit
