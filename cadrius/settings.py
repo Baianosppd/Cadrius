@@ -243,6 +243,8 @@ Q_CLUSTER = {
 
 OPENAI_API_KEY = env('OPENAI_API_KEY', default=None)
 OPENAI_MODEL = env('OPENAI_MODEL', default='gpt-3.5-turbo')
+# GROQ | GEMINI | OPENAI — força o provedor em generate_workflow_from_prompt; None = auto (chaves no .env).
+WORKFLOW_AI_PROVIDER = env('WORKFLOW_AI_PROVIDER', default=None)
 
 TRELLO_API_KEY = env('TRELLO_API_KEY', default=None)
 TRELLO_API_TOKEN = env('TRELLO_API_TOKEN', default=None)
