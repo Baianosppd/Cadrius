@@ -1,0 +1,31 @@
+name: Deploy Automático Locaweb
+
+on:
+  push:
+    branches:
+      - main  # Se a sua branch principal chamar 'master', troque aqui.
+
+jobs:
+  deploy:
+    name: Deploy para Produção
+    runs-now: ubuntu-latest
+
+    steps:
+      - name: Executando Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LOCAWEB_HOST }}
+          username: ${{ secrets.LOCAWEB_USER }}
+          key: ${{ secrets.LOCAWEB_SSH_KEY }}
+          script: |
+            # Entra na pasta do projeto
+            cd /opt/cadrius
+            
+            # Limpa qualquer alteração manual esquecida no servidor
+            git stash
+            
+            # Puxa o código mais recente do GitHub
+            git pull origin main
+            
+            # Reconstrói as imagens e sobe os serviços sem derrubar o que está rodando (Zero-downtime base)
+            sudo docker compose up -d --build
