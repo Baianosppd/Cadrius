@@ -1,44 +1,52 @@
-import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from webhooks.models import WebhookTrigger
-from django_q.tasks import async_task 
+import logging
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django_q.tasks import async_task # Resgatámos a tua importação assíncrona!
 
-@csrf_exempt  
-@require_POST 
-def dynamic_webhook_receiver(request, identifier):
+from integrations.models import AppConnection
+from workflows.models import Trigger
+
+logger = logging.getLogger(__name__)
+
+class WebhookReceiverView(APIView):
     """
-    Endpoint que recebe os payloads de fora: /api/webhooks/<identifier>/
+    Endpoint Gateway: Recebe POSTs externos e injeta no motor de hiperautomação assincronamente.
     """
-    # 1. Validar se é um JSON válido
-    try:
-        payload = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Payload JSON inválido. O Cadrius apenas aceita JSON."}, status=400)
+    authentication_classes = [] # Aberto à internet (robôs não fazem login)
+    permission_classes = []     # A segurança é feita pelo UUID da URL
 
-    # 2. Buscar o Trigger usando select_related para otimizar a consulta no banco
-    try:
-        trigger = WebhookTrigger.objects.select_related('workflow__organization').get(identifier=identifier)
-    except WebhookTrigger.DoesNotExist:
-        return JsonResponse({"error": "Webhook não encontrado ou identificador inválido."}, status=404)
+    def post(self, request, connection_id):
+        try:
+            # 1. Valida se a porta (UUID) pertence a um cliente real do nosso SaaS
+            connection = AppConnection.objects.get(id=connection_id)
 
-    workflow = trigger.workflow
-    organization = workflow.organization
+            # 2. Descobre que gatilhos (Triggers) estão ligados a esta porta
+            triggers = Trigger.objects.filter(connection=connection)
 
-    # 3. Validar estado do Workflow e da Organização (Freio B2B)
-    if not workflow.is_active:
-        return JsonResponse({"error": "Este workflow está desativado no painel."}, status=400)
-        
-    if not organization.is_active:
-        return JsonResponse({"error": "A organização associada está suspensa ou inadimplente."}, status=403)
+            if not triggers.exists():
+                return Response({"message": "Recebido, mas não há automações ligadas."}, status=status.HTTP_200_OK)
 
-    # 4. Preparar dados para envio à fila de execução (Django-Q)
- 
-    async_task('tasks.tasks.execute_workflow_pipeline', workflow.id, payload)
+            # 3. Captura o payload (JSON) cru que o sistema externo enviou
+            payload = request.data
+            logger.info(f"📥 [Webhook] Dados recebidos na conexão {connection_id}.")
 
-    # 5. Responder rápido (Non-blocking) para não dar Timeout na API externa
-    return JsonResponse({
-        "message": "Webhook recebido com sucesso e enfileirado para processamento.",
-        "workflow_id": workflow.id
-    }, status=202)
+            # 4. Injeta os dados na FILA ASSÍNCRONA (Músculos do Django-Q)
+            for trigger in triggers:
+                workflow = trigger.workflow
+                
+                # Validação de Segurança (Freio B2B que tinhas feito muito bem!)
+                if workflow.is_active and workflow.organization.is_active:
+                    # 🚀 Lançamos para a fila em vez de congelar a resposta
+                    async_task('tasks.tasks.execute_workflow_pipeline', workflow.id, payload)
+                    logger.info(f"⚡ [Webhook] Workflow {workflow.id} enfileirado com sucesso.")
+
+            # 5. Responde em milissegundos (HTTP 202 Accepted) para evitar Timeouts
+            return Response({"status": "success", "message": "Orquestração enfileirada!"}, status=status.HTTP_202_ACCEPTED)
+
+        except AppConnection.DoesNotExist:
+            logger.warning(f"⚠️ Tentativa de Webhook fantasma. ID: {connection_id}")
+            return Response({"error": "Gateway não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"❌ Erro crítico no Webhook: {e}")
+            return Response({"error": "Falha no motor de processamento."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

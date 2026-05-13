@@ -30,7 +30,7 @@ def check_quota_limit(func):
                     workflow=workflow,
                     status='QUOTA_EXCEEDED',
                     error_message='O limite de execuções mensais do plano foi atingido.',
-                    payload_received=payload
+                    trigger_payload=payload
                 )
                 return False  # Aborta a execução silenciosamente
 
