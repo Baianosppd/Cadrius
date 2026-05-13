@@ -84,6 +84,7 @@ class ExecutionLog(models.Model):
     ESSENCIAL para os Dashboards de ROI e para o modelo de ML futuro.
     """
     STATUS_CHOICES = (
+        ('PENDING', 'Pendente'),
         ('SUCCESS', 'Sucesso'),
         ('FAILED', 'Falha'),
         ('PENDING_REVIEW', 'Aguardando Revisão Humana'), # Para a funcionalidade de "Self-Healing/Aprovação"
