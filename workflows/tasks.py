@@ -13,18 +13,36 @@ from workflows.models import Action, ExecutionLog, Workflow
 
 logger = logging.getLogger(__name__)
 
+# Marcadores {{ ... }} ainda presentes após o render = chave não existiu no gatilho.
+_TEMPLATE_VAR_PATTERN = re.compile(r"\{\{\s*(.*?)\s*\}\}", re.DOTALL)
 
-def parse_dynamic_variables(template_str, payload):
+
+def _list_unresolved_template_vars(rendered: str) -> list[str]:
+    """Nomes (ou caminhos a.b) de variáveis que continuam por substituir no texto rendido."""
+    if not rendered:
+        return []
+    found = []
+    for m in _TEMPLATE_VAR_PATTERN.finditer(rendered):
+        inner = (m.group(1) or "").strip()
+        if inner:
+            found.append(inner)
+    return found
+
+
+def render_action_payload(template_str, trigger_data):
     """
-    Procura por padrões {{chave}} no template e substitui pelo valor do JSON original.
-    Suporta aninhamento. Ex: {{cliente.nome}}
+    Monta o corpo da ação: substitui marcadores {{chave}} (e {{obj.campo}}) pelos valores
+    em trigger_data (JSON do webhook, e-mail processado, etc.). Se a chave não existir,
+    mantém o marcador original.
     """
     if not template_str:
         return ""
 
+    data = trigger_data if trigger_data is not None else {}
+
     def replacer(match):
         keys = match.group(1).strip().split(".")
-        value = payload
+        value = data
         try:
             for key in keys:
                 value = value[key]
@@ -33,6 +51,72 @@ def parse_dynamic_variables(template_str, payload):
             return match.group(0)
 
     return re.sub(r"\{\{(.*?)\}\}", replacer, template_str)
+
+
+def extract_trigger_payload(exec_log: ExecutionLog) -> dict:
+    """
+    Lê o JSON guardado em trigger_payload no momento do disparo e devolve um dicionário
+    para substituição no template. None vazio; string tenta json.loads; outros tipos
+    ficam em {"_value": ...} para não quebrar o fluxo.
+    """
+    raw = exec_log.trigger_payload
+    if raw is None:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return {"_raw": raw}
+        return parsed if isinstance(parsed, dict) else {"_value": parsed}
+    return {"_value": raw}
+
+
+def parse_action_template_to_dict(template_str: str, trigger_data: dict) -> dict:
+    """
+    Renderiza o template e faz parse seguro com json.loads (sem eval nem pickle).
+    Garante que o resultado final é um dicionário Python (objeto JSON na raiz).
+
+    Levanta ValueError de forma explícita se faltarem variáveis no gatilho (marcadores
+    {{...}} por substituir) ou se o JSON final for inválido.
+    """
+    try:
+        rendered = render_action_payload(template_str, trigger_data)
+        stripped = (rendered or "").strip()
+        if not stripped:
+            return dict(trigger_data) if isinstance(trigger_data, dict) else {}
+
+        missing = _list_unresolved_template_vars(rendered)
+        if missing:
+            raise ValueError(
+                "O template da ação exige campos que não vieram no gatilho (ou estão mal "
+                "escritos no template): "
+                + ", ".join(missing)
+            )
+
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                "O texto após substituir as variáveis não é JSON válido. "
+                "Confirme o payload_template e os dados do gatilho."
+            ) from exc
+
+        if not isinstance(parsed, dict):
+            raise ValueError(
+                "O JSON da ação tem de ser um objeto na raiz (ex.: {\"number\": \"...\"}), "
+                "não uma lista nem um valor simples entre aspas."
+            )
+        return parsed
+
+    except ValueError:
+        raise
+    except Exception as exc:
+        logger.exception("Falha ao interpretar template da ação")
+        raise ValueError(
+            "Erro inesperado ao montar o payload da ação a partir do template e do gatilho."
+        ) from exc
 
 
 def _action_headers(action: Action) -> dict:
@@ -63,7 +147,7 @@ def process_workflow_execution(execution_log_id):
         return
 
     workflow = exec_log.workflow
-    payload = exec_log.trigger_payload if exec_log.trigger_payload is not None else {}
+    trigger_data = extract_trigger_payload(exec_log)
 
     if not workflow.is_active:
         exec_log.status = "FAILED"
@@ -84,12 +168,7 @@ def process_workflow_execution(execution_log_id):
         if not action:
             raise ValueError("Workflow sem ações configuradas.")
 
-        final_payload_str = parse_dynamic_variables(action.payload_template, payload)
-
-        try:
-            final_data = json.loads(final_payload_str) if final_payload_str else payload
-        except json.JSONDecodeError:
-            final_data = final_payload_str
+        final_data = parse_action_template_to_dict(action.payload_template, trigger_data)
 
         if action.action_type == "WHATSAPP_EVOLUTION":
             if isinstance(final_data, dict) and "number" in final_data and "text" in final_data:
@@ -111,8 +190,7 @@ def process_workflow_execution(execution_log_id):
             response = requests.request(
                 method=action.method.upper() if action.method else "POST",
                 url=action.endpoint_url,
-                json=final_data if isinstance(final_data, dict) else None,
-                data=final_data if not isinstance(final_data, dict) else None,
+                json=final_data,
                 headers=_action_headers(action),
                 timeout=15,
             )
