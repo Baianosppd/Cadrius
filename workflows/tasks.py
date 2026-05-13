@@ -8,7 +8,8 @@ import requests
 from django_q.tasks import async_task
 
 from billing.decorators import check_quota_limit
-from integrations.evolution import send_whatsapp_message
+from integrations.evolution import WhatsAppEvolutionExecutor
+from integrations.webhook_executor import WebhookExecutor
 from workflows.models import Action, ExecutionLog, Workflow
 
 logger = logging.getLogger(__name__)
@@ -119,12 +120,33 @@ def parse_action_template_to_dict(template_str: str, trigger_data: dict) -> dict
         ) from exc
 
 
-def _action_headers(action: Action) -> dict:
-    if not action.headers:
-        return {}
-    if isinstance(action.headers, dict):
-        return dict(action.headers)
-    return json.loads(action.headers)
+def _dispatch_action_execution(action: Action, workflow: Workflow, final_data: dict) -> dict:
+    """
+    Roteador por action_type: instancia o executor certo e devolve o conteúdo para final_result.
+    """
+    at = (action.action_type or "").strip()
+
+    match at:
+        case "WHATSAPP_EVOLUTION":
+            instance_name = f"instancia_org_{workflow.organization.id}"
+            executor = WhatsAppEvolutionExecutor()
+            resp_data = executor.send(instance_name, final_data)
+            return resp_data if isinstance(resp_data, dict) else {"response": resp_data}
+
+        case "WEBHOOK" | "":
+            executor = WebhookExecutor(action)
+            response = executor.execute(final_data)
+            response.raise_for_status()
+            return {
+                "status_code": response.status_code,
+                "body": (response.text or "")[:10000],
+            }
+
+        case "EMAIL_SMTP":
+            raise ValueError("Tipo de ação EMAIL_SMTP ainda não implementado no runner.")
+
+        case _:
+            raise ValueError(f"Tipo de Action '{action.action_type}' não suportada.")
 
 
 def process_workflow_execution(execution_log_id):
@@ -169,42 +191,7 @@ def process_workflow_execution(execution_log_id):
             raise ValueError("Workflow sem ações configuradas.")
 
         final_data = parse_action_template_to_dict(action.payload_template, trigger_data)
-
-        if action.action_type == "WHATSAPP_EVOLUTION":
-            if isinstance(final_data, dict) and "number" in final_data and "text" in final_data:
-                instance_name = f"instancia_org_{workflow.organization.id}"
-                resp_data = send_whatsapp_message(
-                    instance_name=instance_name,
-                    number=final_data["number"],
-                    message_text=final_data["text"],
-                )
-                exec_log.final_result = (
-                    resp_data if isinstance(resp_data, dict) else {"response": resp_data}
-                )
-            else:
-                raise ValueError(
-                    "Payload template para WhatsApp inválido. O JSON deve conter 'number' e 'text'."
-                )
-
-        elif action.action_type in ("WEBHOOK", ""):
-            response = requests.request(
-                method=action.method.upper() if action.method else "POST",
-                url=action.endpoint_url,
-                json=final_data,
-                headers=_action_headers(action),
-                timeout=15,
-            )
-            response.raise_for_status()
-            exec_log.final_result = {
-                "status_code": response.status_code,
-                "body": (response.text or "")[:10000],
-            }
-
-        elif action.action_type == "EMAIL_SMTP":
-            raise ValueError("Tipo de ação EMAIL_SMTP ainda não implementado no runner.")
-
-        else:
-            raise ValueError(f"Tipo de Action '{action.action_type}' não suportada.")
+        exec_log.final_result = _dispatch_action_execution(action, workflow, final_data)
 
         exec_log.status = "SUCCESS"
         exec_log.execution_time_ms = elapsed_ms()
