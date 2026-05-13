@@ -4,7 +4,8 @@ from .models import Workflow, Trigger, Action
 class TriggerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trigger
-        fields = ['id', 'connection', 'event_type', 'payload_mapping']
+        fields = ["id", "connection", "event_type", "payload_mapping", "webhook_token"]
+        read_only_fields = ["webhook_token"]
 
 class ActionSerializer(serializers.ModelSerializer):
     class Meta:

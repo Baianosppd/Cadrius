@@ -1,5 +1,4 @@
-from django.db import models
-from django.conf import settings
+import uuid
 
 from django.db import models
 from integrations.models import AppConnection
@@ -23,12 +22,36 @@ class Trigger(models.Model):
     O Gatilho: O que faz a automação iniciar.
     Ex: event_type = 'message_received'
     """
+
+    # Valor de ``event_type`` para o qual se gera automaticamente ``webhook_token`` na criação.
+    WEBHOOK_EXTERNAL_EVENT_TYPE = "Webhook Externo"
+
     workflow = models.OneToOneField(Workflow, on_delete=models.CASCADE, related_name='trigger')
     connection = models.ForeignKey(AppConnection, on_delete=models.CASCADE, related_name='triggers')
     event_type = models.CharField(max_length=100)
     
     # Guarda como o sistema deve interpretar os dados que chegam
-    payload_mapping = models.JSONField(default=dict, blank=True) 
+    payload_mapping = models.JSONField(default=dict, blank=True)
+
+    webhook_token = models.UUIDField(
+        editable=False,
+        unique=True,
+        null=True,
+        blank=True,
+    )
+
+    def save(self, *args, **kwargs):
+        if self.webhook_token is None and self._is_webhook_external_event():
+            self.webhook_token = uuid.uuid4()
+        super().save(*args, **kwargs)
+
+    def _is_webhook_external_event(self) -> bool:
+        if not self.event_type:
+            return False
+        return (
+            self.event_type.strip().casefold()
+            == self.WEBHOOK_EXTERNAL_EVENT_TYPE.casefold()
+        )
 
     def __str__(self):
         return f"Trigger: {self.event_type} on {self.connection.name}"
