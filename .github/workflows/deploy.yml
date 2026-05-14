@@ -42,8 +42,9 @@ jobs:
           DEBUG: 'True'
           DJANGO_SECRET_KEY: 'chave-de-teste-insegura'
           DATABASE_URL: 'postgres://postgres:password123@localhost:5432/cadrius_test'
-          # Chave mockada para permitir que o teste_ai.py passe sem barrar a pipeline
           OPENAI_API_KEY: 'sk-chave-falsa-para-passar-no-teste-123'
+          GROQ_API_KEY: 'gsk_chave_falsa_para_teste_123'
+          GEMINI_API_KEY: 'gemini_chave_falsa_para_teste_123'
         run: |
           python manage.py migrate
           python manage.py test  # Aqui o Django roda os testes automatizados
