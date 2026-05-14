@@ -22,8 +22,9 @@ jobs:
           node-version: '20'
 
       - name: Instalar Dependências e Testar
+
+        working-directory: ./
         run: |
-          cd Cadrius---Front-end
           npm install
           npm run lint --if-present  # Roda o verificador de código se existir
           npm run build              # Tenta fazer o build para garantir que não há erros fatais
@@ -54,17 +55,18 @@ jobs:
           python-version: '3.10'
 
       - name: Instalar Dependências
+
+        working-directory: ./
         run: |
-          cd Cadrius
           pip install -r requirements.txt
 
       - name: Rodar Migrações e Testes
+        working-directory: ./
         env:
           DEBUG: 'True'
           DJANGO_SECRET_KEY: 'chave-de-teste-insegura'
           DATABASE_URL: 'postgres://postgres:password123@localhost:5432/cadrius_test'
         run: |
-          cd Cadrius
           python manage.py migrate
           python manage.py test  # Aqui o Django roda os testes automatizados
 
