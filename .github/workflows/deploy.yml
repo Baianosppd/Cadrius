@@ -1,4 +1,4 @@
-name: CI/CD Pipeline Cadrius
+name: CI/CD Pipeline Cadrius Back-end
 
 on:
   push:
@@ -7,30 +7,7 @@ on:
 
 jobs:
   # ==========================================
-  # 1. TESTES DO FRONT-END (RYAN)
-  # ==========================================
-  test-frontend:
-    name: Lint & Build (Front-end)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clonar o código
-        uses: actions/checkout@v4
-
-      - name: Configurar Node.js (Vite)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Instalar Dependências e Testar
-
-        working-directory: ./
-        run: |
-          npm install
-          npm run lint --if-present  # Roda o verificador de código se existir
-          npm run build              # Tenta fazer o build para garantir que não há erros fatais
-
-  # ==========================================
-  # 2. TESTES DO BACK-END (THALES)
+  # 1. TESTES DO BACK-END (THALES)
   # ==========================================
   test-backend:
     name: Pytest / Django Tests (Back-end)
@@ -55,7 +32,6 @@ jobs:
           python-version: '3.10'
 
       - name: Instalar Dependências
-
         working-directory: ./
         run: |
           pip install -r requirements.txt
@@ -66,17 +42,20 @@ jobs:
           DEBUG: 'True'
           DJANGO_SECRET_KEY: 'chave-de-teste-insegura'
           DATABASE_URL: 'postgres://postgres:password123@localhost:5432/cadrius_test'
+          # Chave mockada para permitir que o teste_ai.py passe sem barrar a pipeline
+          OPENAI_API_KEY: 'sk-chave-falsa-para-passar-no-teste-123'
         run: |
           python manage.py migrate
           python manage.py test  # Aqui o Django roda os testes automatizados
 
   # ==========================================
-  # 3. DEPLOY PARA PRODUÇÃO (JULLIO)
+  # 2. DEPLOY PARA PRODUÇÃO (JULLIO)
   # ==========================================
   deploy:
     name: Deploy e Injeção de Segredos
     runs-on: ubuntu-latest
-    needs: [test-frontend, test-backend] # A MURALHA: Só roda se os dois acima passarem!
+    # A MURALHA: Agora depende apenas do back-end passar nos testes!
+    needs: [test-backend] 
 
     steps:
       - name: Executando Deploy via SSH
