@@ -27,7 +27,7 @@ def _get_openai_client() -> OpenAI:
     key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     if not key:
         raise RuntimeError(
-            "OPENAI_API_KEY não está definida. Configure-a no ambiente ou no .env."
+            "OPENAI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor OpenAI."
         )
     return OpenAI(api_key=key)
 
@@ -37,7 +37,7 @@ def _get_groq_client() -> Groq:
     key = (os.environ.get("GROQ_API_KEY") or "").strip()
     if not key:
         raise RuntimeError(
-            "GROQ_API_KEY não está definida. Configure-a no ambiente ou no .env."
+            "GROQ_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Groq."
         )
     return Groq(api_key=key)
 
@@ -47,9 +47,12 @@ def _get_gemini_client() -> genai.Client:
     key = (os.environ.get("GEMINI_API_KEY") or "").strip()
     if not key:
         raise RuntimeError(
-            "GEMINI_API_KEY não está definida. Configure-a no ambiente ou no .env."
+            "GEMINI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Gemini."
         )
     return genai.Client(api_key=key)
+  
+  
+  
 
 def extract_fields_from_text(
     text: str, 

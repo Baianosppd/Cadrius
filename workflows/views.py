@@ -1,10 +1,7 @@
-import logging
-
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.models import Organization
@@ -13,8 +10,6 @@ from .exceptions import WorkflowGenerationQuotaExceeded
 from .models import Workflow
 from .serializers import WorkflowSerializer
 from .services import generate_workflow_from_prompt
-
-logger = logging.getLogger(__name__)
 
 
 class WorkflowViewSet(viewsets.ModelViewSet):
@@ -107,34 +102,3 @@ class GenerateWorkflowView(APIView):
 
     def post(self, request):
         return WorkflowViewSet().generate_from_prompt(request)
-
-
-class WebhookReceiverView(APIView):
-    """
-    Gateway: recebe disparos da Evolution API (WhatsApp).
-    """
-
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "webhook"
-
-    def post(self, request, connection_id):
-        payload = request.data
-
-        evento = payload.get("event")
-
-        if evento == "messages.upsert":
-            dados_mensagem = payload.get("data", {})
-            numero_remetente = dados_mensagem.get("key", {}).get("remoteJid")
-            mensagem = dados_mensagem.get("message", {})
-            texto = mensagem.get("conversation") or mensagem.get(
-                "extendedTextMessage", {}
-            ).get("text")
-
-            if numero_remetente and texto:
-                logger.info(
-                    "[WhatsApp Cadrius] connection=%s de=%s",
-                    connection_id,
-                    numero_remetente,
-                )
-
-        return Response({"status": "sucesso"}, status=status.HTTP_202_ACCEPTED)

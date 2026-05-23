@@ -273,7 +273,9 @@ def execute_workflow_pipeline(workflow_id, payload):
     workflow = Workflow.objects.get(id=workflow_id)
     exec_log = ExecutionLog.objects.create(
         workflow=workflow,
-        status="PENDING_REVIEW",
+        status="PENDING",
         trigger_payload=payload,
     )
+    # Runner (CAD-001): fila pesada com o ID do log recém-criado.
     async_task("workflows.tasks.process_workflow_execution", exec_log.id)
+    return exec_log
