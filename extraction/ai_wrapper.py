@@ -1,27 +1,55 @@
 # extraction/ai_wrapper.py
-import os
+import functools
 import json
 import logging
+import os
+
 from pydantic import BaseModel, ValidationError
+
 from billing.models import AIUsageLog
 
 # Bibliotecas das IAs
-from openai import OpenAI
-from groq import Groq
 from google import genai
 from google.genai import types
+from groq import Groq
+from openai import OpenAI
 
 # Importa os schemas definidos por Juliano
-from .schemas import ExtractedData, ServiceOrderSchema, SupportRequestSchema 
+from .schemas import ExtractedData, ServiceOrderSchema, SupportRequestSchema
 
 logger = logging.getLogger(__name__)
 
-# --- Configurações Iniciais de Clientes ---
-openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-gemini_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-
 MAX_RETRY_ATTEMPTS = 2
+
+
+@functools.lru_cache(maxsize=1)
+def _get_openai_client() -> OpenAI:
+    key = (os.environ.get("OPENAI_API_KEY") or "").strip()
+    if not key:
+        raise RuntimeError(
+            "OPENAI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor OpenAI."
+        )
+    return OpenAI(api_key=key)
+
+
+@functools.lru_cache(maxsize=1)
+def _get_groq_client() -> Groq:
+    key = (os.environ.get("GROQ_API_KEY") or "").strip()
+    if not key:
+        raise RuntimeError(
+            "GROQ_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Groq."
+        )
+    return Groq(api_key=key)
+
+
+@functools.lru_cache(maxsize=1)
+def _get_gemini_client() -> genai.Client:
+    key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if not key:
+        raise RuntimeError(
+            "GEMINI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Gemini."
+        )
+    return genai.Client(api_key=key)
 
 def extract_fields_from_text(
     text: str, 
@@ -84,7 +112,7 @@ def extract_fields_from_text(
 # --- FUNÇÕES INTERNAS DE CHAMADA ÀS APIS ---
 
 def _call_openai(system_prompt, user_prompt):
-    response = openai_client.chat.completions.create(
+    response = _get_openai_client().chat.completions.create(
         model=os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo"),
         messages=[
             {"role": "system", "content": system_prompt},
@@ -95,7 +123,7 @@ def _call_openai(system_prompt, user_prompt):
     return response.choices[0].message.content
 
 def _call_groq(system_prompt, user_prompt):
-    response = groq_client.chat.completions.create(
+    response = _get_groq_client().chat.completions.create(
         model="llama-3.1-8b-instant", # NOVO: Modelo super-rápido atualizado
         messages=[
             {"role": "system", "content": system_prompt},
@@ -108,7 +136,7 @@ def _call_groq(system_prompt, user_prompt):
 def _call_gemini(system_prompt, user_prompt):
     # NOVO: Implementação com a biblioteca moderna google-genai
     full_prompt = f"{system_prompt}\n\n{user_prompt}"
-    response = gemini_client.models.generate_content(
+    response = _get_gemini_client().models.generate_content(
         model='gemini-2.5-flash', # <-- BASTA ALTERAR ISTO AQUI PARA A NOVA GERAÇÃO (Ou gemini-2.0-flash)
         contents=full_prompt,
         config=types.GenerateContentConfig(

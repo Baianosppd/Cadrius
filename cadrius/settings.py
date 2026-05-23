@@ -13,6 +13,8 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, ['localhost', '127.0.0.1']),
     CORS_ALLOWED_ORIGINS=(list, ["http://localhost:3000"]),
     IMAP_PORT=(int, 993),
+    # Corpo máx. (JSON / multipart) alinhado com Traefik buffering (~2MB); evita payloads enormes.
+    DATA_UPLOAD_MAX_MEMORY_BYTES=(int, 2 * 1024 * 1024),
 )
 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
@@ -30,6 +32,8 @@ if SENTRY_DSN:
 # --- 3. CORE SETTINGS E SEGURANÇA BÁSICA ---
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-prod')
 DEBUG = env('DEBUG')
+DATA_UPLOAD_MAX_MEMORY_SIZE = env('DATA_UPLOAD_MAX_MEMORY_BYTES')
+FILE_UPLOAD_MAX_MEMORY_SIZE = env('DATA_UPLOAD_MAX_MEMORY_BYTES')
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok.io', 'nonvinous-debbie-unrelated.ngrok-free.dev','cadrius.local']
 
 CSRF_TRUSTED_ORIGINS = [
@@ -184,6 +188,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Throttling por scope (ScopedRateThrottle / SimpleRateThrottle com ``scope``).
+    'DEFAULT_THROTTLE_RATES': {
+        'webhook': '200/min',
+        'webhook_catch': '60/min',
+    },
 }
 
 SIMPLE_JWT = {
@@ -221,6 +230,13 @@ Q_CLUSTER = {
     'workers': 4,
     'recycle': 500,
     'timeout': 60,
+    # Segundos que o broker espera antes de voltar a entregar a task (Redis com receipts).
+    # Tem de ser > timeout para evitar reexecuções em cima de tasks ainda a correr.
+    'retry': 120,
+    # max_attempts: reentregas ao nível do broker/worker (task inteira; exceção não apanhada, timeout).
+    # As 3 tentativas antes de FAILED no ExecutionLog (chamadas HTTP) estão em workflows.tasks
+    # (_WORKFLOW_EXTERNAL_MAX_ATTEMPTS).
+    'max_attempts': 3,
     'compress': True,
     'save_limit': 250,
     'queue_limit': 500,
@@ -236,6 +252,8 @@ Q_CLUSTER = {
 
 OPENAI_API_KEY = env('OPENAI_API_KEY', default=None)
 OPENAI_MODEL = env('OPENAI_MODEL', default='gpt-3.5-turbo')
+# GROQ | GEMINI | OPENAI — força o provedor em generate_workflow_from_prompt; None = auto (chaves no .env).
+WORKFLOW_AI_PROVIDER = env('WORKFLOW_AI_PROVIDER', default=None)
 
 TRELLO_API_KEY = env('TRELLO_API_KEY', default=None)
 TRELLO_API_TOKEN = env('TRELLO_API_TOKEN', default=None)

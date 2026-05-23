@@ -108,8 +108,12 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=proxy_net"
+        # Limite ~2MB por payload (JSON/webhooks). Nginx equivalente: client_max_body_size 2m;
+        - "traefik.http.middlewares.cadrius-body-limit.buffering.maxRequestBodyBytes=2097152"
+        - "traefik.http.middlewares.cadrius-body-limit.buffering.memRequestBodyBytes=2097152"
         - "traefik.http.routers.cadrius-web.rule=Host(`127.0.0.1`)"
         - "traefik.http.routers.cadrius-web.entrypoints=web"
+        - "traefik.http.routers.cadrius-web.middlewares=cadrius-body-limit"
         - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
 
   # --- 6. WORKER ---
