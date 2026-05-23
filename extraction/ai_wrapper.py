@@ -50,6 +50,9 @@ def _get_gemini_client() -> genai.Client:
             "GEMINI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Gemini."
         )
     return genai.Client(api_key=key)
+  
+  
+  
 
 def extract_fields_from_text(
     text: str, 
