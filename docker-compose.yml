@@ -88,8 +88,6 @@ services:
         sh -c "python manage.py migrate &&
                python manage.py collectstatic --noinput &&
                uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
-      
-      # 👇 O BYPASS DE DESENVOLVIMENTO: Porta exposta diretamente 👇
       ports:
         - "8000:8000"
       
