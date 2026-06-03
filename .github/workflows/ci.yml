@@ -49,13 +49,20 @@ jobs:
         echo "NGROK_AUTHTOKEN=dummy_token_ci" >> .env
 
     - name:  Subir a Infraestrutura (Docker)
-      run: docker compose up -d db redis web
+      run: docker compose up -d db redis
 
     - name:  Aguardar o banco de dados
-      run: sleep 12
+      run: |
+        for i in $(seq 1 30); do
+          docker compose exec -T db pg_isready -U postgres -d cadrius && exit 0
+          sleep 2
+        done
+        echo "Postgres não ficou pronto a tempo."
+        exit 1
 
     - name:  Checar integridade do Django
-      run: docker compose exec -T web python manage.py check
+      # run --no-deps evita subir web+uvicorn no CI (exit 137 = OOM no runner)
+      run: docker compose run --rm --no-deps web python manage.py check
 
     - name:  Validar Migrações Pendentes
-      run: docker compose exec -T web python manage.py makemigrations --check --dry-run
+      run: docker compose run --rm --no-deps web python manage.py makemigrations --check --dry-run
