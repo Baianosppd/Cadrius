@@ -52,7 +52,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Expondo os campos para o formulário de Registo no Front-end
         fields = (
             'id', 'email', 'password', 'first_name', 'last_name', 
-            'cpf', 'phone'
+            'cpf', 'phone', 'oab_number', 'oab_uf', 'practice_area'  
         )
         extra_kwargs = {
             'password': {'write_only': True},
@@ -66,12 +66,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            cpf=validated_data.get('cpf', ''),
-            phone=validated_data.get('phone', ''),
-        )
+        username=validated_data['username'],
+        email=validated_data['email'],
+        password=validated_data['password'],
+        first_name=validated_data.get('first_name', ''),
+        last_name=validated_data.get('last_name', ''),
+        cpf=validated_data.get('cpf', ''),
+        phone=validated_data.get('phone', ''),
+        oab_number=validated_data.get('oab_number', ''), 
+        oab_uf=validated_data.get('oab_uf', ''),            
+        practice_area=validated_data.get('practice_area', ''), 
+    )
         return user
