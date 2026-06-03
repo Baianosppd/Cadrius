@@ -1,0 +1,135 @@
+# Workflow TEMPORÁRIO — diagnosticar exit 137 no CI.
+# Apagar este ficheiro após resolver o problema com infra.
+#
+# Dispara em:
+#   - push na branch debug/ci-oom
+#   - manual: Actions → "CI Debug (OOM 137)" → Run workflow
+
+name: CI Debug (OOM 137)
+
+on:
+  push:
+    branches: [debug/ci-oom]
+  workflow_dispatch:
+
+jobs:
+  diagnose-docker-ci:
+    name: Diagnóstico CI Docker (137)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Info do commit
+        run: |
+          echo "=== Git ==="
+          git log -1 --oneline
+          git branch -a
+
+      - name: Criar .env de teste (igual ao CI oficial)
+        run: |
+          echo "DEBUG=True" > .env
+          echo "SECRET_KEY=chave_secreta_para_ci_teste_123" >> .env
+          echo "ENCRYPTION_KEY=CHAVE_FALSA_PARA_TESTE_DE_32_BYTES_===" >> .env
+          echo "DATABASE_URL=postgres://postgres:postgres@db:5432/cadrius" >> .env
+          echo "REDIS_URL=redis://redis:6379/0" >> .env
+          echo "NGROK_AUTHTOKEN=dummy_token_ci" >> .env
+
+      - name: Memória do runner (antes do Docker)
+        run: |
+          echo "=== free -h (antes) ==="
+          free -h
+          echo "=== df -h ==="
+          df -h
+
+      - name: Build imagem web
+        run: docker compose build web
+
+      - name: Subir infra (igual CI oficial db + redis + web)
+        run: docker compose up -d db redis web
+
+      - name: Aguardar Postgres
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose exec -T db pg_isready -U postgres -d cadrius; then
+              echo "Postgres pronto (tentativa $i)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Postgres não ficou pronto"
+          exit 1
+
+      - name: Snapshot após subir containers
+        run: |
+          echo "=== free -h (depois do up) ==="
+          free -h
+          echo "=== docker compose ps -a ==="
+          docker compose ps -a
+          echo "=== docker stats (snapshot) ==="
+          docker stats --no-stream || true
+
+      - name: Logs web (startup migrate/uvicorn)
+        run: |
+          echo "=== docker compose logs web (últimas 150 linhas) ==="
+          docker compose logs --tail=150 web || true
+
+      - name: Checar integridade do Django (comando que falha no CI)
+        id: django_check
+        continue-on-error: true
+        run: |
+          set -x
+          docker compose exec -T web python manage.py check
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Validar migrações pendentes
+        id: migrations_check
+        continue-on-error: true
+        run: |
+          set -x
+          docker compose exec -T web python manage.py makemigrations --check --dry-run
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Coletar evidências se algo falhou
+        if: steps.django_check.outcome == 'failure' || steps.migrations_check.outcome == 'failure'
+        run: |
+          echo "=== FALHA DETECTADA — coletando detalhes ==="
+          echo "django_check exit: ${{ steps.django_check.outputs.exit_code }}"
+          echo "migrations_check exit: ${{ steps.migrations_check.outputs.exit_code }}"
+
+          echo "=== free -h (no momento da falha) ==="
+          free -h
+
+          echo "=== docker compose ps -a ==="
+          docker compose ps -a
+
+          echo "=== docker stats ==="
+          docker stats --no-stream || true
+
+          echo "=== logs web (300 linhas) ==="
+          docker compose logs --tail=300 web || true
+
+          echo "=== logs db ==="
+          docker compose logs --tail=50 db || true
+
+          echo "=== logs redis ==="
+          docker compose logs --tail=50 redis || true
+
+          echo "=== dmesg (OOM / Killed?) ==="
+          sudo dmesg -T 2>/dev/null | tail -80 || echo "dmesg indisponível neste runner"
+
+          echo "=== inspect web (State/OOMKilled) ==="
+          WEB_ID=$(docker compose ps -q web)
+          if [ -n "$WEB_ID" ]; then
+            docker inspect "$WEB_ID" --format 'Status={{.State.Status}} ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Error={{.State.Error}}'
+          fi
+
+      - name: Falhar job se check ou migrações falharam
+        if: steps.django_check.outcome == 'failure' || steps.migrations_check.outcome == 'failure'
+        run: |
+          echo "Ver steps anteriores para diagnóstico completo."
+          echo "Exit 137 no step do check = processo morto (provável OOM)."
+          echo "OOMKilled=true no inspect = confirma falta de RAM."
+          exit 1
