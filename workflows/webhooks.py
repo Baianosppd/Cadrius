@@ -73,7 +73,10 @@ def catch_webhook_event(request, token):
     Rate limit DRF (``webhook_catch``): mitiga abuso se o URL com token vazar.
     """
     try:
-        trigger = Trigger.objects.select_related("workflow__organization").get(
+        trigger = Trigger.objects.select_related(
+            "workflow__organization",
+            "connection__user",
+        ).get(
             webhook_token=token,
             workflow__is_active=True,
         )
@@ -85,7 +88,11 @@ def catch_webhook_event(request, token):
 
     workflow = trigger.workflow
     payload = extract_webhook_request_body(request)
-    result = execute_workflow_pipeline(workflow.id, payload)
+    result = execute_workflow_pipeline(
+        workflow.id,
+        payload,
+        user_id=trigger.connection.user_id,
+    )
     if result is False:
         return Response(
             {

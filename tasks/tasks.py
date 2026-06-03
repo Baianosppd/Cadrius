@@ -17,6 +17,7 @@ from workflows.tasks import execute_workflow_pipeline
 from extraction.ai_wrapper import extract_fields_from_text
 from extraction.models import ExtractionProfile
 from extraction import schemas as extraction_schemas
+from accounts.message_usage import record_document_analysis
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +187,9 @@ def process_email(email_id, profile_id, workflow_id):
         if not extracted_json:
             logger.error(f"❌ [Workflow {workflow.name}] A IA falhou a extrair os dados (Erro de Schema/Timeout).")
             return
-            
+
+        record_document_analysis(email_obj.mailbox.user_id)
+
         logger.info(f"✅ [Workflow {workflow.name}] IA extraiu o JSON com sucesso! A enviar para a Ação...")
         
         # 3. Marca o e-mail como processado
@@ -194,7 +197,11 @@ def process_email(email_id, profile_id, workflow_id):
         email_obj.save(update_fields=['is_dispatched'])
         
 
-        execute_workflow_pipeline(workflow_id=workflow.id, payload=extracted_json)
+        execute_workflow_pipeline(
+            workflow_id=workflow.id,
+            payload=extracted_json,
+            user_id=email_obj.mailbox.user_id,
+        )
 
     except EmailMessage.DoesNotExist:
         logger.error(f"E-mail {email_id} não encontrado.")
