@@ -51,11 +51,20 @@ jobs:
     - name:  Subir a Infraestrutura (Docker)
       run: docker compose up -d db redis web
 
-    - name:  Aguardar o banco de dados
-      run: sleep 120
-
-    - name:  Checar integridade do Django
-      run: docker compose exec -T web python manage.py check
+    - name:  Aguardar web pronto e checar integridade do Django
+      run: |
+        for i in $(seq 1 36); do
+          echo "Tentativa ${i}/36 (aguarda container Up + manage.py check)..."
+          if docker compose exec -T web python manage.py check; then
+            echo "Django check OK."
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "=== Falhou após ~3 min — diagnóstico ==="
+        docker compose ps -a
+        docker compose logs --tail=200 web || true
+        exit 1
 
     - name:  Validar Migrações Pendentes
       run: docker compose exec -T web python manage.py makemigrations --check --dry-run
