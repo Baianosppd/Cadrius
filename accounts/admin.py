@@ -29,16 +29,16 @@ class OrganizationAdmin(admin.ModelAdmin):
 # =====================================================================
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff')
-    search_fields = ('username', 'email', 'first_name', 'last_name')
-    
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff','cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture')
+    search_fields = ('username', 'email', 'first_name', 'last_name', 'is_staff','cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture')
+
     # Removemos qualquer referência ao antigo campo 'organization'
     # e usamos o Inline para mostrar a quais escritórios ele pertence
     inlines = [OrganizationMembershipInline]
 
     # Adiciona o campo 'phone' que criámos no modelo novo
     fieldsets = UserAdmin.fieldsets + (
-        ('Informações Adicionais (B2B)', {'fields': ('phone',)}),
+        ('Informações Adicionais (B2B)', {'fields': ('phone','cpf','oab_number','practice_area','profile_picture')}),
     )
 
 # =====================================================================
@@ -49,3 +49,5 @@ class OrganizationMembershipAdmin(admin.ModelAdmin):
     list_display = ('user', 'organization', 'role', 'is_active', 'joined_at')
     list_filter = ('role', 'is_active', 'organization')
     search_fields = ('user__email', 'user__username', 'organization__name')
+
+

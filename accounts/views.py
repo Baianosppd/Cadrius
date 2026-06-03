@@ -21,7 +21,7 @@ class RegisterUserView(generics.CreateAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = UserRegistrationSerializer
 
-class GetUserProfileView(generics.RetrieveAPIView):
+class GetUserProfileView(generics.RetrieveUpdateAPIView):
     """
     Endpoint para obter os dados do usuário autenticado.
     """
