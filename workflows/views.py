@@ -10,6 +10,7 @@ from .exceptions import WorkflowGenerationQuotaExceeded
 from .models import Workflow
 from .serializers import WorkflowSerializer
 from .services import generate_workflow_from_prompt
+from .stats import automation_stats_for_organization
 
 
 class WorkflowViewSet(viewsets.ModelViewSet):
@@ -20,6 +21,15 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Workflow.objects.all().order_by("-created_at")
     serializer_class = WorkflowSerializer
+
+    @action(detail=False, methods=["get"], url_path="stats")
+    def stats(self, request):
+        """
+        GET /automations/stats/
+        Cards da página Automações: ativas, total de execuções, tempo economizado (h).
+        """
+        tenant = getattr(request, "tenant", None)
+        return Response(automation_stats_for_organization(tenant))
 
     @action(detail=False, methods=["post"], url_path="generate-from-prompt")
     def generate_from_prompt(self, request):
@@ -102,3 +112,16 @@ class GenerateWorkflowView(APIView):
 
     def post(self, request):
         return WorkflowViewSet().generate_from_prompt(request)
+
+
+class AutomationStatsView(APIView):
+    """
+    GET /api/v1/automations/stats/
+    Métricas da página Automações (não confundir com dashboard geral).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tenant = getattr(request, "tenant", None)
+        return Response(automation_stats_for_organization(tenant))

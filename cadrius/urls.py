@@ -8,7 +8,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 from accounts.views import RegisterUserView, GetUserProfileView, CustomTokenObtainPairView
 from core.views import health_check, DashboardStatsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
-from workflows.views import WorkflowViewSet
+from workflows.views import WorkflowViewSet, AutomationStatsView
 
 # --- Roteador DRF (Endpoints Automáticos) ---
 router = routers.DefaultRouter()
@@ -32,6 +32,7 @@ urlpatterns = [
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
     
     path('api/v1/dashboard/stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
+    path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),
     path('api/workflows/', include('workflows.urls')),
 
     
