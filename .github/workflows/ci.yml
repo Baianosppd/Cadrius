@@ -52,7 +52,7 @@ jobs:
       run: docker compose up -d db redis web
 
     - name:  Aguardar o banco de dados
-      run: sleep 12
+      run: sleep 120
 
     - name:  Checar integridade do Django
       run: docker compose exec -T web python manage.py check
