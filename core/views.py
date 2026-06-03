@@ -30,7 +30,7 @@ def health_check(request):
 class DashboardStatsView(APIView):
     """
     GET /api/v1/dashboard/stats/
-    Cards do dashboard: documentos analisados, automações rodadas, mensagens enviadas.
+    Cards do dashboard: documentos analisados, automações rodadas, mensagens enviadas..
     """
     permission_classes = [IsAuthenticated]
 
