@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 from integrations.models import AppConnection
 from accounts.models import Organization
@@ -94,6 +95,15 @@ class ExecutionLog(models.Model):
         Workflow, 
         on_delete=models.CASCADE, 
         related_name='execution_logs'
+    )
+    triggered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='workflow_executions',
+        verbose_name='Disparado por',
+        help_text='Utilizador autenticado ou proprietário da conexão no momento do disparo.',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     

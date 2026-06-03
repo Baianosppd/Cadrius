@@ -38,7 +38,12 @@ class WebhookReceiverView(APIView):
                 # Validação de Segurança (Freio B2B que tinhas feito muito bem!)
                 if workflow.is_active and workflow.organization.is_active:
                     # 🚀 Lançamos para a fila em vez de congelar a resposta
-                    async_task('workflows.tasks.execute_workflow_pipeline', workflow.id, payload)
+                    async_task(
+                        'workflows.tasks.execute_workflow_pipeline',
+                        workflow.id,
+                        payload,
+                        connection.user_id,
+                    )
                     logger.info(f"⚡ [Webhook] Workflow {workflow.id} enfileirado com sucesso.")
 
             # 5. Responde em milissegundos (HTTP 202 Accepted) para evitar Timeouts

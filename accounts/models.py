@@ -68,3 +68,44 @@ class OrganizationMembership(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.organization.name} ({self.role})"
+
+
+class UserMessageSendCount(models.Model):
+    """Métricas de uso por utilizador (dashboard e limites)."""
+
+    user = models.OneToOneField(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='message_send_count',
+        verbose_name='Utilizador',
+    )
+    whatsapp_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Envios WhatsApp',
+    )
+    email_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Envios e-mail',
+    )
+    automations_run_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Automações executadas',
+    )
+    document_analysis_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Análises de documento',
+    )
+
+    class Meta:
+        verbose_name = 'Contagem de uso do utilizador'
+        verbose_name_plural = 'Contagens de uso dos utilizadores'
+
+    def __str__(self):
+        return (
+            f"{self.user.email}: WA {self.whatsapp_count}, e-mail {self.email_count}, "
+            f"auto {self.automations_run_count}, docs {self.document_analysis_count}"
+        )
+
+    @property
+    def messages_sent_total(self) -> int:
+        return self.whatsapp_count + self.email_count

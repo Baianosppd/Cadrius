@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Organization, OrganizationMembership
+from .models import CustomUser, Organization, OrganizationMembership, UserMessageSendCount
 
 # =====================================================================
 # 1. INLINES (Para mostrar os vínculos dentro da página principal)
@@ -49,3 +49,15 @@ class OrganizationMembershipAdmin(admin.ModelAdmin):
     list_display = ('user', 'organization', 'role', 'is_active', 'joined_at')
     list_filter = ('role', 'is_active', 'organization')
     search_fields = ('user__email', 'user__username', 'organization__name')
+
+@admin.register(UserMessageSendCount)
+class UserMessageSendCountAdmin(admin.ModelAdmin):
+    list_display = (
+        'user',
+        'whatsapp_count',
+        'email_count',
+        'automations_run_count',
+        'document_analysis_count',
+    )
+    search_fields = ('user__email', 'user__username')
+    readonly_fields = ('user',)
