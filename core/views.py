@@ -3,10 +3,8 @@ from django.db import connection
 from rest_framework.views import APIView 
 from rest_framework.response import Response 
 from rest_framework.permissions import IsAuthenticated 
-from django.utils import timezone
 
-# Importamos apenas o que sobrou no app emails
-from emails.models import EmailMessage
+from workflows.stats import automation_stats_for_organization
 
 # --- 2. VIEWS DE API (BACKEND) ---
 
@@ -30,27 +28,11 @@ def health_check(request):
 
 class DashboardStatsView(APIView):
     """
-    Retorna contagens e estatísticas para o Dashboard.
-    [MODO MOCK]: Retornando dados zerados temporariamente após a refatoração
-    arquitetural. A lógica real será reescrita na Sprint de Dashboards usando 
-    o novo app 'workflows'.
+    Legado: redireciona métricas para o mesmo payload da página Automações.
+    Preferir GET /api/v1/automations/stats/ ou .../workflows/stats/.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        
-        # Filtro seguro apenas para não dar erro, contando apenas emails da base
-        today = timezone.now().date()
-        if user.is_superuser:
-            emails_today = EmailMessage.objects.filter(created_at__date=today).count()
-        else:
-            emails_today = EmailMessage.objects.filter(mailbox__user=user, created_at__date=today).count()
-
-        # Retornamos a estrutura exata que o Front-end espera, mas com valores neutros
-        return Response({
-            "automacoes_ativas": 0, 
-            "processos_ativos": 0,
-            "prazos_hoje": emails_today,
-            "tempo_economizado": "0h" 
-        })
+        tenant = getattr(request, "tenant", None)
+        return Response(automation_stats_for_organization(tenant))
