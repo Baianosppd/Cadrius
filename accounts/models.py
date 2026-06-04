@@ -4,58 +4,38 @@ from django.contrib.auth.models import AbstractUser
 from billing.models import SubscriptionPlan
 
 class Organization(models.Model):
+    # Segurança: UUID evita que IDs sequenciais sejam expostos na URL ou APIs
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    # Identificação da Empresa
-    name = models.CharField(max_length=255, verbose_name="Nome Interno")
-    nome_fantasia = models.CharField(max_length=255, null=True, blank=True)
-    razao_social = models.CharField(max_length=255, null=True, blank=True)
+    name = models.CharField(max_length=255)
     cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True)
-
-    # Natureza Jurídica / Fiscal
-    company_type = models.CharField(max_length=100, null=True, blank=True, verbose_name="Tipo de Sociedade")
-    tax_regime = models.CharField(max_length=100, null=True, blank=True, verbose_name="Regime Tributário")
-
-    # Endereço
-    cep = models.CharField(max_length=9, null=True, blank=True)
-    street = models.CharField(max_length=255, null=True, blank=True, verbose_name="Logradouro")
-    number = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número")
-    neighborhood = models.CharField(max_length=100, null=True, blank=True, verbose_name="Bairro")
-    city = models.CharField(max_length=100, null=True, blank=True, verbose_name="Cidade")
-    state_uf = models.CharField(max_length=2, null=True, blank=True, verbose_name="Estado (UF)")
-
-    # Contatos
-    main_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Principal")
-    corporate_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Corporativo")
-
-    # SSO e Plano
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.RESTRICT, verbose_name="Plano Atual")
-    allowed_domain = models.CharField(max_length=255, unique=True, null=True, blank=True)
-
+    
+    # Fundamental para o nosso SSO B2B funcionar (Auto-Provisionamento)
+    allowed_domain = models.CharField(
+        max_length=255, 
+        unique=True, 
+        null=True, 
+        blank=True, 
+        help_text="Ex: machado.adv.br. Usado para vincular utilizadores via Google/Microsoft SSO."
+    )
+    
+    # Controlo de Estado
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.nome_fantasia or self.razao_social or self.name
+        return self.name
 
 
 class CustomUser(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Campos extras úteis para futuras integrações (ex: MFA via WhatsApp)
     phone = models.CharField(max_length=20, blank=True, null=True)
-
-    # Novos campos do Advogado / Indivíduo
-    cpf = models.CharField(max_length=14, unique=True, null=True, blank=True)
-    oab_number = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número da OAB")
-    oab_uf = models.CharField(max_length=2, null=True, blank=True, verbose_name="Estado da OAB (UF)")
-    practice_area = models.CharField(max_length=100, null=True, blank=True, verbose_name="Área de Atuação Principal")
-
-    profile_picture = models.ImageField(
-        upload_to='users/avatars/',
-        null=True,
-        blank=True,
-        verbose_name="Foto de Perfil"
-    )
+    
+    # NOTA: Removemos o ForeignKey direto para a Organization daqui.
+    # O vínculo agora é feito pela tabela OrganizationMembership abaixo.
 
     def __str__(self):
         return self.email or self.username
@@ -74,15 +54,16 @@ class OrganizationMembership(models.Model):
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
+    
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='memberships')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='members')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='MEMBER')
-
+    
     is_active = models.BooleanField(default=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        # Garante que a mesma pessoa não é adicionada duas vezes no mesmo escritório
         unique_together = ('user', 'organization')
 
     def __str__(self):
