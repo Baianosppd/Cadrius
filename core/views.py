@@ -1,10 +1,10 @@
 from django.http import JsonResponse
 from django.db import connection
-from rest_framework.views import APIView 
-from rest_framework.response import Response 
-from rest_framework.permissions import IsAuthenticated 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
-from workflows.stats import automation_stats_for_organization
+from accounts.message_usage import dashboard_stats_for_user
 
 # --- 2. VIEWS DE API (BACKEND) ---
 
@@ -26,13 +26,13 @@ def health_check(request):
         "app_version": "v1.0.0"
     })
 
+
 class DashboardStatsView(APIView):
     """
-    Legado: redireciona métricas para o mesmo payload da página Automações.
-    Preferir GET /api/v1/automations/stats/ ou .../workflows/stats/.
+    GET /api/v1/dashboard/stats/
+    Cards do dashboard: documentos analisados, automações rodadas, mensagens enviadas..
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        tenant = getattr(request, "tenant", None)
-        return Response(automation_stats_for_organization(tenant))
+        return Response(dashboard_stats_for_user(request.user))

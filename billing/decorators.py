@@ -10,7 +10,7 @@ def check_quota_limit(func):
     Verifica se a Organização ainda tem créditos antes de executar.
     """
     @wraps(func)
-    def wrapper(workflow_id, payload, *args, **kwargs):
+    def wrapper(workflow_id, payload, user_id=None, *args, **kwargs):
         try:
             workflow = Workflow.objects.select_related('organization__plan').get(id=workflow_id)
             org = workflow.organization
@@ -35,7 +35,7 @@ def check_quota_limit(func):
                 return False  # Aborta a execução silenciosamente
 
             # Se tem saldo, executa a task real
-            return func(workflow_id, payload, *args, **kwargs)
+            return func(workflow_id, payload, user_id=user_id, *args, **kwargs)
             
         except Workflow.DoesNotExist:
             return False

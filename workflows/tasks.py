@@ -9,6 +9,7 @@ import requests
 from django_q.tasks import async_task
 
 from billing.decorators import check_quota_limit
+from accounts.message_usage import record_automation_run, record_outbound_message_send
 from integrations.evolution import WhatsAppEvolutionExecutor
 from integrations.webhook_executor import WebhookExecutor
 from workflows.models import Action, ExecutionLog, Workflow
@@ -168,6 +169,18 @@ def _dispatch_action_execution(action: Action, workflow: Workflow, final_data: d
             raise ValueError(f"Tipo de Action '{action.action_type}' não suportada.")
 
 
+def _resolve_execution_user_id(exec_log: ExecutionLog, workflow: Workflow):
+    """Utilizador dono da contagem: quem disparou ou proprietário da conexão do gatilho."""
+    if exec_log.triggered_by_id:
+        return exec_log.triggered_by_id
+
+    trigger = getattr(workflow, "trigger", None)
+    if trigger is not None and trigger.connection_id:
+        return trigger.connection.user_id
+
+    return None
+
+
 def process_workflow_execution(execution_log_id):
     """
     Worker: lê o ExecutionLog, confirma que o workflow ainda está ativo, executa a ação
@@ -180,9 +193,11 @@ def process_workflow_execution(execution_log_id):
         return int((time.time() - t0) * 1000)
 
     try:
-        exec_log = ExecutionLog.objects.select_related("workflow__organization").get(
-            id=execution_log_id
-        )
+        exec_log = ExecutionLog.objects.select_related(
+            "workflow__organization",
+            "workflow__trigger__connection",
+            "triggered_by",
+        ).get(id=execution_log_id)
     except ExecutionLog.DoesNotExist:
         logger.error("ExecutionLog %s não encontrado.", execution_log_id)
         return
@@ -240,6 +255,10 @@ def process_workflow_execution(execution_log_id):
             update_fields=["status", "final_result", "execution_time_ms"]
         )
 
+        user_id = _resolve_execution_user_id(exec_log, workflow)
+        record_automation_run(user_id)
+        record_outbound_message_send(user_id, action.action_type)
+
     except requests.exceptions.RequestException as e:
         exec_log.status = "FAILED"
         exec_log.error_message = _failure_log_message(
@@ -266,15 +285,17 @@ def process_workflow_execution(execution_log_id):
 
 
 @check_quota_limit
-def execute_workflow_pipeline(workflow_id, payload):
+def execute_workflow_pipeline(workflow_id, payload, user_id=None):
     """
     Ponto de entrada (quota + registo): cria ExecutionLog e enfileira o processamento pesado.
+    ``user_id``: utilizador logado ou proprietário da conexão que originou o disparo.
     """
     workflow = Workflow.objects.get(id=workflow_id)
     exec_log = ExecutionLog.objects.create(
         workflow=workflow,
         status="PENDING",
         trigger_payload=payload,
+        triggered_by_id=user_id,
     )
     # Runner (CAD-001): fila pesada com o ID do log recém-criado.
     async_task("workflows.tasks.process_workflow_execution", exec_log.id)
