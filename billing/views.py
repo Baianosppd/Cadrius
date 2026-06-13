@@ -5,15 +5,29 @@ from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from accounts.models import Organization
 from billing.models import SubscriptionPlan
+from billing.serializers import SubscriptionPlanSerializer
 
 logger = logging.getLogger(__name__)
 
 # Configura a chave secreta do Stripe
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', 'sk_test_chave_falsa_para_ja')
+
+
+class PlansListView(APIView):
+    """
+    GET /api/billing/plans/
+    Planos disponíveis para exibição no perfil e upgrade (id numérico para checkout).
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price_brl', 'id')
+        return Response(SubscriptionPlanSerializer(plans, many=True).data)
+
 
 class CreateCheckoutSessionView(APIView):
     """
