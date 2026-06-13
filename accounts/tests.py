@@ -243,3 +243,27 @@ class TeamMemberTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PermissionGroupTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='groups@example.com',
+            email='groups@example.com',
+            password='strong-password-123',
+        )
+
+    def test_list_permission_groups_authenticated(self):
+        url = reverse('team-permission-groups')
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        self.assertEqual(response.data[0]['name'], 'Admin')
+        self.assertIn('Ver documentos', response.data[0]['permissions'])
+        self.assertEqual(response.data[2]['name'], 'Estagiário')
+
+    def test_list_permission_groups_unauthenticated(self):
+        response = self.client.get(reverse('team-permission-groups'))
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])

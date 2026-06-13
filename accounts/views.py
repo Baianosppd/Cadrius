@@ -113,3 +113,16 @@ class TeamMemberListCreateView(generics.ListCreateAPIView):
             TeamMemberSerializer(membership).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class PermissionGroupListView(generics.ListAPIView):
+    """
+    GET /api/v1/teams/permission-groups/
+    Catálogo de grupos de permissão para a aba Gestão de Equipe.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        from .permission_groups import list_permission_groups
+        return Response(list_permission_groups())

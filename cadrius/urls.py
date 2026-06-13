@@ -11,6 +11,7 @@ from accounts.views import (
     UpdateUserProfileView,
     ChangePasswordView,
     TeamMemberListCreateView,
+    PermissionGroupListView,
     CustomTokenObtainPairView,
 )
 from core.views import health_check, DashboardStatsView, ActivitiesView
@@ -42,6 +43,11 @@ urlpatterns = [
     path('api/v1/auth/profile/', UpdateUserProfileView.as_view(), name='user_profile_update'),
     path('api/v1/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('api/v1/teams/members/', TeamMemberListCreateView.as_view(), name='team-members'),
+    path(
+        'api/v1/teams/permission-groups/',
+        PermissionGroupListView.as_view(),
+        name='team-permission-groups',
+    ),
     
     path('api/v1/dashboard/stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
     path('api/v1/activities/', ActivitiesView.as_view(), name='activities'),
