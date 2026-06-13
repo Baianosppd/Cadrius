@@ -75,3 +75,38 @@ class IntegrationLog(models.Model):
     
     def __str__(self):
         return f'[{self.get_service_display()}] {self.status} - Email: {self.email_message.id}'
+
+
+class UserTask(models.Model):
+    """Tarefa do dashboard (lista do dia)."""
+
+    class Priority(models.TextChoices):
+        ALTA = 'alta', 'Alta'
+        MEDIA = 'media', 'Média'
+        BAIXA = 'baixa', 'Baixa'
+
+    titulo = models.CharField(max_length=255)
+    descricao = models.TextField(blank=True, default='')
+    scheduled_at = models.DateTimeField(verbose_name='Data e horário')
+    priority = models.CharField(
+        max_length=10,
+        choices=Priority.choices,
+        default=Priority.MEDIA,
+    )
+    responsavel = models.ForeignKey(
+        'accounts.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='assigned_tasks',
+        verbose_name='Responsável',
+    )
+    sincronizar = models.BooleanField(default=False)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['scheduled_at']
+        verbose_name = 'Tarefa'
+        verbose_name_plural = 'Tarefas'
+
+    def __str__(self):
+        return self.titulo
