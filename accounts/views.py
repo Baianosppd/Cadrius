@@ -9,8 +9,12 @@ from .serializers import (
     UserProfileSerializer,
     UserProfileUpdateSerializer,
     ChangePasswordSerializer,
+    TeamMemberSerializer,
+    TeamMemberInviteSerializer,
     CustomTokenObtainPairSerializer,
 )
+from .models import OrganizationMembership
+from .team_roles import get_active_membership
 
 User = get_user_model()
 
@@ -73,3 +77,52 @@ class ChangePasswordView(APIView):
             {'detail': 'Senha alterada com sucesso.'},
             status=status.HTTP_200_OK,
         )
+
+
+class TeamMemberListCreateView(generics.ListCreateAPIView):
+    """
+    GET /api/v1/teams/members/ — lista membros do escritório do utilizador.
+    POST /api/v1/teams/members/ — convida funcionário por e-mail.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return TeamMemberInviteSerializer
+        return TeamMemberSerializer
+
+    def get_queryset(self):
+        membership = get_active_membership(self.request.user)
+        if membership is None:
+            return OrganizationMembership.objects.none()
+        return (
+            OrganizationMembership.objects.filter(
+                organization=membership.organization,
+                is_active=True,
+            )
+            .select_related('user')
+            .order_by('joined_at')
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        membership = serializer.save()
+        return Response(
+            TeamMemberSerializer(membership).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PermissionGroupListView(generics.ListAPIView):
+    """
+    GET /api/v1/teams/permission-groups/
+    Catálogo de grupos de permissão para a aba Gestão de Equipe.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        from .permission_groups import list_permission_groups
+        return Response(list_permission_groups())

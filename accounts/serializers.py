@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
+from .models import OrganizationMembership
 
 User = get_user_model()
 
@@ -132,3 +133,94 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             phone=validated_data.get('phone', ''),
         )
         return user
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    """GET/POST /api/v1/teams/members/ — representação de membro da equipa."""
+
+    email = serializers.EmailField(source='user.email', read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
+    role = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrganizationMembership
+        fields = ['id', 'email', 'first_name', 'last_name', 'role', 'joined_at']
+        read_only_fields = fields
+
+    def get_role(self, obj):
+        from .team_roles import role_to_frontend
+        return role_to_frontend(obj.role)
+
+
+class TeamMemberInviteSerializer(serializers.Serializer):
+    """POST /api/v1/teams/members/ — convite de funcionário."""
+
+    email = serializers.EmailField()
+    role = serializers.CharField()
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+    def validate_role(self, value):
+        from .team_roles import resolve_backend_role
+        backend_role = resolve_backend_role(value)
+        if backend_role is None:
+            raise serializers.ValidationError('Cargo inválido.')
+        return backend_role
+
+    def validate(self, data):
+        from .team_roles import MANAGE_TEAM_ROLES, get_active_membership
+        from rest_framework.exceptions import PermissionDenied
+
+        inviter_membership = get_active_membership(self.context['request'].user)
+        if inviter_membership is None:
+            raise serializers.ValidationError({
+                'detail': (
+                    'A sua conta autenticada não pertence a nenhum escritório. '
+                    'Associe-se a uma organização antes de convidar membros.'
+                ),
+            })
+        if inviter_membership.role not in MANAGE_TEAM_ROLES:
+            raise PermissionDenied(
+                'Apenas donos ou administradores do escritório podem convidar membros.',
+            )
+
+        self.context['inviter_membership'] = inviter_membership
+        return data
+
+    def create(self, validated_data):
+        organization = self.context['inviter_membership'].organization
+        active_count = organization.members.filter(is_active=True).count()
+        if active_count >= organization.plan.max_users:
+            raise serializers.ValidationError(
+                {'email': 'Limite de utilizadores do plano atingido.'},
+            )
+
+        email = validated_data['email']
+        role = validated_data['role']
+        user = User.objects.filter(email__iexact=email).first()
+        if user is None:
+            user = User.objects.create(username=email, email=email)
+            user.set_unusable_password()
+            user.save()
+
+        membership = OrganizationMembership.objects.filter(
+            user=user,
+            organization=organization,
+        ).first()
+        if membership is not None:
+            if membership.is_active:
+                raise serializers.ValidationError(
+                    {'email': 'Este utilizador já pertence à equipa.'},
+                )
+            membership.is_active = True
+            membership.role = role
+            membership.save(update_fields=['is_active', 'role'])
+            return membership
+
+        return OrganizationMembership.objects.create(
+            user=user,
+            organization=organization,
+            role=role,
+        )
