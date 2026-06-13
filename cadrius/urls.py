@@ -14,6 +14,7 @@ from accounts.views import (
 )
 from core.views import health_check, DashboardStatsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
+from tasks.views import UserTaskViewSet
 from workflows.views import WorkflowViewSet, AutomationStatsView
 
 # --- Roteador DRF (Endpoints Automáticos) ---
@@ -22,6 +23,7 @@ router.register(r'mailboxes', MailBoxViewSet, basename='mailbox')
 router.register(r'emails', EmailMessageViewSet, basename='email')
 router.register(r'extraction-profiles', ExtractionProfileViewSet, basename='extraction-profile')
 router.register(r'workflows', WorkflowViewSet, basename='workflow')
+router.register(r'tasks', UserTaskViewSet, basename='task')
 
 # --- Mapeamento Final de URLs ---
 urlpatterns = [
