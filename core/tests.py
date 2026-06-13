@@ -125,3 +125,71 @@ class ActivitiesTests(APITestCase):
     def test_activities_unauthenticated(self):
         response = self.client.get(reverse('activities'))
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+
+class NotificationsTests(APITestCase):
+    def setUp(self):
+        from billing.models import SubscriptionPlan
+        from accounts.models import Organization, OrganizationMembership
+
+        self.plan = SubscriptionPlan.objects.create(
+            name='Plano Teste',
+            tier='FREE',
+            price_brl=0,
+            max_users=5,
+            max_ai_extractions=100,
+        )
+        self.org = Organization.objects.create(name='Escritório Teste', plan=self.plan)
+        self.user = User.objects.create_user(
+            username='notify@example.com',
+            email='notify@example.com',
+            password='strong-password-123',
+        )
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=self.org,
+            role='OWNER',
+        )
+        self.mailbox = MailBox.objects.create(
+            user=self.user,
+            name='Caixa Teste',
+            imap_host='imap.example.com',
+            username='user',
+            password='pass',
+        )
+        self.workflow = Workflow.objects.create(
+            name='Notificar Cliente',
+            organization=self.org,
+        )
+
+    def test_notifications_document(self):
+        EmailMessage.objects.create(
+            mailbox=self.mailbox,
+            message_id='msg-notify-1',
+            subject='Petição Inicial - Caso Silva',
+            sender='tribunal@example.com',
+            received_at=timezone.now(),
+            body_text='Corpo',
+            is_dispatched=True,
+        )
+        url = reverse('notifications')
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['type'], 'documento')
+        self.assertEqual(response.data[0]['read'], False)
+        self.assertEqual(response.data[0]['actionLabel'], 'Ir para Módulo de Documentos')
+        self.assertIn('Petição Inicial - Caso Silva', response.data[0]['documento'])
+
+    def test_notifications_empty(self):
+        url = reverse('notifications')
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_notifications_unauthenticated(self):
+        response = self.client.get(reverse('notifications'))
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
