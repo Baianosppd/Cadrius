@@ -14,7 +14,7 @@ from accounts.views import (
     PermissionGroupListView,
     CustomTokenObtainPairView,
 )
-from core.views import health_check, DashboardStatsView, ActivitiesView
+from core.views import health_check, DashboardStatsView, ActivitiesView, NotificationsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
 from tasks.views import UserTaskViewSet
 from workflows.views import WorkflowViewSet, AutomationStatsView
@@ -51,6 +51,7 @@ urlpatterns = [
     
     path('api/v1/dashboard/stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
     path('api/v1/activities/', ActivitiesView.as_view(), name='activities'),
+    path('api/v1/notifications/', NotificationsView.as_view(), name='notifications'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),
     path('api/workflows/', include('workflows.urls')),
 
