@@ -57,6 +57,49 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
             'oab_number': {'required': False},
         }
 
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """POST /api/v1/auth/change-password/ — troca de senha do utilizador autenticado."""
+
+    current_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+    )
+    confirm_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+    )
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError('Senha atual incorreta.')
+        return value
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError(
+                {'confirm_password': 'As senhas não coincidem.'},
+            )
+        if data['current_password'] == data['new_password']:
+            raise serializers.ValidationError(
+                {'new_password': 'A nova senha deve ser diferente da senha atual.'},
+            )
+        return data
+
+    def save(self, **kwargs):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return user
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True, required=True)
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})

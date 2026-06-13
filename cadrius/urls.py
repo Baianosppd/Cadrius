@@ -9,6 +9,7 @@ from accounts.views import (
     RegisterUserView,
     GetUserProfileView,
     UpdateUserProfileView,
+    ChangePasswordView,
     CustomTokenObtainPairView,
 )
 from core.views import health_check, DashboardStatsView
@@ -36,6 +37,7 @@ urlpatterns = [
     path('api/v1/auth/register/', RegisterUserView.as_view(), name='user_register'),
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
     path('api/v1/auth/profile/', UpdateUserProfileView.as_view(), name='user_profile_update'),
+    path('api/v1/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
     
     path('api/v1/dashboard/stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),

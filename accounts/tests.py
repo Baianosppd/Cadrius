@@ -117,3 +117,60 @@ class AccountTests(APITestCase):
         response = self.client.patch(url, {'first_name': 'João'}, format='json')
 
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_change_password_success(self):
+        url = reverse('change_password')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'current_password': self.test_user_data['password'],
+            'new_password': 'new-strong-password-456',
+            'confirm_password': 'new-strong-password-456',
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['detail'], 'Senha alterada com sucesso.')
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('new-strong-password-456'))
+        self.assertFalse(self.user.check_password(self.test_user_data['password']))
+
+    def test_change_password_wrong_current(self):
+        url = reverse('change_password')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'current_password': 'wrong-password',
+            'new_password': 'new-strong-password-456',
+            'confirm_password': 'new-strong-password-456',
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('current_password', response.data)
+
+    def test_change_password_mismatch(self):
+        url = reverse('change_password')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'current_password': self.test_user_data['password'],
+            'new_password': 'new-strong-password-456',
+            'confirm_password': 'different-password',
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('confirm_password', response.data)
+
+    def test_change_password_unauthenticated(self):
+        url = reverse('change_password')
+        response = self.client.post(
+            url,
+            {
+                'current_password': 'x',
+                'new_password': 'y',
+                'confirm_password': 'y',
+            },
+            format='json',
+        )
+
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
