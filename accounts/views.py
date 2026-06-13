@@ -1,9 +1,15 @@
 
 from rest_framework import generics, permissions
 from rest_framework.response import Response
+from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
-from .serializers import UserRegistrationSerializer, UserProfileSerializer, CustomTokenObtainPairSerializer
+from .serializers import (
+    UserRegistrationSerializer,
+    UserProfileSerializer,
+    UserProfileUpdateSerializer,
+    CustomTokenObtainPairSerializer,
+)
 
 User = get_user_model()
 
@@ -30,3 +36,23 @@ class GetUserProfileView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UpdateUserProfileView(generics.UpdateAPIView):
+    """
+    PATCH /api/v1/auth/profile/ — atualiza nome, telefone e OAB do utilizador autenticado.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserProfileUpdateSerializer
+    http_method_names = ['patch', 'options', 'head']
+
+    def get_object(self):
+        return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(UserProfileSerializer(instance).data)

@@ -5,7 +5,12 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # --- Views ---
-from accounts.views import RegisterUserView, GetUserProfileView, CustomTokenObtainPairView
+from accounts.views import (
+    RegisterUserView,
+    GetUserProfileView,
+    UpdateUserProfileView,
+    CustomTokenObtainPairView,
+)
 from core.views import health_check, DashboardStatsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
 from workflows.views import WorkflowViewSet, AutomationStatsView
@@ -30,6 +35,7 @@ urlpatterns = [
     path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/auth/register/', RegisterUserView.as_view(), name='user_register'),
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
+    path('api/v1/auth/profile/', UpdateUserProfileView.as_view(), name='user_profile_update'),
     
     path('api/v1/dashboard/stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),
