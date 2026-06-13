@@ -1,13 +1,14 @@
 
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import get_user_model
 from .serializers import (
     UserRegistrationSerializer,
     UserProfileSerializer,
     UserProfileUpdateSerializer,
+    ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
 )
 
@@ -56,3 +57,19 @@ class UpdateUserProfileView(generics.UpdateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(UserProfileSerializer(instance).data)
+
+
+class ChangePasswordView(APIView):
+    """
+    POST /api/v1/auth/change-password/ — altera a senha do utilizador autenticado.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {'detail': 'Senha alterada com sucesso.'},
+            status=status.HTTP_200_OK,
+        )
