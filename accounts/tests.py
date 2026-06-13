@@ -81,3 +81,39 @@ class AccountTests(APITestCase):
 
         # O esperado é 401 Unauthorized ou 403 Forbidden, dependendo da config
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_patch_user_profile_authenticated(self):
+        url = reverse('user_profile_update')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'first_name': 'João',
+            'last_name': 'Silva',
+            'phone': '(11) 99999-9999',
+            'oab_number': 'SP 123456',
+        }
+        response = self.client.patch(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['first_name'], 'João')
+        self.assertEqual(response.data['last_name'], 'Silva')
+        self.assertEqual(response.data['phone'], '(11) 99999-9999')
+        self.assertEqual(response.data['oab_number'], 'SP 123456')
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'João')
+        self.assertEqual(self.user.oab_number, 'SP 123456')
+
+    def test_patch_user_profile_partial(self):
+        url = reverse('user_profile_update')
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch(url, {'phone': '(21) 98888-7777'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['phone'], '(21) 98888-7777')
+        self.assertEqual(response.data['first_name'], self.test_user_data['first_name'])
+
+    def test_patch_user_profile_unauthenticated(self):
+        url = reverse('user_profile_update')
+        response = self.client.patch(url, {'first_name': 'João'}, format='json')
+
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])

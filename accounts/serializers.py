@@ -22,17 +22,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    """GET /api/v1/auth/user/ — somente leitura."""
+
     initials = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'first_name', 'last_name', 'initials', 
-            'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture'
+            'id', 'email', 'first_name', 'last_name', 'initials',
+            'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture',
         ]
-        # Aqui removemos o read_only_fields = fields para permitir que o 
-        # Front-end faça PUT/PATCH e atualize o perfil!
-        read_only_fields = ['id', 'email', 'initials']
+        read_only_fields = fields
 
     def get_initials(self, obj):
         if obj.first_name and obj.last_name:
@@ -40,8 +40,22 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if obj.first_name:
             return obj.first_name[0].upper()
         if obj.email:
-             return obj.email[0].upper()
+            return obj.email[0].upper()
         return "U"
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """PATCH /api/v1/auth/profile/ — atualização parcial do perfil."""
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'phone', 'oab_number']
+        extra_kwargs = {
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+            'phone': {'required': False},
+            'oab_number': {'required': False},
+        }
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True, required=True)
