@@ -5,9 +5,18 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # --- Views ---
-from accounts.views import RegisterUserView, GetUserProfileView, CustomTokenObtainPairView
-from core.views import health_check, DashboardStatsView
+from accounts.views import (
+    RegisterUserView,
+    GetUserProfileView,
+    UpdateUserProfileView,
+    ChangePasswordView,
+    TeamMemberListCreateView,
+    PermissionGroupListView,
+    CustomTokenObtainPairView,
+)
+from core.views import health_check, DashboardStatsView, ActivitiesView, NotificationsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
+from tasks.views import UserTaskViewSet
 from workflows.views import WorkflowViewSet, AutomationStatsView
 
 # --- Roteador DRF (Endpoints Automáticos) ---
@@ -16,6 +25,7 @@ router.register(r'mailboxes', MailBoxViewSet, basename='mailbox')
 router.register(r'emails', EmailMessageViewSet, basename='email')
 router.register(r'extraction-profiles', ExtractionProfileViewSet, basename='extraction-profile')
 router.register(r'workflows', WorkflowViewSet, basename='workflow')
+router.register(r'tasks', UserTaskViewSet, basename='task')
 
 # --- Mapeamento Final de URLs ---
 urlpatterns = [
@@ -30,8 +40,18 @@ urlpatterns = [
     path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/auth/register/', RegisterUserView.as_view(), name='user_register'),
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
+    path('api/v1/auth/profile/', UpdateUserProfileView.as_view(), name='user_profile_update'),
+    path('api/v1/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('api/v1/teams/members/', TeamMemberListCreateView.as_view(), name='team-members'),
+    path(
+        'api/v1/teams/permission-groups/',
+        PermissionGroupListView.as_view(),
+        name='team-permission-groups',
+    ),
     
     path('api/v1/dashboard/stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
+    path('api/v1/activities/', ActivitiesView.as_view(), name='activities'),
+    path('api/v1/notifications/', NotificationsView.as_view(), name='notifications'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),
     path('api/workflows/', include('workflows.urls')),
 

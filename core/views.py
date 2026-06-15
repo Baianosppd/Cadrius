@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from accounts.message_usage import dashboard_stats_for_user
+from core.activities import recent_activities_for_user
+from core.notifications import notifications_for_user
 
 # --- 2. VIEWS DE API (BACKEND) ---
 
@@ -36,3 +38,25 @@ class DashboardStatsView(APIView):
 
     def get(self, request):
         return Response(dashboard_stats_for_user(request.user))
+
+
+class ActivitiesView(APIView):
+    """
+    GET /api/v1/activities/
+    Feed de atividades recentes do dashboard.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(recent_activities_for_user(request.user))
+
+
+class NotificationsView(APIView):
+    """
+    GET /api/v1/notifications/
+    Feed de notificações do utilizador autenticado.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(notifications_for_user(request.user))

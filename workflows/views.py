@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Organization
+from accounts.team_roles import get_active_membership
 
 from .exceptions import WorkflowGenerationQuotaExceeded
 from .models import Workflow
@@ -63,8 +64,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tenant = getattr(request, "tenant", None)
-        if tenant is None:
+        membership = get_active_membership(request.user)
+        if membership is None:
             return Response(
                 {
                     "detail": (
@@ -76,7 +77,9 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        organization = Organization.objects.select_related("plan").get(pk=tenant.pk)
+        organization = Organization.objects.select_related("plan").get(
+            pk=membership.organization_id,
+        )
 
         try:
             data = generate_workflow_from_prompt(prompt_clean, organization)

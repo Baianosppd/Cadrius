@@ -81,3 +81,189 @@ class AccountTests(APITestCase):
 
         # O esperado é 401 Unauthorized ou 403 Forbidden, dependendo da config
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_patch_user_profile_authenticated(self):
+        url = reverse('user_profile_update')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'first_name': 'João',
+            'last_name': 'Silva',
+            'phone': '(11) 99999-9999',
+            'oab_number': 'SP 123456',
+        }
+        response = self.client.patch(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['first_name'], 'João')
+        self.assertEqual(response.data['last_name'], 'Silva')
+        self.assertEqual(response.data['phone'], '(11) 99999-9999')
+        self.assertEqual(response.data['oab_number'], 'SP 123456')
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'João')
+        self.assertEqual(self.user.oab_number, 'SP 123456')
+
+    def test_patch_user_profile_partial(self):
+        url = reverse('user_profile_update')
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch(url, {'phone': '(21) 98888-7777'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['phone'], '(21) 98888-7777')
+        self.assertEqual(response.data['first_name'], self.test_user_data['first_name'])
+
+    def test_patch_user_profile_unauthenticated(self):
+        url = reverse('user_profile_update')
+        response = self.client.patch(url, {'first_name': 'João'}, format='json')
+
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+    def test_change_password_success(self):
+        url = reverse('change_password')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'current_password': self.test_user_data['password'],
+            'new_password': 'new-strong-password-456',
+            'confirm_password': 'new-strong-password-456',
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['detail'], 'Senha alterada com sucesso.')
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('new-strong-password-456'))
+        self.assertFalse(self.user.check_password(self.test_user_data['password']))
+
+    def test_change_password_wrong_current(self):
+        url = reverse('change_password')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'current_password': 'wrong-password',
+            'new_password': 'new-strong-password-456',
+            'confirm_password': 'new-strong-password-456',
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('current_password', response.data)
+
+    def test_change_password_mismatch(self):
+        url = reverse('change_password')
+        self.client.force_authenticate(user=self.user)
+        data = {
+            'current_password': self.test_user_data['password'],
+            'new_password': 'new-strong-password-456',
+            'confirm_password': 'different-password',
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('confirm_password', response.data)
+
+    def test_change_password_unauthenticated(self):
+        url = reverse('change_password')
+        response = self.client.post(
+            url,
+            {
+                'current_password': 'x',
+                'new_password': 'y',
+                'confirm_password': 'y',
+            },
+            format='json',
+        )
+
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+
+class TeamMemberTests(APITestCase):
+    def setUp(self):
+        from billing.models import SubscriptionPlan
+        from accounts.models import Organization, OrganizationMembership
+
+        self.plan = SubscriptionPlan.objects.create(
+            name='Pro',
+            tier='PRO',
+            price_brl=99,
+            max_users=5,
+            max_ai_extractions=1000,
+        )
+        self.org = Organization.objects.create(name='Escritório Teste', plan=self.plan)
+        self.owner = User.objects.create_user(
+            username='owner@example.com',
+            email='owner@example.com',
+            password='strong-password-123',
+        )
+        OrganizationMembership.objects.create(
+            user=self.owner,
+            organization=self.org,
+            role='OWNER',
+        )
+        self.member = User.objects.create_user(
+            username='member@example.com',
+            email='member@example.com',
+            password='strong-password-123',
+        )
+        OrganizationMembership.objects.create(
+            user=self.member,
+            organization=self.org,
+            role='MEMBER',
+        )
+
+    def test_list_team_members(self):
+        url = reverse('team-members')
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]['role'], 'owner')
+
+    def test_invite_team_member(self):
+        url = reverse('team-members')
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            url,
+            {'email': 'funcionario@empresa.com', 'role': 'advogado_pleno'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['email'], 'funcionario@empresa.com')
+        self.assertEqual(response.data['role'], 'advogado_pleno')
+        self.assertTrue(User.objects.filter(email='funcionario@empresa.com').exists())
+
+    def test_invite_forbidden_for_member_role(self):
+        url = reverse('team-members')
+        self.client.force_authenticate(user=self.member)
+        response = self.client.post(
+            url,
+            {'email': 'novo@empresa.com', 'role': 'advogado_pleno'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PermissionGroupTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='groups@example.com',
+            email='groups@example.com',
+            password='strong-password-123',
+        )
+
+    def test_list_permission_groups_authenticated(self):
+        url = reverse('team-permission-groups')
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        self.assertEqual(response.data[0]['name'], 'Admin')
+        self.assertIn('Ver documentos', response.data[0]['permissions'])
+        self.assertEqual(response.data[2]['name'], 'Estagiário')
+
+    def test_list_permission_groups_unauthenticated(self):
+        response = self.client.get(reverse('team-permission-groups'))
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
