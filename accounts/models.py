@@ -57,6 +57,19 @@ class CustomUser(AbstractUser):
         verbose_name="Foto de Perfil"
     )
 
+    @property
+    def organization(self):
+        """
+        Escritório ativo associado ao utilizador (primeira membership ativa).
+        Alinha ``request.user.organization`` com o modelo multi-tenant real.
+        """
+        membership = (
+            self.memberships.filter(is_active=True)
+            .select_related("organization")
+            .first()
+        )
+        return membership.organization if membership else None
+
     def __str__(self):
         return self.email or self.username
 
