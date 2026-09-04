@@ -19,20 +19,22 @@ class WorkflowSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Workflow
+        # ``organization`` NÃO entra nos fields: só via
+        # TenantAwareViewSet.perform_create → serializer.save(organization=tenant)
         fields = ['id', 'name', 'description', 'is_active', 'trigger', 'actions', 'created_at']
+        read_only_fields = ['created_at']
 
     def create(self, validated_data):
         trigger_data = validated_data.pop('trigger')
         actions_data = validated_data.pop('actions')
-        
-        # 1. Cria o Workflow base
+
+        # organization vem de perform_create (save(organization=tenant)); o cliente
+        # não consegue forçar outro escritório porque o campo não é writável na API.
         workflow = Workflow.objects.create(**validated_data)
-        
-        # 2. Cria o Gatilho atrelado a ele
+
         Trigger.objects.create(workflow=workflow, **trigger_data)
-        
-        # 3. Cria as Ações atreladas a ele
+
         for action_data in actions_data:
             Action.objects.create(workflow=workflow, **action_data)
-            
+
         return workflow

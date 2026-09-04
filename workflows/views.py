@@ -1,11 +1,11 @@
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Organization
-from accounts.team_roles import get_active_membership
+from accounts.tenancy import TenantAwareViewSet, resolve_request_tenant
 
 from .exceptions import WorkflowGenerationQuotaExceeded
 from .models import Workflow
@@ -14,9 +14,12 @@ from .services import generate_workflow_from_prompt
 from .stats import automation_stats_for_organization
 
 
-class WorkflowViewSet(viewsets.ModelViewSet):
+class WorkflowViewSet(TenantAwareViewSet):
     """
     CRUD para automações + ações auxiliares (ex.: geração assistida por IA).
+
+    Isolamento por escritório via ``TenantAwareViewSet`` (``get_queryset`` +
+    ``perform_create`` injeta ``organization=request.tenant``).
     """
 
     permission_classes = [IsAuthenticated]
@@ -29,7 +32,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         GET /automations/stats/
         Cards da página Automações: ativas, total de execuções, tempo economizado (h).
         """
-        tenant = getattr(request, "tenant", None)
+        tenant = resolve_request_tenant(request)
         return Response(automation_stats_for_organization(tenant))
 
     @action(detail=False, methods=["post"], url_path="generate-from-prompt")
@@ -64,8 +67,8 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        membership = get_active_membership(request.user)
-        if membership is None:
+        tenant = resolve_request_tenant(request)
+        if tenant is None:
             return Response(
                 {
                     "detail": (
@@ -77,9 +80,7 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        organization = Organization.objects.select_related("plan").get(
-            pk=membership.organization_id,
-        )
+        organization = Organization.objects.select_related("plan").get(pk=tenant.pk)
 
         try:
             data = generate_workflow_from_prompt(prompt_clean, organization)
@@ -126,5 +127,5 @@ class AutomationStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        tenant = getattr(request, "tenant", None)
+        tenant = resolve_request_tenant(request)
         return Response(automation_stats_for_organization(tenant))

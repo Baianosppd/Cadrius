@@ -1,7 +1,9 @@
 from django.utils import timezone
-from rest_framework import mixins, viewsets
+from rest_framework import mixins
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from accounts.tenancy import TenantAwareGenericViewSet
 
 from .models import UserTask
 from .serializers import (
@@ -15,38 +17,36 @@ class UserTaskViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
-    viewsets.GenericViewSet,
+    TenantAwareGenericViewSet,
 ):
     """
     GET /api/v1/tasks/ — tarefas do dia do utilizador autenticado (responsável).
     POST /api/v1/tasks/ — cria tarefa a partir do formulário NewTask.jsx.
     PATCH /api/v1/tasks/{id}/ — marca tarefa como concluída ou pendente.
+
+    Isolamento por responsável (UserTask sem FK organization); herda a base
+    tenant-aware para manter o padrão CAD-061 nos ViewSets.
     """
 
     permission_classes = [IsAuthenticated]
     pagination_class = None
     queryset = UserTask.objects.all()
-    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    require_tenant_on_create = False
 
     def get_serializer_class(self):
-        if self.action == 'create':
+        if self.action == "create":
             return UserTaskCreateSerializer
-        if self.action in ('update', 'partial_update'):
+        if self.action in ("update", "partial_update"):
             return UserTaskUpdateSerializer
         return UserTaskListSerializer
 
-    def get_queryset(self):
-        if getattr(self, 'swagger_fake_view', False):
-            return UserTask.objects.none()
-
+    def filter_queryset_by_tenant(self, queryset):
         today = timezone.localdate()
-        return (
-            UserTask.objects.filter(
-                responsavel=self.request.user,
-                scheduled_at__date=today,
-            )
-            .order_by('scheduled_at')
-        )
+        return queryset.filter(
+            responsavel=self.request.user,
+            scheduled_at__date=today,
+        ).order_by("scheduled_at")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
