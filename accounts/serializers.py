@@ -113,80 +113,6 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.save(update_fields=['password'])
         return user
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    # Aceite dos documentos vigentes (LGPD): versão exata exibida ao utilizador.
-    accepted_terms_version = serializers.CharField(write_only=True, required=False)
-    accepted_privacy_version = serializers.CharField(write_only=True, required=False)
-    accepted_ciencia_version = serializers.CharField(write_only=True, required=False)
-    email = serializers.EmailField(write_only=True, required=True)
-    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-
-    class Meta:
-        model = User
-        # Expondo os campos para o formulário de Registo no Front-end
-        fields = (
-            'id', 'email', 'password', 'first_name', 'last_name',
-            'cpf', 'phone',
-            'accepted_terms_version', 'accepted_privacy_version', 'accepted_ciencia_version',
-        )
-        extra_kwargs = {
-            'password': {'write_only': True},
-        }
-
-    def validate(self, data):
-        if User.objects.filter(username=data['email']).exists():
-            raise serializers.ValidationError({"email": "Este e-mail já está a ser utilizado."})
-        data['username'] = data['email']
-        self._validate_legal_acceptance(data)
-        candidate = User(username=data['email'], email=data['email'],
-                         first_name=data.get('first_name', ''), last_name=data.get('last_name', ''))
-        try:
-            validate_password(data['password'], candidate)
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError({'password': list(exc.messages)})
-        return data
-
-    LEGAL_FIELDS = {
-        'terms': 'accepted_terms_version',
-        'privacy': 'accepted_privacy_version',
-        'ciencia': 'accepted_ciencia_version',
-    }
-
-    def _validate_legal_acceptance(self, data):
-        from privacy import consent
-
-        if not consent.acceptance_required():
-            return
-        errors = {}
-        self._documents_to_record = []
-        for doc in consent.current_documents(consent.REQUIRED_KINDS):
-            field = self.LEGAL_FIELDS[doc.kind]
-            if data.get(field) != doc.version:
-                errors[field] = f'É necessário aceitar a versão vigente ({doc.version}) de: {doc.title}.'
-            else:
-                self._documents_to_record.append(doc)
-        if errors:
-            raise serializers.ValidationError(errors)
-
-    def create(self, validated_data):
-        for field in self.LEGAL_FIELDS.values():
-            validated_data.pop(field, None)
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            # CPF é unique: '' colidiria no 2.º cadastro sem CPF (IntegrityError/500). Usa NULL.
-            cpf=validated_data.get('cpf') or None,
-            phone=validated_data.get('phone', ''),
-        )
-        from privacy import consent
-        for doc in getattr(self, '_documents_to_record', []):
-            consent.record_consent(user, doc, method='checkbox')
-        return user
-
-
 class TeamMemberSerializer(serializers.ModelSerializer):
     """GET/POST /api/v1/teams/members/ — representação de membro da equipa."""
 
@@ -194,11 +120,80 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     role = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    creditos_usados = serializers.SerializerMethodField()
+    creditos_limite = serializers.IntegerField(source='credit_limit', read_only=True)
 
     class Meta:
         model = OrganizationMembership
-        fields = ['id', 'email', 'first_name', 'last_name', 'role', 'joined_at']
+        fields = [
+            'id',
+            'email',
+            'first_name',
+            'last_name',
+            'role',
+            'status',
+            'creditos_usados',
+            'creditos_limite',
+            'joined_at',
+        ]
         read_only_fields = fields
+
+    def get_role(self, obj):
+        from .team_roles import role_to_frontend
+        return role_to_frontend(obj.role)
+
+    def get_status(self, obj):
+        return 'ativo' if obj.is_active else 'inativo'
+
+    def get_creditos_usados(self, obj):
+        used = getattr(obj, 'creditos_usados', None)
+        if used is not None:
+            return used
+        from billing.credits import member_credits_used
+        return member_credits_used(obj)
+
+
+class MemberCreditLimitSerializer(serializers.Serializer):
+    """PATCH /api/v1/teams/members/{id}/credits/ — cota mensal do membro (null = sem cota)."""
+
+    creditos_limite = serializers.IntegerField(min_value=0, allow_null=True)
+
+    def validate_creditos_limite(self, value):
+        if value is None:
+            return value
+        from billing.credits import distributed_credits
+
+        membership = self.context['membership']
+        organization = membership.organization
+        plan_total = organization.plan.max_ai_extractions
+        others = distributed_credits(organization, exclude_membership_id=membership.pk)
+        if others + value > plan_total:
+            raise serializers.ValidationError(
+                f'Cota excede o total do plano. Disponível para distribuir: {max(plan_total - others, 0)}.'
+            )
+        return value
+
+
+class FuncionarioSerializer(serializers.ModelSerializer):
+    """
+    GET /api/v1/funcionarios/ — lista para dropdowns (ex.: Responsável na NewTask).
+    ``user_id`` é o UUID a enviar em ``responsavel`` no POST /api/v1/tasks/.
+    """
+
+    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    name = serializers.SerializerMethodField()
+    email = serializers.EmailField(source='user.email', read_only=True)
+    role = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrganizationMembership
+        fields = ['user_id', 'name', 'email', 'role']
+        read_only_fields = fields
+
+    def get_name(self, obj):
+        full = f"{obj.user.first_name or ''} {obj.user.last_name or ''}".strip()
+        return full or obj.user.email or obj.user.username
 
     def get_role(self, obj):
         from .team_roles import role_to_frontend

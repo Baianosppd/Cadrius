@@ -145,6 +145,8 @@ INSTALLED_APPS = [
     'privacy',  # Termos, consentimento versionado, DSR e retenção (LGPD)
     'aigov',  # Governança de IA: políticas, kill switch, humano no circuito
     'compliance',  # Centro de Segurança: ISO 27001/27701, LGPD, RoPA
+    'documents',  # Documentos do escritório (ficheiros + metadados)
+    'notifications',  # Sino de notificações
 ]
 
 MIDDLEWARE = [

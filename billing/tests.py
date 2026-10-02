@@ -74,3 +74,65 @@ class PlansListTests(APITestCase):
         response = self.client.get(reverse('billing-plans'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
+
+
+class CurrentPlanTests(APITestCase):
+    def setUp(self):
+        from datetime import date
+
+        from accounts.models import Organization, OrganizationMembership
+
+        self.free = SubscriptionPlan.objects.create(
+            name='Free',
+            tier='FREE',
+            price_brl=Decimal('0.00'),
+            max_users=1,
+            max_ai_extractions=100,
+        )
+        self.pro = SubscriptionPlan.objects.create(
+            name='Pro',
+            tier='PRO',
+            price_brl=Decimal('500.00'),
+            max_users=10,
+            max_ai_extractions=100,
+        )
+        self.org = Organization.objects.create(
+            name='Escritório Plano',
+            plan=self.pro,
+            next_billing_date=date(2026, 11, 1),
+        )
+        self.user = User.objects.create_user(
+            username='plan@example.com',
+            email='plan@example.com',
+            password='strong-password-123',
+        )
+        OrganizationMembership.objects.create(user=self.user, organization=self.org, role='OWNER')
+
+    def test_current_plan(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(reverse('billing-current-plan'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['plano']['name'], 'Pro')
+        self.assertEqual(response.data['plano']['price'], 'R$ 500')
+        self.assertEqual(
+            response.data['plano']['features'],
+            ['100 créditos', 'Gestão de Tarefas', 'Até 10 usuários', 'Integrações premium'],
+        )
+        self.assertEqual(response.data['status'], 'ativo')
+        self.assertEqual(response.data['proxima_cobranca'], '2026-11-01')
+        self.assertEqual([p['name'] for p in response.data['outros_planos']], ['Free'])
+
+    def test_current_plan_without_organization(self):
+        outsider = User.objects.create_user(
+            username='noorg@example.com',
+            email='noorg@example.com',
+            password='strong-password-123',
+        )
+        self.client.force_authenticate(user=outsider)
+        response = self.client.get(reverse('billing-current-plan'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_current_plan_unauthenticated(self):
+        response = self.client.get(reverse('billing-current-plan'))
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
