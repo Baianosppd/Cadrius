@@ -32,3 +32,23 @@ class AIUsageLog(models.Model):
 
     class Meta:
         unique_together = ('organization', 'billing_cycle_month')
+
+
+class MemberCreditUsage(models.Model):
+    """Créditos consumidos por membro do escritório em cada mês."""
+
+    membership = models.ForeignKey(
+        'accounts.OrganizationMembership',
+        on_delete=models.CASCADE,
+        related_name='credit_usage',
+    )
+    billing_cycle_month = models.DateField(verbose_name="Mês de Faturação")
+    credits_used = models.PositiveIntegerField(default=0, verbose_name="Créditos usados")
+
+    class Meta:
+        unique_together = ('membership', 'billing_cycle_month')
+        verbose_name = "Uso de créditos do membro"
+        verbose_name_plural = "Uso de créditos dos membros"
+
+    def __str__(self):
+        return f"{self.membership_id} {self.billing_cycle_month}: {self.credits_used}"
