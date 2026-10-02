@@ -38,7 +38,11 @@ def _workflow_ai_provider() -> str:
     return "GROQ"
 
 
-def generate_workflow_from_prompt(user_prompt: str, organization: Organization) -> dict | None:
+def generate_workflow_from_prompt(
+    user_prompt: str,
+    organization: Organization,
+    user_id=None,
+) -> dict | None:
     """
     Chama a IA para gerar um objeto compatível com ``WorkflowGenerationSchema`` a partir
     de linguagem natural. Usa ``extract_fields_from_text`` (validação Pydantic) e o
@@ -47,7 +51,7 @@ def generate_workflow_from_prompt(user_prompt: str, organization: Organization) 
     Antes de qualquer chamada ao LLM, usa ``check_and_update_quota(organization)`` para
     respeitar o limite mensal de extrações/IA do plano do escritório.
     """
-    ok, quota_message = check_and_update_quota(organization)
+    ok, quota_message = check_and_update_quota(organization, user_id=user_id)
     if not ok:
         raise WorkflowGenerationQuotaExceeded(quota_message)
 

@@ -137,6 +137,8 @@ INSTALLED_APPS = [
     'workflows',  #  Motor de Automação
     'webhooks',  # Recebedor de Eventos Externos
     'billing',# Módulo de Assinaturas e Pagamentos
+    'documents',  # Documentos do escritório (ficheiros + metadados)
+    'notifications',  # Sino de notificações
 ]
 
 MIDDLEWARE = [

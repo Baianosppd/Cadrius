@@ -18,6 +18,7 @@ from extraction.ai_wrapper import extract_fields_from_text
 from extraction.models import ExtractionProfile
 from extraction import schemas as extraction_schemas
 from accounts.message_usage import record_document_analysis
+from notifications.services import notify_document_analyzed
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +196,7 @@ def process_email(email_id, profile_id, workflow_id):
         # 3. Marca o e-mail como processado
         email_obj.is_dispatched = True
         email_obj.save(update_fields=['is_dispatched'])
-        
+        notify_document_analyzed(email_obj, workflow.organization, extracted_json)
 
         execute_workflow_pipeline(
             workflow_id=workflow.id,
