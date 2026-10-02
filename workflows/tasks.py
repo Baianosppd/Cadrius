@@ -67,7 +67,10 @@ def render_action_payload(template_str, trigger_data):
         try:
             for key in keys:
                 value = value[key]
-            return str(value)
+            # Escapa para o contexto de string JSON do template: sem isto um valor vindo de um
+            # webhook público como `x","number":"5511..."` injetava/sobrescrevia campos da ação
+            # (ex.: redirecionar mensagens de WhatsApp para outro número).
+            return json.dumps(str(value), ensure_ascii=False)[1:-1]
         except (KeyError, TypeError):
             return match.group(0)
 

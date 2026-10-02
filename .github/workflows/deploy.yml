@@ -87,11 +87,24 @@ jobs:
             echo "DJANGO_SECRET_KEY='${{ secrets.PROD_DJANGO_SECRET_KEY }}'" >> .env
             echo "OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}" >> .env
             echo "EVOLUTION_API_KEY=${{ secrets.PROD_EVOLUTION_API_KEY }}" >> .env
+            echo "EVOLUTION_API_GLOBAL_KEY=${{ secrets.PROD_EVOLUTION_API_KEY }}" >> .env
+            # Cifra de credenciais de terceiros em repouso (Fernet). Obrigatória em produção.
+            echo "ENCRYPTION_KEY='${{ secrets.PROD_ENCRYPTION_KEY }}'" >> .env
+            echo "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" >> .env
+            echo "DJANGO_ENV=production" >> .env
+            echo "APP_VERSION=${{ github.sha }}" >> .env
+            echo "STRIPE_SECRET_KEY=${{ secrets.PROD_STRIPE_SECRET_KEY }}" >> .env
+            echo "STRIPE_WEBHOOK_SECRET=${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}" >> .env
+            # Infra: sem painel Traefik inseguro, sem hot-reload do uvicorn em produção.
+            echo "TRAEFIK_API_INSECURE=false" >> .env
+            echo "UVICORN_ARGS=" >> .env
+            echo "AXES_PROXY_COUNT=1" >> .env
             
-            echo "IMAP_HOST=imap.gmail.com" >> .env
+            # IMAP global (opcional): credenciais SEMPRE via GitHub Secrets, nunca no repositório.
+            echo "IMAP_HOST=${{ secrets.PROD_IMAP_HOST }}" >> .env
             echo "IMAP_PORT=993" >> .env
-            echo "IMAP_USERNAME=testejuri6@gmail.com" >> .env
-            echo "IMAP_PASSWORD=smlm gtga zldb gijp" >> .env
-            
+            echo "IMAP_USERNAME=${{ secrets.PROD_IMAP_USERNAME }}" >> .env
+            echo "IMAP_PASSWORD='${{ secrets.PROD_IMAP_PASSWORD }}'" >> .env
+
             chmod 600 .env
             sudo docker compose up -d --build

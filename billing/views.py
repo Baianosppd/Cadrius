@@ -8,13 +8,14 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from accounts.models import Organization
+from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from billing.models import SubscriptionPlan
 from billing.serializers import SubscriptionPlanSerializer
 
 logger = logging.getLogger(__name__)
 
 # Configura a chave secreta do Stripe
-stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', 'sk_test_chave_falsa_para_ja')
+stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '') or None
 
 
 class PlansListView(APIView):
@@ -39,7 +40,20 @@ class CreateCheckoutSessionView(APIView):
     def post(self, request):
         try:
             # 1. Pega a organização do utilizador que fez o pedido
-            user_org = request.user.organizationmembership_set.first().organization
+            # related_name real é 'memberships' (o antigo `organizationmembership_set` não existe
+            # e o endpoint devolvia sempre 500). Usa só vínculos ativos.
+            membership = get_active_membership(request.user)
+            if membership is None:
+                return Response(
+                    {'detail': 'A sua conta não pertence a nenhum escritório ativo.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if membership.role not in MANAGE_TEAM_ROLES:
+                return Response(
+                    {'detail': 'Apenas donos ou administradores podem gerir a assinatura.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            user_org = membership.organization
             
             # 2. Pega o plano que ele quer assinar (vem no JSON do Front-end)
             plan_id = request.data.get('plan_id')
@@ -68,9 +82,15 @@ class CreateCheckoutSessionView(APIView):
 
             return Response({'checkout_url': checkout_session.url}, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            logger.error(f"Erro ao criar sessão de checkout: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except SubscriptionPlan.DoesNotExist:
+            return Response({'detail': 'Plano inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            # Não devolver str(e): vazava detalhes internos/da API do Stripe ao cliente.
+            logger.exception("Erro ao criar sessão de checkout")
+            return Response(
+                {'detail': 'Não foi possível iniciar o pagamento. Tente novamente.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class StripeWebhookView(APIView):
@@ -88,12 +108,17 @@ class StripeWebhookView(APIView):
 
         event = None
 
+        # Sem segredo configurado a assinatura seria validada contra '' (forjável por qualquer um).
+        if not endpoint_secret:
+            logger.error("STRIPE_WEBHOOK_SECRET não configurado; webhook recusado.")
+            return HttpResponse(status=503)
+
         # 1. Valida se o pedido veio MESMO do Stripe (Segurança)
         try:
             event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
         except ValueError:
             return HttpResponse(status=400)
-        except stripe.error.SignatureVerificationError:
+        except stripe.SignatureVerificationError:
             return HttpResponse(status=400)
 
         # 2. Lida com o evento de Pagamento Concluído
@@ -106,9 +131,9 @@ class StripeWebhookView(APIView):
                     org = Organization.objects.get(id=org_id)
                     org.is_active = True  # Liberta o acesso!
                     org.save()
-                    logger.info(f"💰 Pagamento confirmado para a Org {org.name}!")
-                except Organization.DoesNotExist:
-                    pass
+                    logger.info("Pagamento confirmado org_id=%s", org.id)
+                except (Organization.DoesNotExist, ValueError):
+                    logger.warning("Webhook Stripe com client_reference_id desconhecido.")
 
         # 3. Lida com o evento de Assinatura Cancelada / Cartão Recusado
         elif event['type'] == 'customer.subscription.deleted':

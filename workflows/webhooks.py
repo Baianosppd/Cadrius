@@ -139,10 +139,11 @@ class WebhookReceiverView(APIView):
             ).get("text")
 
             if numero_remetente and texto:
+                # LGPD: não gravar o número completo do titular nos logs (só os 4 últimos dígitos).
                 logger.info(
-                    "[WhatsApp Cadrius] connection=%s de=%s",
+                    "[WhatsApp Cadrius] connection=%s de=***%s",
                     connection_id,
-                    numero_remetente,
+                    str(numero_remetente).split("@")[0][-4:],
                 )
 
         return Response({"status": "sucesso"}, status=status.HTTP_202_ACCEPTED)

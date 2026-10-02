@@ -2,7 +2,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.throttling import ScopedRateThrottle
 from django.contrib.auth import get_user_model
 from .serializers import (
     UserRegistrationSerializer,
@@ -23,6 +26,32 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     Substitui a view de login padrão para usar o serializer customizado.
     """
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_login'
+
+
+class ThrottledTokenRefreshView(TokenRefreshView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_refresh'
+
+
+class LogoutView(APIView):
+    """
+    POST /api/v1/auth/logout/ — revoga o refresh token (blacklist).
+    Body: {"refresh": "<token>"}. Sem isto o token roubado continuava válido até expirar.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        refresh = request.data.get('refresh')
+        if not refresh:
+            return Response({'detail': 'Campo "refresh" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            RefreshToken(refresh).blacklist()
+        except TokenError:
+            return Response({'detail': 'Token inválido ou já revogado.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_205_RESET_CONTENT)
+
 
 class RegisterUserView(generics.CreateAPIView):
     """
@@ -31,6 +60,8 @@ class RegisterUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (permissions.AllowAny,)
     serializer_class = UserRegistrationSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_register'
 
 class GetUserProfileView(generics.RetrieveAPIView):
     """

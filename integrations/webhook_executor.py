@@ -3,6 +3,7 @@ from typing import Any
 
 import requests
 
+from integrations.ssrf import validate_outbound_url
 from workflows.models import Action
 
 
@@ -31,6 +32,9 @@ class WebhookExecutor:
         if not url:
             raise ValueError("Ação webhook sem endpoint_url configurado.")
 
+        # SSRF: bloqueia destinos internos/esquemas não-http antes de sair da rede.
+        validate_outbound_url(url)
+
         method = (self.action.method or "POST").upper()
         hdrs = self._headers_from_action(self.action.headers)
 
@@ -40,4 +44,6 @@ class WebhookExecutor:
             json=json_body,
             headers=hdrs,
             timeout=self.timeout,
+            # Um redirect 302 para http://169.254.169.254/ contornaria a validação acima.
+            allow_redirects=False,
         )

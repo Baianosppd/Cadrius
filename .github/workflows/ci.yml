@@ -27,6 +27,15 @@ jobs:
       # Ignoramos migrations e ficheiros automáticos do Django
       run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=*/migrations/*,venv,env
 
+    - name:  Auditoria de dependências (pip-audit)
+      # Vulnerabilidades conhecidas (CVE) nas libs de requirements.txt (arquivo em UTF-16 -> converte).
+      # Não bloqueante até o backlog inicial ser tratado; remover `continue-on-error` depois.
+      continue-on-error: true
+      run: |
+        pip install pip-audit
+        iconv -f UTF-16 -t UTF-8 requirements.txt | tr -d '\r' > /tmp/requirements-utf8.txt
+        pip-audit -r /tmp/requirements-utf8.txt
+
     - name:  Auditoria de Segurança (Bandit)
       # Procura falhas de segurança comuns em Python (ex: shell=True, hardcoded passwords)
       run: bandit -r . -x ./tests,./venv --severity-level high

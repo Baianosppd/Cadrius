@@ -12,13 +12,15 @@ services:
       image: traefik:v2.10
       container_name: cadrius_traefik
       command:
-        - "--api.insecure=true"
+        # Painel do Traefik sem autenticação: só em dev (em produção TRAEFIK_API_INSECURE=false).
+        - "--api.insecure=${TRAEFIK_API_INSECURE:-true}"
         - "--providers.docker=true"
         - "--providers.docker.exposedbydefault=false"
         - "--entrypoints.web.address=:80"
       ports:
         - "80:80"
-        - "8090:8080"
+        # Portas internas/administrativas só em loopback: nunca expostas à internet.
+        - "127.0.0.1:8090:8080"
       volumes:
         # Ajustado para WSL2 Moderno
         - "//var/run/docker.sock:/var/run/docker.sock:ro"
@@ -35,7 +37,7 @@ services:
     environment:
       - POSTGRES_DB=cadrius
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     env_file:
       - .env
     networks:
@@ -61,7 +63,7 @@ services:
       - POSTGRES_HOST=db
       - POSTGRES_DB=cadrius
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_CLUSTER=TRUE
       - SCHEDULE=@daily
       - BACKUP_KEEP_DAYS=7
@@ -87,11 +89,12 @@ services:
       command: >
         sh -c "python manage.py migrate &&
                python manage.py collectstatic --noinput &&
-               uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
+               uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 ${UVICORN_ARGS---reload}"
       
-      # 👇 O BYPASS DE DESENVOLVIMENTO: Porta exposta diretamente 👇
+      # Bypass de desenvolvimento, agora só em loopback (em produção o acesso é via Traefik).
+      # Em produção defina UVICORN_ARGS= (vazio) no .env para desligar o --reload.
       ports:
-        - "8000:8000"
+        - "127.0.0.1:8000:8000"
       
       volumes:
         - .:/app
@@ -148,7 +151,7 @@ services:
       image: ngrok/ngrok:latest
       restart: unless-stopped
       ports:                  
-        - "4040:4040"         
+        - "127.0.0.1:4040:4040"         
       command:
         - "http"
         - "http://traefik:80"
@@ -165,15 +168,15 @@ services:
     container_name: cadrius_evolution
     user: "root"  
     ports:
-      - "8082:8080"
+      - "127.0.0.1:8082:8080"
     environment:
       - SERVER_URL=http://localhost:8082
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=cadrius_mestre_secreto_123 
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_GLOBAL_KEY:-cadrius_mestre_secreto_123}
       
       # --- CONEXÃO COM O BANCO DE DADOS (POSTGRES) ---
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@db:5432/cadrius?schema=public
+      - DATABASE_CONNECTION_URI=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/cadrius?schema=public
 
       - CACHE_REDIS_ENABLED=false
       

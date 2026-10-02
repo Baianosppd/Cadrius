@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
-from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # --- Views ---
@@ -13,6 +12,8 @@ from accounts.views import (
     TeamMemberListCreateView,
     PermissionGroupListView,
     CustomTokenObtainPairView,
+    ThrottledTokenRefreshView,
+    LogoutView,
 )
 from core.views import health_check, DashboardStatsView, ActivitiesView, NotificationsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
@@ -37,7 +38,8 @@ urlpatterns = [
 
     # --- Autenticação (JWT) ---
     path('api/v1/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/auth/token/refresh/', ThrottledTokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/auth/logout/', LogoutView.as_view(), name='auth_logout'),
     path('api/v1/auth/register/', RegisterUserView.as_view(), name='user_register'),
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
     path('api/v1/auth/profile/', UpdateUserProfileView.as_view(), name='user_profile_update'),

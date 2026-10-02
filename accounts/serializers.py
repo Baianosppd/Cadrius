@@ -1,6 +1,8 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from .models import OrganizationMembership
 
 User = get_user_model()
@@ -93,6 +95,11 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {'new_password': 'A nova senha deve ser diferente da senha atual.'},
             )
+        # Aplica AUTH_PASSWORD_VALIDATORS (antes ignorados fora do admin).
+        try:
+            validate_password(data['new_password'], self.context['request'].user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'new_password': list(exc.messages)})
         return data
 
     def save(self, **kwargs):
@@ -120,6 +127,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if User.objects.filter(username=data['email']).exists():
             raise serializers.ValidationError({"email": "Este e-mail já está a ser utilizado."})
         data['username'] = data['email']
+        candidate = User(username=data['email'], email=data['email'],
+                         first_name=data.get('first_name', ''), last_name=data.get('last_name', ''))
+        try:
+            validate_password(data['password'], candidate)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password': list(exc.messages)})
         return data
 
     def create(self, validated_data):
@@ -129,7 +142,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
-            cpf=validated_data.get('cpf', ''),
+            # CPF é unique: '' colidiria no 2.º cadastro sem CPF (IntegrityError/500). Usa NULL.
+            cpf=validated_data.get('cpf') or None,
             phone=validated_data.get('phone', ''),
         )
         return user
@@ -185,6 +199,10 @@ class TeamMemberInviteSerializer(serializers.Serializer):
             raise PermissionDenied(
                 'Apenas donos ou administradores do escritório podem convidar membros.',
             )
+
+        # Só OWNER concede OWNER (um ADMIN podia convidar-se a si/colegas como dono).
+        if data['role'] == 'OWNER' and inviter_membership.role != 'OWNER':
+            raise PermissionDenied('Apenas o dono do escritório pode conceder o cargo de dono.')
 
         self.context['inviter_membership'] = inviter_membership
         return data
