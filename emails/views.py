@@ -4,6 +4,7 @@ from django.db.models import Q
 from django_q.models import Schedule
 
 from accounts.tenancy import TenantAwareGenericViewSet, TenantAwareViewSet
+from accounts.permissions import OrgRolePermission
 from audit import service
 from audit.mixins import AuditedModelMixin
 
@@ -24,7 +25,7 @@ class MailBoxViewSet(AuditedModelMixin, TenantAwareViewSet):
     audit_categories = ("credencial",)
     queryset = MailBox.objects.all()
     serializer_class = MailBoxSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [OrgRolePermission]
     require_tenant_on_create = False
 
     def filter_queryset_by_tenant(self, queryset):
@@ -85,7 +86,7 @@ class ExtractionProfileViewSet(AuditedModelMixin, TenantAwareViewSet):
     audit_prefix = "extractionprofile"
     queryset = ExtractionProfile.objects.all()
     serializer_class = ExtractionProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [OrgRolePermission]
     require_tenant_on_create = False
 
     def filter_queryset_by_tenant(self, queryset):

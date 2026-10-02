@@ -65,6 +65,7 @@ urlpatterns = [
 
     path('api/v1/audit/', include('audit.urls')),
     path('api/v1/', include('privacy.urls')),
+    path('api/v1/ai/', include('aigov.urls')),
     path('api/billing/', include('billing.urls')),
     path('api/webhooks/', include('webhooks.urls')),
 ]

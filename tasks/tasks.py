@@ -176,13 +176,28 @@ def process_email(email_id, profile_id, workflow_id):
         if not schema_class:
             raise ValueError(f"Schema {profile.pydantic_schema_name} não encontrado no sistema.")
             
-        # 2. Chama o Motor Universal de IA (OpenAI / Groq / Gemini)
-        extracted_json = extract_fields_from_text(
-            text=email_obj.body_text,
-            schema=schema_class,
-            prompt_template=profile.system_prompt_template,
-            provider=profile.ai_provider
-        )
+        # 2. Chama o Motor Universal de IA (OpenAI / Groq / Gemini) SOB GOVERNANÇA (política do
+        # escritório, kill switch, limites e registro de cada uso — sem o conteúdo).
+        from accounts.team_roles import get_active_membership
+        from aigov.guard import AIBlocked, run_guarded
+
+        membership = get_active_membership(email_obj.mailbox.user)
+        if membership is None:
+            logger.error("execution skipped: caixa sem escritório ativo (mailbox_id=%s)", email_obj.mailbox_id)
+            return
+        try:
+            extracted_json = run_guarded(
+                organization=membership.organization, user=email_obj.mailbox.user, kind='extraction',
+                provider=profile.ai_provider, categories=['conteudo_comunicacao', 'processual'],
+                input_text=email_obj.body_text,
+                fn=lambda: extract_fields_from_text(
+                    text=email_obj.body_text, schema=schema_class,
+                    prompt_template=profile.system_prompt_template, provider=profile.ai_provider,
+                ),
+            )
+        except AIBlocked as blocked:
+            logger.warning("email_id=%s extração bloqueada por política: %s", email_id, blocked.code)
+            return
         
         if not extracted_json:
             logger.error(f"❌ [Workflow {workflow.name}] A IA falhou a extrair os dados (Erro de Schema/Timeout).")
@@ -201,6 +216,7 @@ def process_email(email_id, profile_id, workflow_id):
             workflow_id=workflow.id,
             payload=extracted_json,
             user_id=email_obj.mailbox.user_id,
+            ai_origin=True,
         )
 
     except EmailMessage.DoesNotExist:

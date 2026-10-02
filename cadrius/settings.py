@@ -143,6 +143,7 @@ INSTALLED_APPS = [
     'billing',# Módulo de Assinaturas e Pagamentos
     'audit',  # Trilha de auditoria imutável + anomalias (LGPD/ISO 27001)
     'privacy',  # Termos, consentimento versionado, DSR e retenção (LGPD)
+    'aigov',  # Governança de IA: políticas, kill switch, humano no circuito
 ]
 
 MIDDLEWARE = [

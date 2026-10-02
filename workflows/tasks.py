@@ -15,6 +15,7 @@ from extraction.ai_wrapper import check_and_update_quota
 from integrations.evolution import WhatsAppEvolutionExecutor
 from integrations.models import AppConnection
 from integrations.webhook_executor import WebhookExecutor
+from audit import service as audit_service
 from cadrius.sentry_context import set_sentry_context
 from workflows.models import Action, ExecutionLog, Workflow
 
@@ -326,6 +327,21 @@ def process_workflow_execution(execution_log_id):
         )
         return
 
+    # Governança de IA: ação externa disparada por conteúdo extraído por IA aguarda confirmação humana
+    # (a quota só é consumida quando a execução realmente acontece).
+    if exec_log.ai_origin and exec_log.review_decision != "approved":
+        from aigov.guard import get_policy
+
+        if get_policy(tenant).requires_execution_review():
+            exec_log.status = "PENDING_REVIEW"
+            exec_log.save(update_fields=["status"])
+            audit_service.log(
+                "ai.blocked", actor_type="system", organization=tenant, target=exec_log, outcome="denied",
+                reason="execução de origem IA aguarda confirmação humana",
+            )
+            logger.info("execution_log_id=%s aguarda revisão humana (origem IA)", execution_log_id)
+            return
+
     try:
         # CAD-062: quota sempre no tenant do workflow (nunca outro escritório).
         ok, quota_message = check_and_update_quota(tenant)
@@ -430,7 +446,7 @@ def process_workflow_execution(execution_log_id):
 
 
 @check_quota_limit
-def execute_workflow_pipeline(workflow_id, payload, user_id=None):
+def execute_workflow_pipeline(workflow_id, payload, user_id=None, ai_origin=False):
     """
     Ponto de entrada (quota + registo): cria ExecutionLog e enfileira o processamento pesado.
     ``user_id``: utilizador logado ou proprietário da conexão que originou o disparo.
@@ -441,6 +457,7 @@ def execute_workflow_pipeline(workflow_id, payload, user_id=None):
         status="PENDING",
         trigger_payload=payload,
         triggered_by_id=user_id,
+        ai_origin=ai_origin,
     )
     # Runner (CAD-001): fila pesada com o ID do log recém-criado.
     async_task("workflows.tasks.process_workflow_execution", exec_log.id)

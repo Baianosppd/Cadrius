@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
@@ -6,7 +7,11 @@ from rest_framework.views import APIView
 
 from accounts.models import Organization
 from accounts.tenancy import TenantAwareViewSet, resolve_request_tenant
+from accounts.permissions import IsOrgManager, OrgRolePermission
+from audit import service as audit_service
 from audit.mixins import AuditedModelMixin
+
+from aigov.guard import AIBlocked
 
 from .exceptions import WorkflowGenerationQuotaExceeded
 from .models import Workflow
@@ -25,9 +30,35 @@ class WorkflowViewSet(AuditedModelMixin, TenantAwareViewSet):
 
     audit_prefix = "workflow"
     audit_categories = ("processual",)
-    permission_classes = [IsAuthenticated]
+    permission_classes = [OrgRolePermission]
     queryset = Workflow.objects.all().order_by("-created_at")
     serializer_class = WorkflowSerializer
+
+    @action(detail=True, methods=["post"], url_path="approve", permission_classes=[IsOrgManager])
+    def approve(self, request, pk=None):
+        """POST .../automations/<id>/approve/ — OWNER/ADMIN aprova (ativa) um workflow gerado por IA."""
+        workflow = self.get_object()
+        if not workflow.ai_generated:
+            return Response({"detail": "Este workflow não é gerado por IA e não requer aprovação."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if workflow.approved_at is not None:
+            return Response({"detail": "Workflow já aprovado."}, status=status.HTTP_400_BAD_REQUEST)
+        workflow.approved_by, workflow.approved_at, workflow.is_active = request.user, timezone.now(), True
+        workflow.save(update_fields=["approved_by", "approved_at", "is_active", "updated_at"])
+        audit_service.log("workflow.approved", target=workflow, changes={"ai_generated": True})
+        audit_service.log("workflow.activated", target=workflow)
+        return Response(self.get_serializer(workflow).data)
+
+    @action(detail=True, methods=["post"], url_path="reject", permission_classes=[IsOrgManager])
+    def reject(self, request, pk=None):
+        """POST .../automations/<id>/reject/ — descarta um rascunho de IA ainda não aprovado."""
+        workflow = self.get_object()
+        if not workflow.awaiting_approval:
+            return Response({"detail": "Só rascunhos de IA pendentes podem ser rejeitados."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        audit_service.log("workflow.deleted", target=workflow, reason="rascunho de IA rejeitado")
+        workflow.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
@@ -86,7 +117,9 @@ class WorkflowViewSet(AuditedModelMixin, TenantAwareViewSet):
         organization = Organization.objects.select_related("plan").get(pk=tenant.pk)
 
         try:
-            data = generate_workflow_from_prompt(prompt_clean, organization)
+            data = generate_workflow_from_prompt(prompt_clean, organization, user=request.user)
+        except AIBlocked as blocked:
+            return Response({"detail": blocked.message, "code": blocked.code}, status=status.HTTP_403_FORBIDDEN)
         except WorkflowGenerationQuotaExceeded as exc:
             return Response(
                 {"detail": exc.detail, "code": "quota_exceeded"},

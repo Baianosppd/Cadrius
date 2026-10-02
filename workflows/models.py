@@ -10,8 +10,18 @@ class Workflow(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='workflows')
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    # RNE-016 / RF-013: workflow gerado por IA nasce inativo e só um OWNER/ADMIN o aprova.
+    ai_generated = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='approved_workflows',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def awaiting_approval(self) -> bool:
+        return self.ai_generated and self.approved_at is None
 
     def __str__(self):
         return self.name
@@ -121,6 +131,14 @@ class ExecutionLog(models.Model):
         null=True, blank=True, 
         help_text="Tempo de execução em milissegundos para cálculo de ROI"
     )
+
+    # Origem IA (conteúdo extraído por IA) + revisão humana antes de ações externas (RF-023).
+    ai_origin = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_executions',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_decision = models.CharField(max_length=10, blank=True)  # approved | rejected
 
     created_at = models.DateTimeField(auto_now_add=True)
 
