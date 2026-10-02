@@ -4,3 +4,4 @@ flake8
 bandit
 pip-audit
 pip-tools
+coverage

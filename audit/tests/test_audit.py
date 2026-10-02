@@ -285,3 +285,43 @@ class DetectorTests(TestCase):
         service.log('data.read', actor=user)
         detectors.run_detectors(self.now)
         self.assertFalse(AnomalyAlert.objects.filter(rule__in=['A1_NEW_IP', 'A2_OFF_HOURS']).exists())
+
+
+class OutboundAuditTests(TestCase):
+    """RNE-011: comunicações geradas pelo sistema ficam na trilha imutável (sem destinatário/conteúdo)."""
+
+    def make_execution(self, action_type, endpoint_url=None, tag='a'):
+        from integrations.models import AppConnection
+        from workflows import tasks as wf_tasks
+        from workflows.models import Action, ExecutionLog, Trigger, Workflow
+
+        org = make_org(f'Escritório {tag}')
+        owner = make_user(f'w-{tag}@exemplo.com', org, role='OWNER')
+        conn = AppConnection.objects.create(user=owner, name='c', app_name='WEBHOOK')
+        wf = Workflow.objects.create(name='w', organization=org)
+        Trigger.objects.create(workflow=wf, connection=conn, event_type='manual')
+        Action.objects.create(workflow=wf, action_type=action_type, endpoint_url=endpoint_url,
+                              payload_template='{"number": "5511999990000", "text": "SEGREDO"}')
+        log = ExecutionLog.objects.create(workflow=wf, status='PENDING', trigger_payload={'x': 1})
+        return wf_tasks, log
+
+    def test_sucesso_gera_integration_call_ou_message_sent(self):
+        for action_type, expected in (('WEBHOOK', 'integration.call'), ('WHATSAPP_EVOLUTION', 'message.sent')):
+            wf_tasks, log = self.make_execution(action_type, 'https://example.com/h' if action_type == 'WEBHOOK' else None,
+                                                tag=action_type)
+            with mock.patch.object(wf_tasks, '_dispatch_action_execution', return_value={'ok': 1}):
+                wf_tasks.process_workflow_execution(log.pk)
+            event = AuditEvent.objects.filter(action=expected).latest('seq')
+            self.assertEqual(event.outcome, 'success')
+            self.assertEqual(event.changes['action_type'], action_type)
+        flat = str(list(AuditEvent.objects.values()))
+        self.assertNotIn('5511999990000', flat)
+        self.assertNotIn('SEGREDO', flat)
+
+    def test_falha_de_envio_tambem_e_registrada(self):
+        import requests
+        wf_tasks, log = self.make_execution('WEBHOOK', 'https://example.com/h')
+        with mock.patch.object(wf_tasks, '_dispatch_action_execution', side_effect=requests.ConnectionError('x')), \
+                mock.patch.object(wf_tasks.time, 'sleep'):
+            wf_tasks.process_workflow_execution(log.pk)
+        self.assertEqual(AuditEvent.objects.get(action='integration.call').outcome, 'error')

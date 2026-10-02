@@ -342,6 +342,7 @@ def process_workflow_execution(execution_log_id):
             logger.info("execution_log_id=%s aguarda revisão humana (origem IA)", execution_log_id)
             return
 
+    action = None  # definido dentro do try; usado também nos handlers de erro
     try:
         # CAD-062: quota sempre no tenant do workflow (nunca outro escritório).
         ok, quota_message = check_and_update_quota(tenant)
@@ -406,8 +407,10 @@ def process_workflow_execution(execution_log_id):
         user_id = _resolve_execution_user_id(exec_log, workflow)
         record_automation_run(user_id)
         record_outbound_message_send(user_id, action.action_type)
+        _audit_outbound(exec_log, tenant, action.action_type, "success")
 
     except requests.exceptions.RequestException as e:
+        _audit_outbound(exec_log, tenant, getattr(action, "action_type", ""), "error")
         logger.error(
             "execution_log_id=%s workflow_id=%s envio falhou após %s tentativas: %s: %s",
             execution_log_id,
@@ -443,6 +446,23 @@ def process_workflow_execution(execution_log_id):
         exec_log.save(
             update_fields=["status", "error_message", "execution_time_ms"]
         )
+
+
+_MESSAGE_ACTIONS = {"WHATSAPP_EVOLUTION", "EMAIL_SMTP"}
+
+
+def _audit_outbound(exec_log, tenant, action_type, outcome):
+    """
+    RNE-011: toda comunicação/chamada externa gerada pelo sistema deixa um registro IMUTÁVEL com o
+    estado de entrega. Só metadados (tipo de ação, resultado, IDs) — nunca destinatário nem conteúdo.
+    """
+    audit_service.log(
+        "message.sent" if action_type in _MESSAGE_ACTIONS else "integration.call",
+        actor_type="system", organization=tenant, target=exec_log,
+        outcome="success" if outcome == "success" else "error",
+        changes={"action_type": action_type, "execution_log_id": exec_log.pk, "ai_origin": exec_log.ai_origin},
+        data_categories=["contato", "conteudo_comunicacao"], legal_basis="contrato",
+    )
 
 
 @check_quota_limit

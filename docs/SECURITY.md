@@ -28,7 +28,13 @@ Implementamos **Content Security Policy (CSP)** para mitigar ataques de Cross-Si
 
 ---
 
-## 5. Proteções adicionais
+## 5. Governança, auditoria e privacidade
+* **Auditoria imutável** (`audit`): eventos encadeados por SHA-256 + trigger no PostgreSQL; 10 regras de anomalia; `verify_audit_chain` diário.
+* **LGPD** (`privacy`): termos versionados com aceite comprovado, direitos do titular (15 dias), retenção automática, offboarding de 30 dias.
+* **IA** (`aigov`): política por escritório, kill switch, humano no circuito, texto de terceiros tratado como dado não confiável.
+* **Conformidade** (`compliance`): ISO 27001/27701 e LGPD avaliadas no Centro de Segurança (`/security-center/`).
+
+## 6. Proteções adicionais
 * **SSRF:** ações de webhook não chamam redes privadas/loopback/metadados (`integrations/ssrf.py`).
 * **Segredos:** a aplicação recusa arrancar em produção sem `SECRET_KEY`, `ENCRYPTION_KEY` e chave da Evolution API.
 * **LGPD:** Sentry sem PII automática; ver `docs/AUDITORIA_SEGURANCA.md` e `docs/PLANO_AUDITORIA_LGPD.md`.
