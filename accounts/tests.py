@@ -636,3 +636,25 @@ class TeamCreditsTests(APITestCase):
             'creditos_distribuidos': 40,
             'creditos_nao_distribuidos': 60,
         })
+
+class UserProfileContextTests(APITestCase):
+    """GET /auth/user/ expõe escritório, papel e is_staff (o front decide as telas por eles)."""
+
+    def test_profile_inclui_organizacao_e_papel(self):
+        from cadrius.tests_security import make_org, make_user
+        org = make_org('Escritório Perfil')
+        user = make_user('perfil@example.com', org=org)
+        self.client.force_authenticate(user)
+        resp = self.client.get('/api/v1/auth/user/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['organization']['name'], 'Escritório Perfil')
+        self.assertIn(resp.data['role'], {'OWNER', 'ADMIN', 'MEMBER', 'VIEWER'})
+        self.assertFalse(resp.data['is_staff'])
+
+    def test_profile_sem_escritorio(self):
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.create_user('solo@example.com', 'solo@example.com', 'Str0ng-Passw0rd!x')
+        self.client.force_authenticate(user)
+        resp = self.client.get('/api/v1/auth/user/')
+        self.assertIsNone(resp.data['organization'])
+        self.assertIsNone(resp.data['role'])
