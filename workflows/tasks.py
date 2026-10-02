@@ -284,7 +284,7 @@ def process_workflow_execution(execution_log_id):
             "triggered_by",
         ).get(id=execution_log_id)
     except ExecutionLog.DoesNotExist:
-        logger.error("ExecutionLog %s não encontrado.", execution_log_id)
+        logger.error("execution_log_id=%s ExecutionLog não encontrado.", execution_log_id)
         return
 
     workflow = exec_log.workflow
@@ -320,7 +320,7 @@ def process_workflow_execution(execution_log_id):
             update_fields=["status", "error_message", "execution_time_ms"]
         )
         logger.warning(
-            "ExecutionLog %s: workflow %s não está ativo (is_active=False).",
+            "execution_log_id=%s workflow_id=%s não está ativo (is_active=False); execução cancelada.",
             execution_log_id,
             workflow.id,
         )
@@ -365,7 +365,7 @@ def process_workflow_execution(execution_log_id):
                     min(attempt - 1, len(_WORKFLOW_RETRY_BACKOFF_SEC) - 1)
                 ]
                 logger.warning(
-                    "ExecutionLog %s: tentativa %s/%s falhou (%s). "
+                    "execution_log_id=%s tentativa %s/%s falhou (%s). "
                     "Nova tentativa em %.1fs.",
                     execution_log_id,
                     attempt,
@@ -375,6 +375,12 @@ def process_workflow_execution(execution_log_id):
                 )
                 time.sleep(wait_s)
 
+        logger.info(
+            "execution_log_id=%s workflow_id=%s concluído com sucesso em %sms",
+            execution_log_id,
+            workflow.id,
+            elapsed_ms(),
+        )
         exec_log.status = "SUCCESS"
         exec_log.execution_time_ms = elapsed_ms()
         exec_log.save(
@@ -386,6 +392,15 @@ def process_workflow_execution(execution_log_id):
         record_outbound_message_send(user_id, action.action_type)
 
     except requests.exceptions.RequestException as e:
+        logger.error(
+            "execution_log_id=%s workflow_id=%s envio falhou após %s tentativas: %s: %s",
+            execution_log_id,
+            workflow.id,
+            _WORKFLOW_EXTERNAL_MAX_ATTEMPTS,
+            type(e).__name__,
+            e,
+            exc_info=True,
+        )
         exec_log.status = "FAILED"
         exec_log.error_message = _failure_log_message(
             f"Erro na requisição HTTP externa após {_WORKFLOW_EXTERNAL_MAX_ATTEMPTS} tentativas "
@@ -398,7 +413,11 @@ def process_workflow_execution(execution_log_id):
         )
 
     except Exception as e:
-        logger.exception("Erro no process_workflow_execution (log=%s)", execution_log_id)
+        logger.exception(
+            "execution_log_id=%s workflow_id=%s erro interno no process_workflow_execution",
+            execution_log_id,
+            workflow.id,
+        )
         exec_log.status = "FAILED"
         exec_log.error_message = _failure_log_message(
             "Erro interno ao processar a execução do workflow.",
