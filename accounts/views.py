@@ -17,7 +17,7 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
 )
 from .models import OrganizationMembership
-from .team_roles import get_active_membership
+from .tenancy import resolve_request_tenant
 
 User = get_user_model()
 
@@ -124,12 +124,12 @@ class TeamMemberListCreateView(generics.ListCreateAPIView):
         return TeamMemberSerializer
 
     def get_queryset(self):
-        membership = get_active_membership(self.request.user)
-        if membership is None:
+        tenant = resolve_request_tenant(self.request)
+        if tenant is None:
             return OrganizationMembership.objects.none()
         return (
             OrganizationMembership.objects.filter(
-                organization=membership.organization,
+                organization=tenant,
                 is_active=True,
             )
             .select_related('user')

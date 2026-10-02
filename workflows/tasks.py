@@ -10,7 +10,10 @@ from django_q.tasks import async_task
 
 from billing.decorators import check_quota_limit
 from accounts.message_usage import record_automation_run, record_outbound_message_send
+from accounts.models import OrganizationMembership
+from extraction.ai_wrapper import check_and_update_quota
 from integrations.evolution import WhatsAppEvolutionExecutor
+from integrations.models import AppConnection
 from integrations.webhook_executor import WebhookExecutor
 from workflows.models import Action, ExecutionLog, Workflow
 
@@ -143,20 +146,95 @@ def parse_action_template_to_dict(template_str: str, trigger_data: dict) -> dict
         ) from exc
 
 
-def _dispatch_action_execution(action: Action, workflow: Workflow, final_data: dict) -> dict:
+def _connection_belongs_to_organization(
+    connection: AppConnection | None, organization
+) -> bool:
+    """
+    CAD-062: a AppConnection só é válida se estiver ativa e o proprietário for
+    membro ativo do mesmo escritório do workflow.
+    """
+    if connection is None or organization is None:
+        return False
+    if not connection.is_active:
+        return False
+    return OrganizationMembership.objects.filter(
+        user_id=connection.user_id,
+        organization_id=organization.pk,
+        is_active=True,
+    ).exists()
+
+
+def _resolve_action_connection(workflow: Workflow, tenant) -> AppConnection | None:
+    """
+    Obtém a AppConnection do gatilho e valida isolamento por organização.
+    (Action ainda não tem FK ``connection`` — a ligação operacional é no Trigger.)
+    """
+    trigger = getattr(workflow, "trigger", None)
+    if trigger is None or not trigger.connection_id:
+        return None
+
+    connection = trigger.connection
+    if not _connection_belongs_to_organization(connection, tenant):
+        raise ValueError(
+            "A AppConnection do gatilho não pertence à organização deste workflow "
+            "(credenciais de outro escritório ou utilizador sem membership ativa)."
+        )
+    return connection
+
+
+def _evolution_credentials_from_connection(connection: AppConnection, tenant) -> tuple[str | None, str | None, str]:
+    """Extrai base_url / api_key / instance_name das credentials da conexão WHATSAPP."""
+    creds = connection.credentials if isinstance(connection.credentials, dict) else {}
+    base_url = creds.get("base_url") or creds.get("baseUrl")
+    api_key = (
+        creds.get("api_key")
+        or creds.get("apikey")
+        or creds.get("token")
+        or creds.get("global_key")
+    )
+    instance_name = (
+        creds.get("instance_name")
+        or creds.get("instance")
+        or f"instancia_org_{tenant.pk}"
+    )
+    return base_url, api_key, str(instance_name)
+
+
+def _dispatch_action_execution(
+    action: Action,
+    workflow: Workflow,
+    final_data: dict,
+    *,
+    tenant,
+    connection: AppConnection | None,
+) -> dict:
     """
     Roteador por action_type: instancia o executor certo e devolve o conteúdo para final_result.
+    Credenciais de integração são cruzadas com a organização do fluxo (CAD-062).
     """
     at = (action.action_type or "").strip()
 
     match at:
         case "WHATSAPP_EVOLUTION":
-            instance_name = f"instancia_org_{workflow.organization.id}"
-            executor = WhatsAppEvolutionExecutor()
+            if connection is None:
+                raise ValueError(
+                    "Ação WHATSAPP_EVOLUTION exige AppConnection no gatilho do workflow."
+                )
+            if (connection.app_name or "").upper() != "WHATSAPP":
+                raise ValueError(
+                    "A AppConnection do gatilho não é do tipo WHATSAPP; "
+                    "credenciais Evolution recusadas por isolamento de organização."
+                )
+            base_url, api_key, instance_name = _evolution_credentials_from_connection(
+                connection, tenant
+            )
+            executor = WhatsAppEvolutionExecutor(base_url=base_url, api_key=api_key)
             resp_data = executor.send(instance_name, final_data)
             return resp_data if isinstance(resp_data, dict) else {"response": resp_data}
 
         case "WEBHOOK" | "":
+            # Webhook de saída usa endpoint da Action; se houver connection WEBHOOK no
+            # gatilho, já foi validada como pertencente ao tenant em _resolve_action_connection.
             executor = WebhookExecutor(action)
             response = executor.execute(final_data)
             response.raise_for_status()
@@ -189,6 +267,9 @@ def process_workflow_execution(execution_log_id):
     Worker: lê o ExecutionLog, confirma que o workflow ainda está ativo, executa a ação
     e atualiza o registo (resultado, tempo, erros).
     Cronómetro com time.time(): diferença em segundos × 1000 → execution_time_ms.
+
+    CAD-062: o contexto de organização é ``tenant = execution_log.workflow.organization``;
+    quota de IA e credenciais de integração usam estritamente esse tenant.
     """
     t0 = time.time()
 
@@ -197,8 +278,8 @@ def process_workflow_execution(execution_log_id):
 
     try:
         exec_log = ExecutionLog.objects.select_related(
-            "workflow__organization",
-            "workflow__trigger__connection",
+            "workflow__organization__plan",
+            "workflow__trigger__connection__user",
             "triggered_by",
         ).get(id=execution_log_id)
     except ExecutionLog.DoesNotExist:
@@ -206,7 +287,27 @@ def process_workflow_execution(execution_log_id):
         return
 
     workflow = exec_log.workflow
+    # CAD-062: isolamento de contexto — organização do fluxo em execução.
+    tenant = exec_log.workflow.organization
     trigger_data = extract_trigger_payload(exec_log)
+
+    if tenant is None:
+        exec_log.status = "FAILED"
+        exec_log.error_message = "Workflow sem organização associada; execução cancelada."
+        exec_log.execution_time_ms = elapsed_ms()
+        exec_log.save(
+            update_fields=["status", "error_message", "execution_time_ms"]
+        )
+        return
+
+    if not getattr(tenant, "is_active", True):
+        exec_log.status = "FAILED"
+        exec_log.error_message = "Organização inativa; execução cancelada."
+        exec_log.execution_time_ms = elapsed_ms()
+        exec_log.save(
+            update_fields=["status", "error_message", "execution_time_ms"]
+        )
+        return
 
     if not workflow.is_active:
         exec_log.status = "FAILED"
@@ -223,16 +324,35 @@ def process_workflow_execution(execution_log_id):
         return
 
     try:
+        # CAD-062: quota sempre no tenant do workflow (nunca outro escritório).
+        ok, quota_message = check_and_update_quota(tenant)
+        if not ok:
+            exec_log.status = "FAILED"
+            exec_log.error_message = quota_message or (
+                "Limite de extrações/IA do plano do escritório foi atingido."
+            )
+            exec_log.execution_time_ms = elapsed_ms()
+            exec_log.save(
+                update_fields=["status", "error_message", "execution_time_ms"]
+            )
+            return
+
         action = workflow.actions.order_by("id").first()
         if not action:
             raise ValueError("Workflow sem ações configuradas.")
+
+        connection = _resolve_action_connection(workflow, tenant)
 
         final_data = parse_action_template_to_dict(action.payload_template, trigger_data)
 
         for attempt in range(1, _WORKFLOW_EXTERNAL_MAX_ATTEMPTS + 1):
             try:
                 exec_log.final_result = _dispatch_action_execution(
-                    action, workflow, final_data
+                    action,
+                    workflow,
+                    final_data,
+                    tenant=tenant,
+                    connection=connection,
                 )
                 break
             except requests.exceptions.RequestException as exc:
