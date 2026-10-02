@@ -32,6 +32,9 @@ SENTRY_DSN = env('SENTRY_DSN', default=None)
 if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
+        # Permite filtrar alertas por tag (ex.: environment:production) e ligar erros ao deploy.
+        environment=env('DJANGO_ENV', default='development'),
+        release=env('APP_VERSION', default='1.0.0'),
         integrations=[DjangoIntegration()],
         traces_sample_rate=1.0,
         send_default_pii=True
@@ -197,7 +200,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'cadrius.authentication.SentryJWTAuthentication',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,

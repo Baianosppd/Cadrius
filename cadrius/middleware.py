@@ -1,5 +1,7 @@
 from django.utils.deprecation import MiddlewareMixin
 
+from cadrius.sentry_context import set_sentry_context
+
 class TenantMiddleware(MiddlewareMixin):
     """
     Middleware Multi-Tenant atualizado para a nova arquitetura de Memberships.
@@ -24,3 +26,7 @@ class TenantMiddleware(MiddlewareMixin):
             request.tenant = membership.organization
         else:
             request.tenant = None
+
+        # Sessões Django (ex.: admin/allauth): associa utilizador e escritório ao Sentry.
+        # Pedidos JWT são tratados em cadrius.authentication.SentryJWTAuthentication.
+        set_sentry_context(request.user, request.tenant)

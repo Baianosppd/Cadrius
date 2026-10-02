@@ -12,6 +12,7 @@ from billing.decorators import check_quota_limit
 from accounts.message_usage import record_automation_run, record_outbound_message_send
 from integrations.evolution import WhatsAppEvolutionExecutor
 from integrations.webhook_executor import WebhookExecutor
+from cadrius.sentry_context import set_sentry_context
 from notifications.services import (
     ACTION_LABELS,
     notify_automation_failed,
@@ -209,6 +210,8 @@ def process_workflow_execution(execution_log_id):
         return
 
     workflow = exec_log.workflow
+    # Worker em background: o Sentry deve indicar o escritório afetado (CAD-056).
+    set_sentry_context(exec_log.triggered_by, workflow.organization)
     trigger_data = extract_trigger_payload(exec_log)
 
     if not workflow.is_active:
