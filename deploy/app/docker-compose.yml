@@ -88,6 +88,7 @@ services:
     image: cadrius-frontend:${ENV_NAME}
     build:
       context: ./frontend
+      target: prod
       args:
         VITE_API_URL: "https://${API_HOST}/api/v1/"
     restart: always
@@ -104,7 +105,7 @@ services:
       - "traefik.http.routers.${ENV_NAME}-app.entrypoints=websecure"
       - "traefik.http.routers.${ENV_NAME}-app.tls.certresolver=le"
       - "traefik.http.routers.${ENV_NAME}-app.middlewares=secure-headers@file,rate-limit@file"
-      - "traefik.http.services.${ENV_NAME}-app.loadbalancer.server.port=80"
+      - "traefik.http.services.${ENV_NAME}-app.loadbalancer.server.port=8080"
 
   # WhatsApp (Evolution API) — opcional: docker compose --profile whatsapp up -d
   evolution-api:

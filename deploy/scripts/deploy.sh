@@ -42,7 +42,13 @@ PREV_FRONT="$(git -C "$ENV_DIR/frontend" rev-parse HEAD 2>/dev/null || echo '')"
 log "[$ENV_NAME] atualizando código (back: $BACK_BRANCH, front: $FRONT_BRANCH)"
 sync_repo "$ENV_DIR/backend" "$BACK_BRANCH"
 sync_repo "$ENV_DIR/frontend" "$FRONT_BRANCH"
-cp "$CADRIUS_ROOT/infra/deploy/frontend/Dockerfile" "$CADRIUS_ROOT/infra/deploy/frontend/nginx.conf.template" "$ENV_DIR/frontend/"
+# O front agora traz o próprio Dockerfile de produção (target "prod" + nginx/). Se for uma versão antiga, usa o do kit.
+if ! grep -q "AS prod" "$ENV_DIR/frontend/Dockerfile" 2>/dev/null; then
+  warn "front sem Dockerfile de produção — usando o do kit (deploy/frontend)"
+  cp "$CADRIUS_ROOT/infra/deploy/frontend/Dockerfile" "$ENV_DIR/frontend/Dockerfile"
+  mkdir -p "$ENV_DIR/frontend/nginx"
+  cp "$CADRIUS_ROOT/infra/deploy/frontend/nginx/"* "$ENV_DIR/frontend/nginx/"
+fi
 cp "$CADRIUS_ROOT/infra/deploy/app/docker-compose.yml" "$ENV_DIR/docker-compose.yml"
 
 NEW_BACK="$(git -C "$ENV_DIR/backend" rev-parse --short HEAD)"
