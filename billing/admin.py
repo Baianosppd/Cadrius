@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SubscriptionPlan, AIUsageLog
+from .models import SubscriptionPlan, AIUsageLog, MemberCreditUsage
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
@@ -32,3 +32,11 @@ class AIUsageLogAdmin(admin.ModelAdmin):
             return obj.extractions_count >= limite
         except AttributeError:
             return False
+
+
+@admin.register(MemberCreditUsage)
+class MemberCreditUsageAdmin(admin.ModelAdmin):
+    list_display = ('membership', 'billing_cycle_month', 'credits_used')
+    list_filter = ('billing_cycle_month',)
+    search_fields = ('membership__user__email', 'membership__organization__name')
+    readonly_fields = ('membership', 'billing_cycle_month', 'credits_used')

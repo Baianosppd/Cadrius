@@ -19,7 +19,8 @@ class OrganizationMembershipInline(admin.TabularInline):
 # =====================================================================
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'cnpj', 'allowed_domain', 'is_active', 'created_at')
+    list_display = ('name', 'account_type', 'cnpj', 'plan', 'is_active', 'created_at')
+    list_filter = ('account_type', 'company_size', 'is_active')
     search_fields = ('name', 'cnpj', 'allowed_domain')
     list_filter = ('is_active',)
     inlines = [OrganizationMembershipInline] # Liga a tabela intermediária aqui!
