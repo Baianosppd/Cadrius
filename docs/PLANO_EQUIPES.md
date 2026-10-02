@@ -1,7 +1,7 @@
 # Plano por equipe — o que Front-end, Design e Back-end precisam fazer
 
 > O que **já existe no back-end** (CAD-056…071) está pronto para consumo: os contratos abaixo são reais (veja também o
-> OpenAPI em `/api/docs/`). Este documento detalha o que **não foi feito agora** e quem faz.
+> OpenAPI em `/api/docs/` — **atenção:** o schema ainda está incompleto para vários `APIView` (CAD-103); até lá, valem as tabelas deste documento). Este documento detalha o que **não foi feito agora** e quem faz.
 > Equipe: Design UX/UI — **Allan**; Front-end — **Ryan**; Back-end — **Thales**; DevSecOps/Tech Lead — **Jullio**.
 > Itens numerados em formato de card estão em `docs/CADS_BACKLOG.md` (CAD-072 em diante).
 

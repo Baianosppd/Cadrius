@@ -69,6 +69,8 @@ Ordem de merge sugerida: `CAD-056 → 057 → 058 → 059 → 065 → 066 → 06
 **CAD-087: Task - Cota de IA unificada** — um único serviço (`check_and_update_quota`), status `QUOTA_EXCEEDED` válido em `ExecutionLog`, incremento só quando a execução ocorre.
 **CAD-088: Task - Criptografar `ExecutionLog.trigger_payload`/`final_result`** — `EncryptedJSONField` + migração; manter retenção de 90 dias.
 
+**CAD-103: Task - Contrato OpenAPI completo para o front** · `drf-spectacular` hoje emite ~70 avisos: os `APIView` sem `serializer_class` ficam sem schema de request/response em `/api/docs/`. Adicionar `@extend_schema` (request/response/erros 400/403/428/429) em auth, billing, audit, privacy, aigov e security; falhar o CI se `manage.py spectacular --validate` tiver erros. Aceite: Ryan gera o cliente TypeScript a partir do schema sem ajustes manuais.
+
 **CAD-090: Task - API de escrita do Centro de Segurança e atividade da conta** (para o React)
 * `GET /api/v1/security/events/` (trilha global, staff), `POST /security/audit/verify/`, `PATCH /security/alerts/{id}/`, `POST /security/controls/{framework}/{id}/assess/`,
   `POST /security/ai/switch/`, `GET /security/privacy/`, `GET /security/controls/{framework}/export/` (CSV).
