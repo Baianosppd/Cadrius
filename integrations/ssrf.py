@@ -28,8 +28,11 @@ def _is_forbidden_ip(ip: ipaddress._BaseAddress) -> bool:
     )
 
 
-def validate_outbound_url(url: str) -> str:
-    """Valida ``url`` e devolve-a; levanta ``UnsafeURLError`` se for insegura."""
+def validate_outbound_url(url: str, *, resolve: bool = True) -> str:
+    """Valida ``url`` e devolve-a; levanta ``UnsafeURLError`` se for insegura.
+
+    ``resolve=False`` valida só esquema/credenciais (sem DNS), útil no cadastro via API.
+    """
     if not url or not isinstance(url, str):
         raise UnsafeURLError('URL vazia.')
 
@@ -42,7 +45,7 @@ def validate_outbound_url(url: str) -> str:
     if not host:
         raise UnsafeURLError('URL sem host.')
 
-    if getattr(settings, 'OUTBOUND_ALLOW_PRIVATE_NETWORKS', False):
+    if not resolve or getattr(settings, 'OUTBOUND_ALLOW_PRIVATE_NETWORKS', False):
         return url
 
     try:

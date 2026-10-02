@@ -1,6 +1,9 @@
-version: '3.8'
+# Compose BASE = seguro por omissão (produção). O desenvolvimento local usa, automaticamente,
+# o docker-compose.override.yml (bind mounts, --reload, portas em loopback, ngrok).
+# Produção:  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# (passar -f explícito desativa o override de dev).
 
-# Rotação dos logs JSON do Docker (CAD-058): evita que web/worker/db encham o disco.
+# Rotação dos logs JSON do Docker (CAD-058): evita que os contentores encham o disco.
 # Máx. 10 MB x 5 ficheiros = ~50 MB por contentor. Também limita o histórico visível no Dozzle.
 x-logging: &default-logging
   driver: json-file
@@ -8,6 +11,13 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "5"
     compress: "true"
+
+# Endurecimento comum dos contentores da aplicação.
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
 
 networks:
   proxy_net:
@@ -18,24 +28,31 @@ networks:
 services:
   # --- 1. PROXY REVERSO ---
   traefik:
-      image: traefik:v2.10
-      container_name: cadrius_traefik
-      command:
-        # Painel do Traefik sem autenticação: só em dev (em produção TRAEFIK_API_INSECURE=false).
-        - "--api.insecure=${TRAEFIK_API_INSECURE:-true}"
-        - "--providers.docker=true"
-        - "--providers.docker.exposedbydefault=false"
-        - "--entrypoints.web.address=:80"
-      ports:
-        - "80:80"
-        # Portas internas/administrativas só em loopback: nunca expostas à internet.
-        - "127.0.0.1:8090:8080"
-      volumes:
-        # Ajustado para WSL2 Moderno
-        - "//var/run/docker.sock:/var/run/docker.sock:ro"
-      restart: unless-stopped
-      networks:
-        - proxy_net
+    image: traefik:v2.10
+    container_name: cadrius_traefik
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--global.sendanonymoususage=false"
+      - "--log.level=INFO"
+      # Access log em JSON sem cabeçalhos (evita gravar Authorization/cookies).
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.fields.headers.defaultmode=drop"
+    ports:
+      - "80:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128M }
+    networks:
+      - proxy_net
 
   # --- 2. BANCO DE DADOS ---
   db:
@@ -48,8 +65,11 @@ services:
       - POSTGRES_DB=cadrius
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-    env_file:
-      - .env
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
     networks:
       - backend_net
     healthcheck:
@@ -62,13 +82,13 @@ services:
   db-backup:
     image: prodrigestivill/postgres-backup-local
     restart: always
+    logging: *default-logging
     volumes:
+      # Dumps contêm dados pessoais: diretório fora do git (ver .gitignore) e fora da imagem.
       - ./backups:/backups
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_DB=cadrius
@@ -77,67 +97,47 @@ services:
       - POSTGRES_CLUSTER=TRUE
       - SCHEDULE=@daily
       - BACKUP_KEEP_DAYS=7
+    security_opt:
+      - no-new-privileges:true
     networks:
       - backend_net
 
-  # --- 4. REDIS ---
+  # --- 4. REDIS (broker do Django-Q, cache e sessões) ---
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     restart: always
+    logging: *default-logging
+    # REDIS_PASSWORD vazio = sem senha (dev). Em produção o deploy exige a senha.
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-}"]
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
     networks:
       - backend_net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD-SHELL
+        - 'if [ -n "$$REDIS_PASSWORD" ]; then redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping; else redis-cli ping; fi | grep -q PONG'
       interval: 5s
       timeout: 3s
       retries: 5
 
   # --- 5. APLICAÇÃO WEB (DJANGO) ---
   web:
-      logging: *default-logging
-      build: .
-      restart: always
-      command: >
-        sh -c "python manage.py migrate &&
-               python manage.py collectstatic --noinput &&
-               uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 ${UVICORN_ARGS---reload}"
-      
-      # Bypass de desenvolvimento, agora só em loopback (em produção o acesso é via Traefik).
-      # Em produção defina UVICORN_ARGS= (vazio) no .env para desligar o --reload.
-      ports:
-        - "127.0.0.1:8000:8000"
-      
-      volumes:
-        - .:/app
-      env_file:
-        - .env
-      depends_on:
-        db:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      networks:
-        - proxy_net
-        - backend_net
-      labels:
-        - "traefik.enable=true"
-        - "traefik.docker.network=proxy_net"
-        # Limite ~2MB por payload (JSON/webhooks). Nginx equivalente: client_max_body_size 2m;
-        - "traefik.http.middlewares.cadrius-body-limit.buffering.maxRequestBodyBytes=2097152"
-        - "traefik.http.middlewares.cadrius-body-limit.buffering.memRequestBodyBytes=2097152"
-        - "traefik.http.routers.cadrius-web.rule=Host(`127.0.0.1`)"
-        - "traefik.http.routers.cadrius-web.entrypoints=web"
-        - "traefik.http.routers.cadrius-web.middlewares=cadrius-body-limit"
-        - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
-
-  # --- 6. WORKER ---
-  worker:
+    <<: *hardening
     logging: *default-logging
     build: .
     restart: always
-    command: python manage.py qcluster
-    volumes:
-      - .:/app
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"
     env_file:
       - .env
     depends_on:
@@ -145,6 +145,46 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 768M }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - proxy_net
+      - backend_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy_net"
+      # Limite ~2MB por payload (JSON/webhooks). Nginx equivalente: client_max_body_size 2m;
+      - "traefik.http.middlewares.cadrius-body-limit.buffering.maxRequestBodyBytes=2097152"
+      - "traefik.http.middlewares.cadrius-body-limit.buffering.memRequestBodyBytes=2097152"
+      - "traefik.http.routers.cadrius-web.rule=Host(`${APP_HOST:-127.0.0.1}`)"
+      - "traefik.http.routers.cadrius-web.entrypoints=web"
+      - "traefik.http.routers.cadrius-web.middlewares=cadrius-body-limit"
+      - "traefik.http.services.cadrius-web.loadbalancer.server.port=8000"
+
+  # --- 6. WORKER ---
+  worker:
+    <<: *hardening
+    logging: *default-logging
+    build: .
+    restart: always
+    command: python manage.py qcluster
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
     networks:
       - backend_net
 
@@ -159,8 +199,16 @@ services:
   dozzle:
     image: amir20/dozzle:latest
     restart: unless-stopped
+    logging: *default-logging
+    environment:
+      - DOZZLE_NO_ANALYTICS=true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
     networks:
       - proxy_net
     labels:
@@ -172,42 +220,31 @@ services:
       - "traefik.http.middlewares.dozzle-auth.basicauth.users=${DOZZLE_BASIC_AUTH:-}"
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
 
-  # --- 8. TÚNEL REVERSO (Acesso externo para Webhooks) ---
-  ngrok:
-      image: ngrok/ngrok:latest
-      restart: unless-stopped
-      ports:                  
-        - "127.0.0.1:4040:4040"         
-      command:
-        - "http"
-        - "http://traefik:80"
-      env_file:
-        - .env
-      networks:
-        - proxy_net
-      depends_on:
-        - traefik
-
-  # --- 9. EVOLUTION API (WHATSAPP) ---
+  # --- 8. EVOLUTION API (WHATSAPP) ---
   evolution-api:
     image: atendai/evolution-api:v2.1.1
     container_name: cadrius_evolution
-    user: "root"  
-    ports:
-      - "127.0.0.1:8082:8080"
+    restart: unless-stopped
+    logging: *default-logging
+    user: "root"
     environment:
-      - SERVER_URL=http://localhost:8082
+      - SERVER_URL=${EVOLUTION_SERVER_URL:-http://localhost:8082}
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_GLOBAL_KEY:-cadrius_mestre_secreto_123}
-      
+
       # --- CONEXÃO COM O BANCO DE DADOS (POSTGRES) ---
+      # Schema próprio: antes partilhava `public` com as tabelas do Django (colisões e acesso cruzado).
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/cadrius?schema=public
+      - DATABASE_CONNECTION_URI=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/cadrius?schema=evolution_api
 
       - CACHE_REDIS_ENABLED=false
-      
     volumes:
       - evolution_instances:/evolution/instances
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
     networks:
       - proxy_net
       - backend_net
@@ -217,4 +254,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   evolution_instances:

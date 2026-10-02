@@ -15,7 +15,7 @@ from groq import Groq
 from openai import OpenAI
 
 # Importa os schemas definidos por Juliano
-from .schemas import ExtractedData, ServiceOrderSchema, SupportRequestSchema
+from .schemas import ServiceOrderSchema
 
 logger = logging.getLogger(__name__)
 

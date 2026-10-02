@@ -1,9 +1,7 @@
 import requests
-import os
 import logging
-from .models import IntegrationLog
 from emails.models import EmailMessage # Apenas para typing/FK
-from integrations.models import IntegrationLog, IntegrationStatus 
+from integrations.models import IntegrationLog, IntegrationStatus
 
 logger = logging.getLogger(__name__)
 

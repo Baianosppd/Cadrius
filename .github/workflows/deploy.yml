@@ -1,110 +1,108 @@
-name: CI/CD Pipeline Cadrius Back-end
+name: Deploy de produção
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  # ==========================================
-  # 1. TESTES DO BACK-END 
-  # ==========================================
-  test-backend:
-    name: Pytest / Django Tests (Back-end)
-    runs-on: ubuntu-latest
-    # Levanta um banco de dados temporário só para os testes
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: cadrius_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password123
-        ports:
-          - 5432:5432
-    steps:
-      - name: Clonar o código
-        uses: actions/checkout@v4
+  # A MURALHA: lint + SAST + CVEs + testes + imagem têm de passar antes de qualquer deploy.
+  ci:
+    uses: ./.github/workflows/ci.yml
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Instalar Dependências
-        working-directory: ./
-        run: |
-          pip install -r requirements.txt
-
-      - name: Rodar Migrações e Testes
-        working-directory: ./
-        env:
-          DEBUG: 'True'
-          DJANGO_SECRET_KEY: 'chave-de-teste-insegura'
-          DATABASE_URL: 'postgres://postgres:password123@localhost:5432/cadrius_test'
-          OPENAI_API_KEY: 'sk-chave-falsa-para-passar-no-teste-123'
-          GROQ_API_KEY: 'gsk_chave_falsa_para_teste_123'
-          GEMINI_API_KEY: 'gemini_chave_falsa_para_teste_123'
-        run: |
-          python manage.py migrate
-          python manage.py test  # Aqui o Django roda os testes automatizados
-
-  # ==========================================
-  # 2. DEPLOY PARA PRODUÇÃO (JULLIO)
-  # ==========================================
   deploy:
-    name: Deploy e Injeção de Segredos
+    name: Deploy com validação e rollback
     runs-on: ubuntu-latest
-    # A MURALHA: Agora depende apenas do back-end passar nos testes!
-    needs: [test-backend] 
-
+    needs: [ci]
+    environment: production
     steps:
-      - name: Executando Deploy via SSH
+      - name: Validar segredos obrigatórios
+        env:
+          PROD_DJANGO_SECRET_KEY: ${{ secrets.PROD_DJANGO_SECRET_KEY }}
+          PROD_ENCRYPTION_KEY: ${{ secrets.PROD_ENCRYPTION_KEY }}
+          PROD_POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
+          PROD_REDIS_PASSWORD: ${{ secrets.PROD_REDIS_PASSWORD }}
+          PROD_EVOLUTION_API_KEY: ${{ secrets.PROD_EVOLUTION_API_KEY }}
+          PROD_DOZZLE_BASIC_AUTH: ${{ secrets.PROD_DOZZLE_BASIC_AUTH }}
+          PROD_ACME_EMAIL: ${{ secrets.PROD_ACME_EMAIL }}
+        run: |
+          fail=0
+          for v in PROD_DJANGO_SECRET_KEY PROD_ENCRYPTION_KEY PROD_POSTGRES_PASSWORD PROD_REDIS_PASSWORD \
+                   PROD_EVOLUTION_API_KEY PROD_DOZZLE_BASIC_AUTH PROD_ACME_EMAIL; do
+            if [ -z "${!v}" ]; then echo "::error::Secret $v não configurado"; fail=1; fi
+          done
+          exit $fail
+
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.LOCAWEB_HOST }}
           username: ${{ secrets.LOCAWEB_USER }}
           key: ${{ secrets.LOCAWEB_SSH_KEY }}
+          script_stop: true
           script: |
+            set -euo pipefail
             cd /opt/cadrius
-            git stash
-            git pull origin main
-            
-            echo "Gerando .env dinâmico de Produção..."
-            echo "DEBUG=False" > .env
-            echo "ENVIRONMENT=production" >> .env
-            echo "ALLOWED_HOSTS=api.cadrius.ia.br,app.cadrius.ia.br,wpp.cadrius.ia.br,127.0.0.1,localhost" >> .env
-            echo "CORS_ALLOWED_ORIGINS=https://app.cadrius.ia.br" >> .env
-            echo "CSRF_TRUSTED_ORIGINS=https://app.cadrius.ia.br,https://api.cadrius.ia.br" >> .env
-            echo "SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https" >> .env
-            
-            echo "POSTGRES_DB=cadrius" >> .env
-            echo "POSTGRES_USER=postgres" >> .env
-            echo "POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}" >> .env
-            echo "DATABASE_URL=postgres://postgres:${{ secrets.PROD_POSTGRES_PASSWORD }}@db:5432/cadrius" >> .env
-            echo "REDIS_URL=redis://redis:6379/1" >> .env
-            
-            echo "DJANGO_SECRET_KEY='${{ secrets.PROD_DJANGO_SECRET_KEY }}'" >> .env
-            echo "OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}" >> .env
-            echo "EVOLUTION_API_KEY=${{ secrets.PROD_EVOLUTION_API_KEY }}" >> .env
-            echo "EVOLUTION_API_GLOBAL_KEY=${{ secrets.PROD_EVOLUTION_API_KEY }}" >> .env
-            # Cifra de credenciais de terceiros em repouso (Fernet). Obrigatória em produção.
-            echo "ENCRYPTION_KEY='${{ secrets.PROD_ENCRYPTION_KEY }}'" >> .env
-            echo "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" >> .env
-            echo "DJANGO_ENV=production" >> .env
-            echo "APP_VERSION=${{ github.sha }}" >> .env
-            echo "STRIPE_SECRET_KEY=${{ secrets.PROD_STRIPE_SECRET_KEY }}" >> .env
-            echo "STRIPE_WEBHOOK_SECRET=${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}" >> .env
-            # Infra: sem painel Traefik inseguro, sem hot-reload do uvicorn em produção.
-            echo "TRAEFIK_API_INSECURE=false" >> .env
-            echo "UVICORN_ARGS=" >> .env
-            echo "AXES_PROXY_COUNT=1" >> .env
-            
-            # IMAP global (opcional): credenciais SEMPRE via GitHub Secrets, nunca no repositório.
-            echo "IMAP_HOST=${{ secrets.PROD_IMAP_HOST }}" >> .env
-            echo "IMAP_PORT=993" >> .env
-            echo "IMAP_USERNAME=${{ secrets.PROD_IMAP_USERNAME }}" >> .env
-            echo "IMAP_PASSWORD='${{ secrets.PROD_IMAP_PASSWORD }}'" >> .env
 
+            # Dumps antigos podem estar versionados (removidos do git neste release): copia antes do pull.
+            if [ -d backups ]; then cp -a backups "../cadrius-backups-$(date +%Y%m%d%H%M%S)"; fi
+
+            PREV=$(git rev-parse HEAD)
+            git fetch origin main
+            git reset --hard origin/main
+            COMPOSE="sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+
+            umask 077
+            {
+              echo "DEBUG=False"
+              echo "DJANGO_ENV=production"
+              echo "APP_VERSION=${{ github.sha }}"
+              echo "APP_HOST=api.cadrius.ia.br"
+              echo "ALLOWED_HOSTS=api.cadrius.ia.br,app.cadrius.ia.br,wpp.cadrius.ia.br,127.0.0.1,localhost"
+              echo "CORS_ALLOWED_ORIGINS=https://app.cadrius.ia.br"
+              echo "CSRF_TRUSTED_ORIGINS=https://app.cadrius.ia.br,https://api.cadrius.ia.br"
+              echo "AXES_PROXY_COUNT=1"
+              echo "POSTGRES_DB=cadrius"
+              echo "POSTGRES_USER=postgres"
+              echo "POSTGRES_PASSWORD='${{ secrets.PROD_POSTGRES_PASSWORD }}'"
+              echo "DATABASE_URL=postgres://postgres:${{ secrets.PROD_POSTGRES_PASSWORD }}@db:5432/cadrius"
+              echo "REDIS_PASSWORD='${{ secrets.PROD_REDIS_PASSWORD }}'"
+              echo "REDIS_URL=redis://:${{ secrets.PROD_REDIS_PASSWORD }}@redis:6379/1"
+              echo "DJANGO_SECRET_KEY='${{ secrets.PROD_DJANGO_SECRET_KEY }}'"
+              echo "ENCRYPTION_KEY='${{ secrets.PROD_ENCRYPTION_KEY }}'"
+              echo "EVOLUTION_API_GLOBAL_KEY='${{ secrets.PROD_EVOLUTION_API_KEY }}'"
+              echo "EVOLUTION_SERVER_URL=https://wpp.cadrius.ia.br"
+              echo "OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}"
+              echo "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}"
+              echo "STRIPE_SECRET_KEY=${{ secrets.PROD_STRIPE_SECRET_KEY }}"
+              echo "STRIPE_WEBHOOK_SECRET=${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}"
+              echo "ACME_EMAIL=${{ secrets.PROD_ACME_EMAIL }}"
+              echo "DOZZLE_HOST=logs.cadrius.ia.br"
+              echo "DOZZLE_BASIC_AUTH='${{ secrets.PROD_DOZZLE_BASIC_AUTH }}'"
+              echo "IMAP_HOST=${{ secrets.PROD_IMAP_HOST }}"
+              echo "IMAP_PORT=993"
+              echo "IMAP_USERNAME=${{ secrets.PROD_IMAP_USERNAME }}"
+              echo "IMAP_PASSWORD='${{ secrets.PROD_IMAP_PASSWORD }}'"
+            } > .env
             chmod 600 .env
-            sudo docker compose up -d --build
+
+            $COMPOSE up -d --build --remove-orphans
+
+            # Smoke test: readiness (banco + cache). Falhou -> rollback para o commit anterior.
+            for i in $(seq 1 18); do
+              if curl -fsS -H "Host: api.cadrius.ia.br" http://127.0.0.1/readyz/ >/dev/null 2>&1 \
+                 || curl -fsSk https://api.cadrius.ia.br/readyz/ >/dev/null 2>&1; then
+                echo "Deploy saudável."; exit 0
+              fi
+              sleep 10
+            done
+            echo "::error::Readiness falhou após o deploy — rollback para $PREV"
+            git reset --hard "$PREV"
+            $COMPOSE up -d --build --remove-orphans
+            exit 1

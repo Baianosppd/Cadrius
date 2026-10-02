@@ -4,8 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from django.utils import timezone
-
 from core.activities import format_relative_time
 from emails.models import EmailMessage
 from workflows.models import ExecutionLog

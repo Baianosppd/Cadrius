@@ -60,3 +60,13 @@ htmlcov/
 *.seed
 *.pid.lock
 .env
+
+# --- Dados sensíveis (LGPD) ---
+# Dumps do banco contêm dados pessoais: nunca versionar.
+backups/
+*.sql
+*.sql.gz
+*.dump
+qrcode.html
+staticfiles/
+media/

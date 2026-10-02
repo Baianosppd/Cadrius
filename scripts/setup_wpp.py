@@ -7,20 +7,23 @@ import time
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cadrius.settings')
 django.setup()
 
+from django.conf import settings
+
 from accounts.models import Organization
 
 org = Organization.objects.get(cnpj='11.111.111/0001-11')
 instance_name = f"instancia_org_{org.id}"
 
-URL = "http://evolution-api:8080"
-API_KEY = "cadrius_mestre_secreto_123"
+# Nunca versionar a chave: vem das settings (EVOLUTION_API_GLOBAL_KEY no .env).
+URL = settings.EVOLUTION_API_BASE_URL
+API_KEY = settings.EVOLUTION_API_GLOBAL_KEY
 HEADERS = {"apikey": API_KEY, "Content-Type": "application/json"}
 
 print(f"\n🗑️ 1. A limpar a sessão fantasma ({instance_name})...")
 requests.delete(f"{URL}/instance/delete/{instance_name}", headers=HEADERS)
 time.sleep(2)
 
-print(f"🔌 2. A criar a instância e a ligar o motor do WhatsApp...")
+print("🔌 2. A criar a instância e a ligar o motor do WhatsApp...")
 requests.post(
     f"{URL}/instance/create",
     headers=HEADERS,

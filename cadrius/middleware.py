@@ -16,6 +16,7 @@ _SKIP_TENANT_PATH_EXACT = frozenset(
         "/api/v1/auth/token/refresh",
         "/api/v1/auth/register",
         "/healthz",
+        "/readyz",
     }
 )
 

@@ -47,6 +47,7 @@ if SENTRY_DSN:
     )
 
 # --- 3. CORE SETTINGS E SEGURANÇA BÁSICA ---
+APP_VERSION = env('APP_VERSION', default='1.0.0')
 _INSECURE_SECRET_KEY = 'django-insecure-change-me-in-prod'
 DEBUG = env('DEBUG')
 # Aceita SECRET_KEY ou DJANGO_SECRET_KEY (o deploy.yml gera DJANGO_SECRET_KEY). Sem isto, o

@@ -1,8 +1,9 @@
 # julliodutra/cadrius/cadrius-d2664e7d9d3cdaaeb4729d29c9fafb13438707c0/integrations/models.py
 
 from django.db import models
+
+from core.utils import EncryptedTextField
 # REMOVIDO: from emails.models import EmailMessage 
-from django.utils import timezone
 
 class IntegrationStatus(models.TextChoices):
     SUCCESS = 'SUCCESS', 'Sucesso'
@@ -19,12 +20,12 @@ class IntegrationConfig(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Nome da Configuração")
     
     # TRELLO (Para Projuris/Card Creation)
-    trello_api_key = models.CharField(max_length=255, blank=True, verbose_name="Trello API Key")
-    trello_api_token = models.CharField(max_length=255, blank=True, verbose_name="Trello API Token")
+    trello_api_key = EncryptedTextField(blank=True, verbose_name="Trello API Key")
+    trello_api_token = EncryptedTextField(blank=True, verbose_name="Trello API Token")
     trello_list_id = models.CharField(max_length=255, blank=True, verbose_name="Trello List ID Padrão")
     
     # TELEGRAM (Para Notificações)
-    telegram_bot_token = models.CharField(max_length=255, blank=True, verbose_name="Telegram Bot Token")
+    telegram_bot_token = EncryptedTextField(blank=True, verbose_name="Telegram Bot Token")
     telegram_chat_id = models.CharField(max_length=255, blank=True, verbose_name="Telegram Chat ID Padrão")
     
     is_active = models.BooleanField(default=True)

@@ -15,7 +15,7 @@ from accounts.views import (
     ThrottledTokenRefreshView,
     LogoutView,
 )
-from core.views import health_check, DashboardStatsView, ActivitiesView, NotificationsView
+from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, NotificationsView
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
 from tasks.views import UserTaskViewSet
 from workflows.views import WorkflowViewSet, AutomationStatsView
@@ -32,6 +32,7 @@ router.register(r'tasks', UserTaskViewSet, basename='task')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('healthz/', health_check, name='healthz'),
+    path('readyz/', readiness_check, name='readyz'),
 
     # --- Rotas Base da API V1 ---
     path('api/v1/', include(router.urls)),

@@ -14,15 +14,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     @classmethod
     def get_token(cls, user):
-        token = super().get_token(user)
-        # Adicione claims customizados aqui (ex: 'first_name')
-        token['first_name'] = user.first_name
-        return token
-
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        return token
+        # Só o identificador padrão (user_id): nome/e-mail no JWT ficariam legíveis (base64) por terceiros.
+        return super().get_token(user)
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """GET /api/v1/auth/user/ — somente leitura."""

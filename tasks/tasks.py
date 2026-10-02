@@ -172,7 +172,7 @@ def process_email(email_id, profile_id, workflow_id):
         logger.info(f"🧠 [Workflow {workflow.name}] A iniciar leitura IA para o E-mail ID {email_id}...")
         
         # 1. Busca dinamicamente qual a classe Pydantic que o utilizador escolheu no painel
-        schema_class = getattr(extraction_schemas, profile.pydantic_schema_name, None)
+        schema_class = extraction_schemas.get_extraction_schema(profile.pydantic_schema_name)
         if not schema_class:
             raise ValueError(f"Schema {profile.pydantic_schema_name} não encontrado no sistema.")
             
