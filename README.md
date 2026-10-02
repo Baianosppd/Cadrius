@@ -50,7 +50,7 @@ A aplicação utiliza uma arquitetura de micro-serviços orquestrada via **Docke
 4.  **Acesse a aplicação:**
     * **API/Admin:** `http://localhost:8000/admin/`
     * **Swagger (Docs):** `http://localhost:8000/swagger/`
-    * **Logs (Dozzle):** `http://localhost:8888`
+    * **Logs (Dozzle):** `http://$DOZZLE_HOST` (Traefik + BasicAuth; ver `DOZZLE_HOST`/`DOZZLE_BASIC_AUTH` no `.env`)
 
 ---
 

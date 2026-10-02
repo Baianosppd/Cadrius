@@ -137,14 +137,28 @@ services:
       - backend_net
 
   # --- 7. DOZZLE (LOGS) ---
+  # Sem porta publicada no host: o acesso é só via Traefik, protegido por BasicAuth (CAD-057).
+  # Variáveis no .env (na raiz do projeto, lido pelo Compose):
+  #   DOZZLE_HOST=logs.seudominio.com
+  #   DOZZLE_BASIC_AUTH='admin:$apr1$...'   (gerar com: htpasswd -nb admin <senha>)
+  # Use aspas simples no .env para o `$` do hash não ser interpolado.
+  # Sem DOZZLE_BASIC_AUTH o middleware fica inválido e o Traefik não publica o router
+  # (falha fechada: nunca há acesso sem autenticação nem credencial padrão).
   dozzle:
     image: amir20/dozzle:latest
+    restart: unless-stopped
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    ports:
-      - "8888:8080"
     networks:
       - proxy_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy_net"
+      - "traefik.http.routers.dozzle.rule=Host(`${DOZZLE_HOST:-logs.localhost}`)"
+      - "traefik.http.routers.dozzle.entrypoints=web"
+      - "traefik.http.routers.dozzle.middlewares=dozzle-auth"
+      - "traefik.http.middlewares.dozzle-auth.basicauth.users=${DOZZLE_BASIC_AUTH:-}"
+      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
 
   # --- 8. TÚNEL REVERSO (Acesso externo para Webhooks) ---
   ngrok:
