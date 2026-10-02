@@ -4,6 +4,8 @@ from django.db.models import Q
 from django_q.models import Schedule
 
 from accounts.tenancy import TenantAwareGenericViewSet, TenantAwareViewSet
+from audit import service
+from audit.mixins import AuditedModelMixin
 
 from .models import MailBox, EmailMessage
 from extraction.models import ExtractionProfile
@@ -12,12 +14,14 @@ from .serializers import (
 )
 
 
-class MailBoxViewSet(TenantAwareViewSet):
+class MailBoxViewSet(AuditedModelMixin, TenantAwareViewSet):
     """
     CRUD de caixas IMAP. Herda TenantAwareViewSet; o model ainda é por
     ``user`` (sem FK organization) — filtro/create sobrescritos em conformidade.
     """
 
+    audit_prefix = "mailbox"
+    audit_categories = ("credencial",)
     queryset = MailBox.objects.all()
     serializer_class = MailBoxSerializer
     permission_classes = [IsAuthenticated]
@@ -37,20 +41,29 @@ class MailBoxViewSet(TenantAwareViewSet):
             minutes=5,
             name=f"Fetch - MailBox {mailbox.id} ({mailbox.name})",
         )
+        # perform_create sobrescrito não passa pelo mixin: audita explicitamente.
+        self._audit("created", mailbox, {"fields": sorted(serializer.validated_data)})
 
     def perform_destroy(self, instance):
         Schedule.objects.filter(
             func="tasks.tasks.fetch_emails",
             args=f"{instance.id}",
         ).delete()
+        service.log("mailbox.deleted", target=instance, data_categories=self.audit_categories,
+                    legal_basis="contrato")
         instance.delete()
 
 
 class EmailMessageViewSet(
+    AuditedModelMixin,
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,
     TenantAwareGenericViewSet,
 ):
+    # Conteúdo de comunicações (dados de terceiros): leituras ficam na trilha (LGPD art. 37).
+    audit_prefix = "email"
+    audit_read_action = "data.read"
+    audit_categories = ("contato", "conteudo_comunicacao", "processual")
     queryset = EmailMessage.objects.all()
     serializer_class = EmailMessageSerializer
     permission_classes = [IsAuthenticated]
@@ -68,7 +81,8 @@ class EmailMessageViewSet(
         return queryset
 
 
-class ExtractionProfileViewSet(TenantAwareViewSet):
+class ExtractionProfileViewSet(AuditedModelMixin, TenantAwareViewSet):
+    audit_prefix = "extractionprofile"
     queryset = ExtractionProfile.objects.all()
     serializer_class = ExtractionProfileSerializer
     permission_classes = [IsAuthenticated]

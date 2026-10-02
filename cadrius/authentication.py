@@ -1,6 +1,7 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from accounts.team_roles import get_active_membership
+from audit.context import bind_actor
 from cadrius.sentry_context import set_sentry_context
 
 
@@ -17,5 +18,7 @@ class SentryJWTAuthentication(JWTAuthentication):
         if result is not None:
             user, _token = result
             membership = get_active_membership(user)
-            set_sentry_context(user, membership.organization if membership else None)
+            organization = membership.organization if membership else None
+            set_sentry_context(user, organization)
+            bind_actor(user, organization, auth_method='jwt')
         return result

@@ -63,6 +63,7 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
+    path('api/v1/audit/', include('audit.urls')),
     path('api/billing/', include('billing.urls')),
     path('api/webhooks/', include('webhooks.urls')),
 ]

@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from accounts.models import Organization
+from audit import service as audit_service
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from billing.models import SubscriptionPlan
 from billing.serializers import SubscriptionPlanSerializer
@@ -80,6 +81,7 @@ class CreateCheckoutSessionView(APIView):
                 cancel_url=f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/planos?payment=cancelled",
             )
 
+            audit_service.log('billing.checkout', organization=user_org, changes={'plan_id': plan.pk})
             return Response({'checkout_url': checkout_session.url}, status=status.HTTP_200_OK)
 
         except SubscriptionPlan.DoesNotExist:
@@ -131,6 +133,8 @@ class StripeWebhookView(APIView):
                     org = Organization.objects.get(id=org_id)
                     org.is_active = True  # Liberta o acesso!
                     org.save()
+                    audit_service.log('billing.payment_confirmed', actor_type='webhook', organization=org,
+                                      reason='checkout.session.completed')
                     logger.info("Pagamento confirmado org_id=%s", org.id)
                 except (Organization.DoesNotExist, ValueError):
                     logger.warning("Webhook Stripe com client_reference_id desconhecido.")

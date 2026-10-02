@@ -18,6 +18,7 @@ from .serializers import (
 )
 from .models import OrganizationMembership
 from .tenancy import resolve_request_tenant
+from audit import service as audit_service
 
 User = get_user_model()
 
@@ -50,6 +51,7 @@ class LogoutView(APIView):
             RefreshToken(refresh).blacklist()
         except TokenError:
             return Response({'detail': 'Token inválido ou já revogado.'}, status=status.HTTP_400_BAD_REQUEST)
+        audit_service.log('auth.logout')
         return Response(status=status.HTTP_205_RESET_CONTENT)
 
 
@@ -60,6 +62,11 @@ class RegisterUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (permissions.AllowAny,)
     serializer_class = UserRegistrationSerializer
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        audit_service.log('auth.register', actor=user, data_categories=['identificacao', 'contato'],
+                          legal_basis='contrato')
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'auth_register'
 
@@ -91,6 +98,8 @@ class UpdateUserProfileView(generics.UpdateAPIView):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+        audit_service.log('user.updated', actor=request.user, changes={'fields': sorted(serializer.validated_data)},
+                          data_categories=['identificacao', 'contato'], legal_basis='contrato')
         return Response(UserProfileSerializer(instance).data)
 
 
@@ -104,6 +113,7 @@ class ChangePasswordView(APIView):
         serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        audit_service.log('auth.password.change', actor=request.user)
         return Response(
             {'detail': 'Senha alterada com sucesso.'},
             status=status.HTTP_200_OK,
@@ -140,6 +150,10 @@ class TeamMemberListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         membership = serializer.save()
+        # 'role' fica registado (não é dado pessoal) para a regra A7 (escalada de privilégio).
+        audit_service.log('member.invited', target=membership, organization=membership.organization,
+                          changes={'role': membership.role}, data_categories=['identificacao', 'contato'],
+                          legal_basis='contrato')
         return Response(
             TeamMemberSerializer(membership).data,
             status=status.HTTP_201_CREATED,

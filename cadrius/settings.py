@@ -141,6 +141,7 @@ INSTALLED_APPS = [
     'workflows',  #  Motor de Automação
     'webhooks',  # Recebedor de Eventos Externos
     'billing',# Módulo de Assinaturas e Pagamentos
+    'audit',  # Trilha de auditoria imutável + anomalias (LGPD/ISO 27001)
 ]
 
 MIDDLEWARE = [
@@ -155,6 +156,8 @@ MIDDLEWARE = [
     
     # Middleware de Multi-tenancy 
     'cadrius.middleware.TenantMiddleware',
+    # request_id/IP/ator para a trilha de auditoria (após autenticação e tenant)
+    'audit.middleware.AuditContextMiddleware',
     
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -262,6 +265,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Regista 403 (permission.denied) e 429 (ratelimit.hit) na trilha de auditoria.
+    'EXCEPTION_HANDLER': 'audit.exception_handler.audit_exception_handler',
     # Throttling por scope (ScopedRateThrottle / SimpleRateThrottle com ``scope``).
     'DEFAULT_THROTTLE_RATES': {
         'webhook': '200/min',
@@ -351,6 +356,10 @@ LOGGING = {
     },
 }
 
+
+# --- 7.2 AUDITORIA ---
+AUDIT_RETENTION_DAYS = env.int('AUDIT_RETENTION_DAYS', default=365)
+SECURITY_ALERT_EMAILS = env.list('SECURITY_ALERT_EMAILS', default=[])
 
 # --- 8. FILAS E BACKGROUND TASKS ---
 Q_CLUSTER = {

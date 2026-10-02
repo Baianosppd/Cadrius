@@ -17,6 +17,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Só o identificador padrão (user_id): nome/e-mail no JWT ficariam legíveis (base64) por terceiros.
         return super().get_token(user)
 
+    def validate(self, attrs):
+        data = super().validate(attrs)  # levanta 401 (e dispara user_login_failed) se inválido
+        from accounts.team_roles import get_active_membership
+        from audit import service
+        membership = get_active_membership(self.user)
+        service.log(
+            'auth.login.success', actor=self.user,
+            organization=membership.organization if membership else None,
+            data_categories=['identificacao'], legal_basis='contrato',
+        )
+        return data
+
 class UserProfileSerializer(serializers.ModelSerializer):
     """GET /api/v1/auth/user/ — somente leitura."""
 

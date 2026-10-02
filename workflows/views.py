@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from accounts.models import Organization
 from accounts.tenancy import TenantAwareViewSet, resolve_request_tenant
+from audit.mixins import AuditedModelMixin
 
 from .exceptions import WorkflowGenerationQuotaExceeded
 from .models import Workflow
@@ -14,7 +15,7 @@ from .services import generate_workflow_from_prompt
 from .stats import automation_stats_for_organization
 
 
-class WorkflowViewSet(TenantAwareViewSet):
+class WorkflowViewSet(AuditedModelMixin, TenantAwareViewSet):
     """
     CRUD para automações + ações auxiliares (ex.: geração assistida por IA).
 
@@ -22,6 +23,8 @@ class WorkflowViewSet(TenantAwareViewSet):
     ``perform_create`` injeta ``organization=request.tenant``).
     """
 
+    audit_prefix = "workflow"
+    audit_categories = ("processual",)
     permission_classes = [IsAuthenticated]
     queryset = Workflow.objects.all().order_by("-created_at")
     serializer_class = WorkflowSerializer
