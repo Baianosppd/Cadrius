@@ -4,7 +4,24 @@ from django.contrib.auth.models import AbstractUser
 from billing.models import SubscriptionPlan
 
 class Organization(models.Model):
+    ACCOUNT_TYPE_CHOICES = (
+        ('PESSOA_FISICA', 'Pessoa Física'),
+        ('EMPRESA', 'Empresa'),
+    )
+    COMPANY_SIZE_CHOICES = (
+        ('MEI', 'Microempreendedor Individual'),
+        ('ME', 'Microempresa'),
+        ('EPP', 'Empresa de Pequeno Porte'),
+        ('GRANDE_PORTE', 'Grande Porte'),
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account_type = models.CharField(
+        max_length=20,
+        choices=ACCOUNT_TYPE_CHOICES,
+        default='EMPRESA',
+        verbose_name="Tipo de Conta",
+    )
     
     # Identificação da Empresa
     name = models.CharField(max_length=255, verbose_name="Nome Interno")
@@ -15,6 +32,13 @@ class Organization(models.Model):
     # Natureza Jurídica / Fiscal
     company_type = models.CharField(max_length=100, null=True, blank=True, verbose_name="Tipo de Sociedade")
     tax_regime = models.CharField(max_length=100, null=True, blank=True, verbose_name="Regime Tributário")
+    company_size = models.CharField(
+        max_length=20,
+        choices=COMPANY_SIZE_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name="Porte da Empresa",
+    )
     
     # Endereço
     cep = models.CharField(max_length=9, null=True, blank=True)
@@ -27,9 +51,11 @@ class Organization(models.Model):
     # Contatos
     main_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Principal")
     corporate_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Corporativo")
+    corporate_email = models.EmailField(null=True, blank=True, verbose_name="E-mail Corporativo")
 
     # SSO e Plano
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.RESTRICT, verbose_name="Plano Atual")
+    next_billing_date = models.DateField(null=True, blank=True, verbose_name="Próxima Cobrança")
     allowed_domain = models.CharField(max_length=255, unique=True, null=True, blank=True)
     
     is_active = models.BooleanField(default=True)
@@ -78,6 +104,13 @@ class OrganizationMembership(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='memberships')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='members')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='MEMBER')
+    job_title = models.CharField(max_length=100, blank=True, default='', verbose_name="Cargo")
+    # null = sem cota individual (consome só do total do plano)
+    credit_limit = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Cota mensal de créditos",
+    )
     
     is_active = models.BooleanField(default=True)
     joined_at = models.DateTimeField(auto_now_add=True)
