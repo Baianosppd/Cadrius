@@ -1,0 +1,7 @@
+# Ferramentas de CI/qualidade (NÃO entram na imagem de produção)
+-r requirements.in
+flake8
+bandit
+pip-audit
+pip-tools
+coverage

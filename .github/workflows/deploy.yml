@@ -1,97 +1,49 @@
-name: CI/CD Pipeline Cadrius Back-end
+name: Deploy de produção
 
+# Servidor: VPS Locaweb. O kit está em deploy/ (ver deploy/README.md). Os segredos da aplicação ficam
+# SOMENTE no servidor (/opt/cadrius/prod/.env) — o GitHub guarda apenas o acesso SSH ao usuário 'deploy'.
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  # ==========================================
-  # 1. TESTES DO BACK-END 
-  # ==========================================
-  test-backend:
-    name: Pytest / Django Tests (Back-end)
-    runs-on: ubuntu-latest
-    # Levanta um banco de dados temporário só para os testes
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: cadrius_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password123
-        ports:
-          - 5432:5432
-    steps:
-      - name: Clonar o código
-        uses: actions/checkout@v4
+  # A MURALHA: lint + SAST + CVEs + testes + imagem têm de passar antes de qualquer deploy.
+  ci:
+    uses: ./.github/workflows/ci.yml
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Instalar Dependências
-        working-directory: ./
-        run: |
-          pip install -r requirements.txt
-
-      - name: Rodar Migrações e Testes
-        working-directory: ./
-        env:
-          DEBUG: 'True'
-          DJANGO_SECRET_KEY: 'chave-de-teste-insegura'
-          DATABASE_URL: 'postgres://postgres:password123@localhost:5432/cadrius_test'
-          OPENAI_API_KEY: 'sk-chave-falsa-para-passar-no-teste-123'
-          GROQ_API_KEY: 'gsk_chave_falsa_para_teste_123'
-          GEMINI_API_KEY: 'gemini_chave_falsa_para_teste_123'
-        run: |
-          python manage.py migrate
-          python manage.py test  # Aqui o Django roda os testes automatizados
-
-  # ==========================================
-  # 2. DEPLOY PARA PRODUÇÃO (JULLIO)
-  # ==========================================
   deploy:
-    name: Deploy e Injeção de Segredos
+    name: Deploy com backup pré-deploy, validação e rollback
     runs-on: ubuntu-latest
-    # A MURALHA: Agora depende apenas do back-end passar nos testes!
-    needs: [test-backend] 
-
+    needs: [ci]
+    environment: production   # configure "Required reviewers" no GitHub para exigir aprovação manual
     steps:
-      - name: Executando Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.LOCAWEB_HOST }}
-          username: ${{ secrets.LOCAWEB_USER }}
-          key: ${{ secrets.LOCAWEB_SSH_KEY }}
-          script: |
-            cd /opt/cadrius
-            git stash
-            git pull origin main
-            
-            echo "Gerando .env dinâmico de Produção..."
-            echo "DEBUG=False" > .env
-            echo "ENVIRONMENT=production" >> .env
-            echo "ALLOWED_HOSTS=api.cadrius.ia.br,app.cadrius.ia.br,wpp.cadrius.ia.br,127.0.0.1,localhost" >> .env
-            echo "CORS_ALLOWED_ORIGINS=https://app.cadrius.ia.br" >> .env
-            echo "CSRF_TRUSTED_ORIGINS=https://app.cadrius.ia.br,https://api.cadrius.ia.br" >> .env
-            echo "SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https" >> .env
-            
-            echo "POSTGRES_DB=cadrius" >> .env
-            echo "POSTGRES_USER=postgres" >> .env
-            echo "POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}" >> .env
-            echo "DATABASE_URL=postgres://postgres:${{ secrets.PROD_POSTGRES_PASSWORD }}@db:5432/cadrius" >> .env
-            echo "REDIS_URL=redis://redis:6379/1" >> .env
-            
-            echo "DJANGO_SECRET_KEY='${{ secrets.PROD_DJANGO_SECRET_KEY }}'" >> .env
-            echo "OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}" >> .env
-            echo "EVOLUTION_API_KEY=${{ secrets.PROD_EVOLUTION_API_KEY }}" >> .env
-            
-            echo "IMAP_HOST=imap.gmail.com" >> .env
-            echo "IMAP_PORT=993" >> .env
-            echo "IMAP_USERNAME=testejuri6@gmail.com" >> .env
-            echo "IMAP_PASSWORD=smlm gtga zldb gijp" >> .env
-            
-            chmod 600 .env
-            sudo docker compose up -d --build
+      - name: Validar segredos de acesso
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          for v in VPS_HOST VPS_SSH_KEY VPS_KNOWN_HOSTS; do
+            [ -n "${!v}" ] || { echo "::error::Secret $v não configurado"; exit 1; }
+          done
+
+      - name: Deploy via SSH (host verificado, sem confiar no primeiro uso)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER || 'deploy' }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          SHA: ${{ github.sha }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" \
+            "sudo /opt/cadrius/infra/deploy/scripts/deploy.sh prod $SHA"

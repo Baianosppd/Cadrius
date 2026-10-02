@@ -44,6 +44,41 @@ def _split_name(nome_completo):
     return parts[0], ' '.join(parts[1:])
 
 
+class LegalAcceptanceMixin(serializers.Serializer):
+    """Aceite dos documentos legais vigentes (LGPD): versão exata exibida ao utilizador."""
+
+    LEGAL_FIELDS = {
+        'terms': 'accepted_terms_version',
+        'privacy': 'accepted_privacy_version',
+        'ciencia': 'accepted_ciencia_version',
+    }
+    accepted_terms_version = serializers.CharField(write_only=True, required=False)
+    accepted_privacy_version = serializers.CharField(write_only=True, required=False)
+    accepted_ciencia_version = serializers.CharField(write_only=True, required=False)
+
+    def _validate_legal_acceptance(self, data):
+        from privacy import consent
+
+        self._documents_to_record = []
+        if not consent.acceptance_required():
+            return
+        errors = {}
+        for doc in consent.current_documents(consent.REQUIRED_KINDS):
+            field = self.LEGAL_FIELDS[doc.kind]
+            if data.get(field) != doc.version:
+                errors[field] = f'É necessário aceitar a versão vigente ({doc.version}) de: {doc.title}.'
+            else:
+                self._documents_to_record.append(doc)
+        if errors:
+            raise serializers.ValidationError(errors)
+
+    def _record_legal_acceptance(self, user):
+        from privacy import consent
+
+        for doc in getattr(self, '_documents_to_record', []):
+            consent.record_consent(user, doc, method='checkbox')
+
+
 class PersonDataSerializer(serializers.Serializer):
     """Dados de quem vai fazer login (advogado ou gerente responsável)."""
 
@@ -102,7 +137,7 @@ def _create_user(person, **extra):
     )
 
 
-class IndividualRegistrationSerializer(PersonDataSerializer):
+class IndividualRegistrationSerializer(LegalAcceptanceMixin, PersonDataSerializer):
     """POST /api/v1/auth/register/ — pessoa física; cria a conta e o escritório pessoal."""
 
     oab_numero = serializers.CharField(max_length=20, required=False, allow_blank=True)
@@ -112,6 +147,11 @@ class IndividualRegistrationSerializer(PersonDataSerializer):
 
     def validate_plano_id(self, value):
         return _active_plan(value)
+
+    def validate(self, data):
+        data = super().validate(data)
+        self._validate_legal_acceptance(data)
+        return data
 
     @transaction.atomic
     def create(self, validated_data):
@@ -132,6 +172,7 @@ class IndividualRegistrationSerializer(PersonDataSerializer):
             organization=organization,
             role='OWNER',
         )
+        self._record_legal_acceptance(user)
         return membership
 
 
@@ -139,7 +180,7 @@ class ManagerSerializer(PersonDataSerializer):
     cargo = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
 
-class CompanyRegistrationSerializer(serializers.Serializer):
+class CompanyRegistrationSerializer(LegalAcceptanceMixin, serializers.Serializer):
     """POST /api/v1/auth/register/empresa/ — escritório + gerente responsável (owner)."""
 
     razao_social = serializers.CharField(max_length=255)
@@ -180,6 +221,10 @@ class CompanyRegistrationSerializer(serializers.Serializer):
     def validate_plano_id(self, value):
         return _active_plan(value)
 
+    def validate(self, data):
+        self._validate_legal_acceptance(data)
+        return data
+
     @transaction.atomic
     def create(self, validated_data):
         manager = validated_data['gerente']
@@ -209,6 +254,7 @@ class CompanyRegistrationSerializer(serializers.Serializer):
             role='OWNER',
             job_title=manager.get('cargo', ''),
         )
+        self._record_legal_acceptance(user)
         return membership
 
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Cadrius - backup cifrado do banco de PRODUÇÃO (a cada 6 h)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/cadrius/infra/deploy/backup/backup.sh prod scheduled
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

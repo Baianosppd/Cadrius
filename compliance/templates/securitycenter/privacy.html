@@ -1,0 +1,43 @@
+{% extends "securitycenter/base.html" %}
+{% block title %}Privacidade (LGPD){% endblock %}
+{% block content %}
+<h1>Privacidade e proteção de dados (LGPD)</h1>
+<p class="sub">Operação do programa de privacidade. Canal do titular/encarregado: <strong>{{ dpo_email }}</strong>.
+  Atendimento dos pedidos: Django Admin → Privacidade → Pedidos de titulares (ação “Atender”).</p>
+
+<div class="card flat"><div style="padding:16px 18px 0"><h2>Pedidos de titulares em aberto (prazo: 15 dias)</h2></div>
+  <div class="scroll"><table><thead><tr><th>Aberto em</th><th>Tipo</th><th>Prazo</th><th>Estado</th><th></th></tr></thead>
+    {% for r, overdue, days in dsr %}<tr><td>{{ r.opened_at|date:"d/m/Y" }}</td><td>{{ r.get_type_display }}</td><td>{{ r.due_at|date:"d/m/Y" }}</td>
+      <td><span class="pill {% if overdue %}bad{% elif days <= 3 %}warn{% else %}ok{% endif %}">{% if overdue %}VENCIDO{% else %}{{ days }} dia(s){% endif %}</span></td>
+      <td><a href="/admin/privacy/datasubjectrequest/{{ r.pk }}/change/">Abrir no Admin</a></td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">Nenhum pedido em aberto. ✔</td></tr>{% endfor %}</table></div></div>
+
+<div class="grid g2" style="margin-top:16px">
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Documentos legais vigentes</h2></div>
+    <table><thead><tr><th>Documento</th><th>Versão</th><th>Revisão jurídica</th></tr></thead>
+      {% for d in docs %}<tr><td>{{ d.title }}</td><td>v{{ d.version }}</td><td><span class="pill {% if d.needs_legal_review %}warn{% else %}ok{% endif %}">{% if d.needs_legal_review %}pendente{% else %}revisado{% endif %}</span></td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">Nenhum documento publicado.</td></tr>{% endfor %}</table></div>
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Aceites por versão</h2></div>
+    <table><thead><tr><th>Documento</th><th>Versão</th><th>Aceites</th></tr></thead>
+      {% for c in consents %}{% if c.granted %}<tr><td>{{ c.document__kind }}</td><td>v{{ c.document__version }}</td><td>{{ c.n }}</td></tr>{% endif %}
+      {% empty %}<tr><td colspan="3" class="muted">Sem registros ainda.</td></tr>{% endfor %}</table></div>
+</div>
+
+<div class="card flat" style="margin-top:16px"><div style="padding:16px 18px 0"><h2>Suboperadores e transferência internacional (art. 33)</h2></div>
+  <div class="scroll"><table><thead><tr><th>Suboperador</th><th>País</th><th>Finalidade</th><th>Transf. internacional</th><th>Contrato/DPA</th></tr></thead>
+    {% for s in subprocessors %}<tr><td><strong>{{ s.name }}</strong></td><td>{{ s.country }}</td><td>{{ s.purpose }}</td><td>{% if s.international_transfer %}sim{% else %}não{% endif %}</td>
+      <td><span class="pill {% if s.contract_verified %}ok{% else %}warn{% endif %}">{% if s.contract_verified %}verificado{% else %}pendente{% endif %}</span></td></tr>{% endfor %}</table></div></div>
+
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>Retenção configurada</h2>
+    <table><tr><td>Corpo de e-mails processados</td><td>{{ retention.email_body }} dias</td></tr>
+      <tr><td>Payloads/resultados de execuções</td><td>{{ retention.payload }} dias</td></tr>
+      <tr><td>Logs de integração</td><td>{{ retention.integration }} dias</td></tr>
+      <tr><td>Trilha de auditoria</td><td>{{ retention.audit }} dias</td></tr>
+      <tr><td>Escritório encerrado</td><td>30 dias (recuperável) e depois eliminação</td></tr></table></div>
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Encerramentos de escritório em andamento</h2></div>
+    <table><thead><tr><th>Escritório</th><th>Solicitado</th><th>Eliminação em</th></tr></thead>
+      {% for o in offboarding %}<tr><td>{{ o.organization_name }}</td><td>{{ o.requested_at|date:"d/m/Y" }}</td><td>{{ o.purge_after|date:"d/m/Y" }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">Nenhum encerramento pendente.</td></tr>{% endfor %}</table></div>
+</div>
+{% endblock %}

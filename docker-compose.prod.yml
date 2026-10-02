@@ -1,0 +1,67 @@
+# PRODUÇÃO — usar SEMPRE com o compose base:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Variáveis obrigatórias no .env (o deploy.yml valida): APP_HOST, ACME_EMAIL, POSTGRES_PASSWORD,
+# REDIS_PASSWORD, EVOLUTION_API_GLOBAL_KEY, DOZZLE_HOST, DOZZLE_BASIC_AUTH.
+# IMPORTANTE: validar primeiro em staging (DNS apontado e portas 80/443 livres para o desafio ACME).
+
+services:
+  traefik:
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--global.sendanonymoususage=false"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.fields.headers.defaultmode=drop"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # Redireciona todo o http -> https
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Certificados Let's Encrypt (RNF-012: SSL/TLS com renovação automática)
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL:?defina ACME_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.le.acme.httpchallenge=true"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "443:443"
+    volumes:
+      - traefik_letsencrypt:/letsencrypt
+
+  db:
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+
+  db-backup:
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+
+  redis:
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD}"]
+
+  web:
+    labels:
+      - "traefik.http.routers.cadrius-web.rule=Host(`${APP_HOST:?defina APP_HOST}`)"
+      - "traefik.http.routers.cadrius-web.entrypoints=websecure"
+      - "traefik.http.routers.cadrius-web.tls.certresolver=le"
+      - "traefik.http.routers.cadrius-web.middlewares=cadrius-body-limit,cadrius-secure-headers"
+      - "traefik.http.middlewares.cadrius-secure-headers.headers.stsSeconds=2592000"
+      - "traefik.http.middlewares.cadrius-secure-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.cadrius-secure-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.cadrius-secure-headers.headers.customResponseHeaders.Server="
+      - "traefik.http.middlewares.cadrius-secure-headers.headers.customResponseHeaders.X-Powered-By="
+
+  dozzle:
+    labels:
+      - "traefik.http.routers.dozzle.rule=Host(`${DOZZLE_HOST:?defina DOZZLE_HOST}`)"
+      - "traefik.http.routers.dozzle.entrypoints=websecure"
+      - "traefik.http.routers.dozzle.tls.certresolver=le"
+      - "traefik.http.middlewares.dozzle-auth.basicauth.users=${DOZZLE_BASIC_AUTH:?defina DOZZLE_BASIC_AUTH}"
+
+  evolution-api:
+    environment:
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_GLOBAL_KEY:?defina EVOLUTION_API_GLOBAL_KEY}
+
+volumes:
+  traefik_letsencrypt:

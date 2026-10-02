@@ -2,6 +2,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.throttling import ScopedRateThrottle
 from django_q.tasks import async_task # Resgatámos a tua importação assíncrona!
 
 from integrations.models import AppConnection
@@ -15,6 +16,9 @@ class WebhookReceiverView(APIView):
     """
     authentication_classes = [] # Aberto à internet (robôs não fazem login)
     permission_classes = []     # A segurança é feita pelo UUID da URL
+    # Endpoint público: sem limite, qualquer um podia enfileirar tarefas sem fim (DoS do worker).
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'webhook'
 
     def post(self, request, connection_id):
         try:

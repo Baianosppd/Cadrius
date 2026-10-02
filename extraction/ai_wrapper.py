@@ -13,7 +13,9 @@ from groq import Groq
 from openai import OpenAI
 
 # Importa os schemas definidos por Juliano
-from .schemas import ExtractedData, ServiceOrderSchema, SupportRequestSchema
+from aigov.sanitize import UNTRUSTED_NOTICE, wrap_untrusted
+
+from .schemas import ServiceOrderSchema
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +71,12 @@ def extract_fields_from_text(
         "Você é um extrator de dados altamente eficiente. Sua única tarefa é analisar o texto "
         "fornecido e retornar os dados estritamente no formato JSON, conforme o schema abaixo. "
         f"Se não for possível preencher um campo, use `null` ou um valor padrão razoável.\n\n"
-        f"SCHEMA JSON: {json.dumps(schema_json)}"
+        f"SCHEMA JSON: {json.dumps(schema_json)}\n\n{UNTRUSTED_NOTICE}"
     )
 
     # 2. Montagem da Mensagem do Usuário
-    user_prompt = f"{prompt_template}\n\nTEXTO DE ENTRADA:\n---\n{text}"
+    # Texto de terceiros é NÃO CONFIÁVEL: delimitado, sem caracteres de controle e com tamanho limitado.
+    user_prompt = f"{prompt_template}\n\nTEXTO DE ENTRADA:\n{wrap_untrusted(text)}"
     
     # Estratégia de Fallback com Retries
     for attempt in range(MAX_RETRY_ATTEMPTS):

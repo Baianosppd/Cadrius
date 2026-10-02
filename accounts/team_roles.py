@@ -1,8 +1,6 @@
 """Mapeamento de cargos entre frontend e OrganizationMembership."""
 from __future__ import annotations
 
-from accounts.models import OrganizationMembership
-
 FRONTEND_TO_BACKEND_ROLE = {
     'owner': 'OWNER',
     'dono': 'OWNER',

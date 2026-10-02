@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Centro de Segurança{% endblock %} · Cadrius</title>
+<style>
+  :root{
+    --navy:#0B2A5B; --navy-2:#123A7A; --bg:#F3F5F9; --card:#fff; --ink:#1B2433; --muted:#5B677A; --line:#DDE3EC;
+    --ok:#1E7B4B; --ok-bg:#E4F4EB; --warn:#8A5A00; --warn-bg:#FFF1D6; --bad:#A4262C; --bad-bg:#FDE7E9;
+    --info:#17508F; --info-bg:#E3EEFB; --na:#4A5568; --na-bg:#ECEFF4;
+  }
+  *{box-sizing:border-box} html{font-size:16px}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45}
+  a{color:var(--info)} a:hover{text-decoration:none}
+  .layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  nav.side{background:var(--navy);color:#fff;padding:20px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+  nav.side .brand{font-weight:700;font-size:1.1rem;padding:6px 10px 16px;letter-spacing:.2px}
+  nav.side .brand small{display:block;font-weight:400;opacity:.75;font-size:.78rem}
+  nav.side h4{margin:18px 10px 6px;font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;opacity:.65}
+  nav.side a{display:block;color:#fff;text-decoration:none;padding:8px 10px;border-radius:8px;font-size:.92rem}
+  nav.side a:hover{background:var(--navy-2)} nav.side a.active{background:#fff;color:var(--navy);font-weight:600}
+  main{padding:28px clamp(16px,3vw,40px);max-width:1280px}
+  h1{margin:0 0 4px;font-size:1.55rem;color:var(--navy)} h2{font-size:1.1rem;margin:0 0 12px;color:var(--navy)}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .grid{display:grid;gap:16px} .g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))} .g3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))} .g2{grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(11,42,91,.04)}
+  .card.flat{padding:0;overflow:hidden}
+  .kpi{font-size:2rem;font-weight:700;color:var(--navy);line-height:1.1} .kpi small{font-size:.9rem;font-weight:500;color:var(--muted)}
+  .label{font-size:.78rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600}
+  table{border-collapse:collapse;width:100%;font-size:.9rem} th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#F7F9FC;font-size:.74rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)} tr:last-child td{border-bottom:0}
+  .scroll{overflow-x:auto}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.78rem;font-weight:600;white-space:nowrap}
+  .s-implemented,.s-pass,.s-low,.ok{background:var(--ok-bg);color:var(--ok)}
+  .s-partial,.s-medium,.warn{background:var(--warn-bg);color:var(--warn)}
+  .s-not_implemented,.s-fail,.s-critical,.s-high,.bad{background:var(--bad-bg);color:var(--bad)}
+  .s-not_assessed,.s-unknown,.s-not_applicable,.na{background:var(--na-bg);color:var(--na)}
+  .s-open{background:var(--bad-bg);color:var(--bad)} .s-ack{background:var(--info-bg);color:var(--info)} .s-resolved{background:var(--ok-bg);color:var(--ok)} .s-false_positive{background:var(--na-bg);color:var(--na)}
+  .ring{width:96px;height:96px;flex:none} .ring text{font-weight:700;fill:var(--navy)}
+  .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .msg{padding:12px 16px;border-radius:10px;margin-bottom:14px;font-weight:500}
+  .msg.success{background:var(--ok-bg);color:var(--ok)} .msg.error{background:var(--bad-bg);color:var(--bad)} .msg.info{background:var(--info-bg);color:var(--info)}
+  .btn{display:inline-block;border:1px solid var(--navy);background:var(--navy);color:#fff;padding:8px 14px;border-radius:9px;font-size:.88rem;font-weight:600;cursor:pointer;text-decoration:none}
+  .btn.ghost{background:#fff;color:var(--navy)} .btn.danger{background:var(--bad);border-color:var(--bad)} .btn.small{padding:4px 10px;font-size:.8rem}
+  input,select,textarea{font:inherit;padding:7px 10px;border:1px solid #C4CCD9;border-radius:8px;background:#fff;color:var(--ink);max-width:100%}
+  input:focus,select:focus,textarea:focus,.btn:focus,a:focus{outline:3px solid #8FB4F0;outline-offset:1px}
+  form.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px} form.filters label{font-size:.78rem;color:var(--muted);display:block}
+  details summary{cursor:pointer;color:var(--info);font-weight:600} details form{display:grid;gap:8px;margin-top:10px;max-width:520px}
+  .bar{height:8px;border-radius:99px;background:var(--na-bg);overflow:hidden} .bar>i{display:block;height:100%;background:var(--navy-2)}
+  .muted{color:var(--muted)} .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+  .theme{margin:26px 0 8px;font-size:1rem;color:var(--navy)}
+  .chips a{margin-right:6px;margin-bottom:6px}
+  @media (max-width:860px){.layout{grid-template-columns:1fr} nav.side{position:static;height:auto}}
+  @media (prefers-reduced-motion:no-preference){.bar>i{transition:width .3s}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side" aria-label="Centro de Segurança">
+    <div class="brand">Cadrius<small>Centro de Segurança</small></div>
+    <h4>Monitoramento</h4>
+    <a href="{% url 'sc-overview' %}" class="{% if active == 'overview' %}active{% endif %}">Visão geral</a>
+    <a href="{% url 'sc-events' %}" class="{% if active == 'events' %}active{% endif %}">Trilha de auditoria</a>
+    <a href="{% url 'sc-alerts' %}" class="{% if active == 'alerts' %}active{% endif %}">Alertas de anomalia</a>
+    <a href="{% url 'sc-posture' %}" class="{% if active == 'posture' %}active{% endif %}">Postura técnica</a>
+    <h4>Normas</h4>
+    {% for key, name in frameworks.items %}<a href="{% url 'sc-framework' framework=key %}" class="{% if active == key %}active{% endif %}">{{ name|truncatechars:34 }}</a>{% endfor %}
+    <h4>Privacidade e IA</h4>
+    <a href="{% url 'sc-privacy' %}" class="{% if active == 'privacy' %}active{% endif %}">Privacidade (LGPD)</a>
+    <a href="{% url 'sc-ropa' %}" class="{% if active == 'ropa' %}active{% endif %}">RoPA (art. 37)</a>
+    <a href="{% url 'sc-ai' %}" class="{% if active == 'ai' %}active{% endif %}">Governança de IA</a>
+    <h4>Sistema</h4>
+    <a href="/admin/">Django Admin</a>
+    <a href="/api/docs/">Documentação da API</a>
+  </nav>
+  <main>
+    {% if messages %}{% for m in messages %}<div class="msg {{ m.tags }}" role="status">{{ m }}</div>{% endfor %}{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

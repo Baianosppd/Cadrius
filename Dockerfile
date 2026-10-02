@@ -1,23 +1,30 @@
-# Use uma imagem leve do Python compatível com seu projeto
+# Imagem de runtime enxuta e sem root (CAD-066).
 FROM python:3.11-slim
 
-# Otimizações do Python (logs imediatos e sem .pyc)
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Define pasta de trabalho dentro do container
 WORKDIR /app
 
-# Instala dependências do sistema para o Postgres e o Client (para pg_dump)
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    gcc \
-    postgresql-client \
+# Só o necessário em runtime: psycopg2-binary dispensa gcc/libpq-dev; o postgresql-client
+# fornece o pg_dump usado pelo comando de backup.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia e instala dependências do Python
+# Dependências pinadas e com hash (supply chain): requirements.txt é gerado de requirements.in.
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --require-hashes -r requirements.txt
 
-# Copia todo o código do projeto para dentro do container
-COPY . /app/
+# Utilizador sem privilégios (uid 1000 casa com o utilizador típico do host nos bind mounts de dev).
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin app \
+    && mkdir -p /app/staticfiles /app/media \
+    && chown -R app:app /app
+
+COPY --chown=app:app . /app/
+
+USER app
+
+EXPOSE 8000

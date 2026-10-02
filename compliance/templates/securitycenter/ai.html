@@ -1,0 +1,51 @@
+{% extends "securitycenter/base.html" %}
+{% block title %}Governança de IA{% endblock %}
+{% block content %}
+<h1>Governança de IA autônoma</h1>
+<p class="sub">A IA nunca decide sozinha em contexto jurídico: rascunhos exigem aprovação, ações externas de origem IA exigem confirmação humana
+  (conforme a política do escritório), cada uso fica registrado (sem conteúdo) e há um <strong>kill switch</strong> imediato.</p>
+
+<div class="card" style="border-left:6px solid {% if switch.ai_enabled %}var(--ok){% else %}var(--bad){% endif %}">
+  <div class="row" style="justify-content:space-between">
+    <div><div class="label">Kill switch global (plataforma)</div>
+      <div class="kpi"><span class="pill {% if switch.ai_enabled %}ok{% else %}bad{% endif %}">{% if switch.ai_enabled %}IA LIGADA{% else %}IA DESLIGADA{% endif %}</span></div>
+      {% if not switch.ai_enabled %}<div class="muted">Motivo: {{ switch.reason }} · {{ switch.changed_at|date:"d/m/Y H:i" }}</div>{% endif %}</div>
+    <form method="post" action="{% url 'sc-ai-switch' %}" class="row">{% csrf_token %}
+      {% if switch.ai_enabled %}<input type="hidden" name="enabled" value="0"><input name="reason" placeholder="Motivo (obrigatório)" size="34" required>
+        <button class="btn danger" onclick="return confirm('Desligar TODA a IA da plataforma agora?')">Desligar IA</button>
+      {% else %}<input type="hidden" name="enabled" value="1"><button class="btn">Religar IA</button>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="grid g4" style="margin-top:16px">
+  <div class="card"><div class="label">Usos de IA (7 dias)</div><div class="kpi">{{ summary.requests }}</div><div class="muted">{{ summary.failed }} com falha</div></div>
+  <div class="card"><div class="label">Bloqueados por política</div><div class="kpi">{{ summary.blocked }}</div>
+    {% for r in summary.by_reason %}<div class="muted"><span class="mono">{{ r.block_reason }}</span>: {{ r.n }}</div>{% endfor %}</div>
+  <div class="card"><div class="label">Por provedor</div>{% for p in summary.by_provider %}<div>{{ p.provider }}: <strong>{{ p.n }}</strong></div>{% empty %}<div class="muted">—</div>{% endfor %}</div>
+  <div class="card"><div class="label">Por finalidade</div>{% for p in summary.by_kind %}<div>{{ p.kind }}: <strong>{{ p.n }}</strong></div>{% empty %}<div class="muted">—</div>{% endfor %}</div>
+</div>
+
+<div class="grid g2" style="margin-top:16px">
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Aguardando confirmação humana ({{ pending_reviews|length }})</h2></div>
+    <div class="scroll"><table><thead><tr><th>Execução</th><th>Escritório</th><th>Desde</th></tr></thead>
+      {% for e in pending_reviews %}<tr><td>#{{ e.pk }} · {{ e.workflow.name }}</td><td>{{ e.workflow.organization.name }}</td><td>{{ e.created_at|date:"d/m H:i" }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">Fila vazia. ✔</td></tr>{% endfor %}</table></div></div>
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Rascunhos de IA aguardando aprovação ({{ drafts|length }})</h2></div>
+    <div class="scroll"><table><thead><tr><th>Workflow</th><th>Escritório</th><th>Criado</th></tr></thead>
+      {% for w in drafts %}<tr><td>#{{ w.pk }} · {{ w.name }}</td><td>{{ w.organization.name }}</td><td>{{ w.created_at|date:"d/m H:i" }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">Nenhum rascunho pendente. ✔</td></tr>{% endfor %}</table></div></div>
+</div>
+
+<div class="card flat" style="margin-top:16px"><div style="padding:16px 18px 0"><h2>Políticas por escritório</h2></div>
+  <div class="scroll"><table><thead><tr><th>Escritório</th><th>IA</th><th>Nível de autonomia</th><th>Provedores</th><th>Limite/dia</th><th>Atualizada</th></tr></thead>
+    {% for p in policies %}<tr><td>{{ p.organization.name }}</td><td><span class="pill {% if p.ai_enabled %}ok{% else %}bad{% endif %}">{% if p.ai_enabled %}ligada{% else %}desligada{% endif %}</span></td>
+      <td>{{ p.get_autonomy_level_display|truncatechars:60 }}</td><td>{{ p.allowed_providers|join:", " }}</td><td>{{ p.daily_ai_request_limit }}</td><td>{{ p.updated_at|date:"d/m/Y" }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="muted">Nenhum escritório personalizou a política (todos usam o padrão: supervisionada).</td></tr>{% endfor %}</table></div></div>
+
+<div class="card flat" style="margin-top:16px"><div style="padding:16px 18px 0"><h2>Últimos usos (sem conteúdo)</h2></div>
+  <div class="scroll"><table><thead><tr><th>Quando</th><th>Finalidade</th><th>Provedor</th><th>Categorias</th><th>Entrada</th><th>Resultado</th></tr></thead>
+    {% for l in recent %}<tr><td>{{ l.created_at|date:"d/m H:i:s" }}</td><td>{{ l.get_kind_display }}</td><td>{{ l.provider }}</td><td class="muted">{{ l.data_categories|join:", " }}</td><td>{{ l.input_chars }} car.</td>
+      <td>{% if l.blocked %}<span class="pill bad">bloqueado: {{ l.block_reason }}</span>{% elif l.success %}<span class="pill ok">ok</span>{% else %}<span class="pill warn">falha</span>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="6" class="muted">Sem usos de IA registrados.</td></tr>{% endfor %}</table></div></div>
+{% endblock %}

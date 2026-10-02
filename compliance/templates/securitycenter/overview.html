@@ -1,0 +1,87 @@
+{% extends "securitycenter/base.html" %}
+{% block title %}Visão geral{% endblock %}
+{% block content %}
+<h1>Visão geral de segurança</h1>
+<p class="sub">Postura em tempo real, calculada a partir da configuração e dos dados do ambiente
+  <strong>{{ env.environment }}</strong> (versão {{ env.app_version|default:"—" }}). Pontuação geral: <strong>{{ overall }}%</strong>.</p>
+
+<div class="grid g3">
+  {% for key, title, score, counts, delta in scores %}
+  <a class="card" style="text-decoration:none;color:inherit" href="{% url 'sc-framework' framework=key %}">
+    <div class="row">
+      {% include "securitycenter/_ring.html" %}
+      <div>
+        <div class="label">{{ title|truncatechars:42 }}</div>
+        <div class="muted" style="margin-top:6px">
+          <span class="pill s-implemented">{{ counts.implemented }} ok</span>
+          <span class="pill s-partial">{{ counts.partial }} parcial</span>
+          <span class="pill s-not_implemented">{{ counts.not_implemented }} falha</span>
+        </div>
+        {% if delta is not None %}<div class="muted" style="margin-top:6px">{% if delta > 0 %}▲ +{{ delta }}{% elif delta < 0 %}▼ {{ delta }}{% else %}= estável{% endif %} vs. última fotografia</div>{% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="grid g4" style="margin-top:16px">
+  <div class="card"><div class="label">Integridade da trilha</div>
+    <div class="kpi"><span class="pill {% if chain.ok %}ok{% else %}bad{% endif %}">{% if chain.ok %}Íntegra{% else %}ADULTERADA{% endif %}</span></div>
+    <div class="muted">{{ chain.checked }} eventos verificados</div>
+    <form method="post" action="{% url 'sc-verify-chain' %}" style="margin-top:10px">{% csrf_token %}<button class="btn small ghost">Verificar agora</button></form></div>
+  <div class="card"><div class="label">Eventos (24 h)</div><div class="kpi">{{ events_24h }}</div>
+    <div class="muted">{{ denied_24h }} negados · {{ failed_logins_24h }} logins falhos · {{ locked_24h }} bloqueios</div></div>
+  <div class="card"><div class="label">Alertas abertos</div>
+    <div class="kpi">{{ alerts_by_severity.critical|add:alerts_by_severity.high|add:alerts_by_severity.medium|add:alerts_by_severity.low }}</div>
+    <div><span class="pill s-critical">{{ alerts_by_severity.critical }} crítica</span> <span class="pill s-high">{{ alerts_by_severity.high }} alta</span>
+    <span class="pill s-medium">{{ alerts_by_severity.medium }} média</span></div></div>
+  <div class="card"><div class="label">IA da plataforma</div>
+    <div class="kpi"><span class="pill {% if ai.global_enabled %}ok{% else %}bad{% endif %}">{% if ai.global_enabled %}Ligada{% else %}DESLIGADA{% endif %}</span></div>
+    <div class="muted">{{ ai.requests_24h }} usos · {{ ai.blocked_24h }} bloqueados (24 h)</div>
+    <div class="muted">{{ ai.pending_reviews }} execuções e {{ ai.drafts_waiting }} rascunhos aguardando humano</div></div>
+</div>
+
+<div class="grid g2" style="margin-top:16px">
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Pontos que exigem ação</h2></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Verificação automática reprovada</th><th>Detalhe</th></tr></thead>
+      {% for name, title, r in checks_failing %}<tr><td><strong>{{ title }}</strong></td><td>{{ r.detail }}</td></tr>
+      {% empty %}<tr><td colspan="2" class="muted">Nenhuma verificação reprovada. ✔</td></tr>{% endfor %}
+    </table></div>
+    <div style="padding:12px 18px"><a href="{% url 'sc-posture' %}">Ver todas as verificações →</a></div></div>
+
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Privacidade (LGPD)</h2></div>
+    <table>
+      <tr><td>Pedidos de titulares abertos</td><td><span class="pill {% if privacy.dsr_overdue %}bad{% else %}ok{% endif %}">{{ privacy.dsr_open }} ({{ privacy.dsr_overdue }} vencidos)</span></td></tr>
+      <tr><td>Documentos legais pendentes de revisão jurídica</td><td><span class="pill {% if privacy.docs_pending_review %}warn{% else %}ok{% endif %}">{{ privacy.docs_pending_review }}</span></td></tr>
+      <tr><td>Suboperadores sem contrato/DPA verificado</td><td><span class="pill {% if privacy.subprocessors_unverified %}warn{% else %}ok{% endif %}">{{ privacy.subprocessors_unverified }}</span></td></tr>
+    </table>
+    <div style="padding:12px 18px"><a href="{% url 'sc-privacy' %}">Abrir tela de privacidade →</a></div></div>
+</div>
+
+<div class="grid g2" style="margin-top:16px">
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Alertas recentes</h2></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Severidade</th><th>Regra</th><th>Resumo</th></tr></thead>
+      {% for a in recent_alerts %}<tr><td><span class="pill s-{{ a.severity }}">{{ a.get_severity_display }}</span></td><td class="mono">{{ a.rule }}</td><td>{{ a.summary }}<div class="muted">{{ a.actor_label|default:"—" }} · {{ a.created_at|date:"d/m H:i" }}</div></td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">Sem alertas abertos.</td></tr>{% endfor %}
+    </table></div>
+    <div style="padding:12px 18px"><a href="{% url 'sc-alerts' %}">Triar alertas →</a></div></div>
+
+  <div class="card flat"><div style="padding:16px 18px 0"><h2>Eventos de segurança recentes</h2></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Quando</th><th>Ação</th><th>Ator</th></tr></thead>
+      {% for e in critical_events %}<tr><td>{{ e.occurred_at|date:"d/m H:i:s" }}</td><td class="mono">{{ e.action }}</td><td>{{ e.actor_label|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">Sem eventos.</td></tr>{% endfor %}
+    </table></div>
+    <div style="padding:12px 18px"><a href="{% url 'sc-events' %}">Abrir trilha completa →</a></div></div>
+</div>
+
+<div class="card flat" style="margin-top:16px"><div style="padding:16px 18px 0"><h2>Controles ISO 27001 / LGPD não implementados</h2></div>
+  <div class="scroll"><table>
+    <thead><tr><th>Norma</th><th>Controle</th><th>Evidência / observação</th></tr></thead>
+    {% for fw, r in failing_controls %}<tr><td>{{ fw|upper }}</td><td><a href="{% url 'sc-framework' framework=fw %}#c-{{ r.control.id }}"><strong>{{ r.control.id }}</strong> {{ r.control.title }}</a></td>
+      <td class="muted">{% for n, t, res in r.auto %}{% if res.status == 'fail' %}{{ res.detail }} {% endif %}{% endfor %}</td></tr>
+    {% empty %}<tr><td colspan="3" class="muted">Nenhum controle reprovado nas verificações automáticas.</td></tr>{% endfor %}
+  </table></div></div>
+{% endblock %}

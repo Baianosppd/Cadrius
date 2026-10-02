@@ -2,6 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
+from cadrius.tests_security import legal_acceptance
 
 User = get_user_model()
 
@@ -330,6 +331,7 @@ class RegistrationTests(APITestCase):
             'email': 'maria@email.com',
             'senha': 'Cadrius#2026',
             'plano_id': self.plan.id,
+            **legal_acceptance(),
         }
         data.update(overrides)
         return data
@@ -348,6 +350,7 @@ class RegistrationTests(APITestCase):
                 'cargo': 'Gerente Jurídico',
             },
             'plano_id': self.plan.id,
+            **legal_acceptance(),
         }
         data.update(overrides)
         return data

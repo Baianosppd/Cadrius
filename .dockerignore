@@ -2,6 +2,13 @@ __pycache__
 *.pyc
 db.sqlite3
 .git
+.github
 .env
+.env.*
 venv/
 node_modules/
+# Dumps de banco com dados pessoais nunca devem entrar na imagem
+backups/
+*.sql
+*.sql.gz
+docs/

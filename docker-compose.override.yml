@@ -1,0 +1,51 @@
+# DESENVOLVIMENTO LOCAL — carregado automaticamente por `docker compose up`.
+# NÃO é usado em produção (o deploy passa -f docker-compose.yml -f docker-compose.prod.yml).
+# Todas as portas ficam em 127.0.0.1: nada é exposto à rede.
+
+services:
+  traefik:
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--global.sendanonymoususage=false"
+    ports:
+      - "127.0.0.1:8090:8080"   # painel do Traefik (sem autenticação: só local)
+
+  web:
+    # Hot-reload + código montado do host.
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - .:/app
+
+  worker:
+    volumes:
+      - .:/app
+
+  evolution-api:
+    ports:
+      - "127.0.0.1:8082:8080"
+
+  # Túnel reverso para testar webhooks externos (requer NGROK_AUTHTOKEN no .env).
+  # Só sobe com:  docker compose --profile tunnel up
+  ngrok:
+    image: ngrok/ngrok:3
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4040:4040"
+    command:
+      - "http"
+      - "http://traefik:80"
+    env_file:
+      - .env
+    networks:
+      - proxy_net
+    depends_on:
+      - traefik

@@ -1,6 +1,8 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from .models import OrganizationMembership
 
 User = get_user_model()
@@ -12,15 +14,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     @classmethod
     def get_token(cls, user):
-        token = super().get_token(user)
-        # Adicione claims customizados aqui (ex: 'first_name')
-        token['first_name'] = user.first_name
-        return token
+        # Só o identificador padrão (user_id): nome/e-mail no JWT ficariam legíveis (base64) por terceiros.
+        return super().get_token(user)
 
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        return token
+    def validate(self, attrs):
+        data = super().validate(attrs)  # levanta 401 (e dispara user_login_failed) se inválido
+        from accounts.team_roles import get_active_membership
+        from audit import service
+        membership = get_active_membership(self.user)
+        service.log(
+            'auth.login.success', actor=self.user,
+            organization=membership.organization if membership else None,
+            data_categories=['identificacao'], legal_basis='contrato',
+        )
+        return data
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """GET /api/v1/auth/user/ — somente leitura."""
@@ -93,6 +100,11 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {'new_password': 'A nova senha deve ser diferente da senha atual.'},
             )
+        # Aplica AUTH_PASSWORD_VALIDATORS (antes ignorados fora do admin).
+        try:
+            validate_password(data['new_password'], self.context['request'].user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'new_password': list(exc.messages)})
         return data
 
     def save(self, **kwargs):
@@ -220,6 +232,10 @@ class TeamMemberInviteSerializer(serializers.Serializer):
             raise PermissionDenied(
                 'Apenas donos ou administradores do escritório podem convidar membros.',
             )
+
+        # Só OWNER concede OWNER (um ADMIN podia convidar-se a si/colegas como dono).
+        if data['role'] == 'OWNER' and inviter_membership.role != 'OWNER':
+            raise PermissionDenied('Apenas o dono do escritório pode conceder o cargo de dono.')
 
         self.context['inviter_membership'] = inviter_membership
         return data

@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
-from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # --- Views ---
@@ -17,8 +16,10 @@ from accounts.views import (
     FuncionariosListView,
     PermissionGroupListView,
     CustomTokenObtainPairView,
+    ThrottledTokenRefreshView,
+    LogoutView,
 )
-from core.views import health_check, DashboardStatsView, ActivitiesView, SyncHistoryView
+from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
     ClientDocumentCreateView,
     DocumentDownloadView,
@@ -27,6 +28,7 @@ from documents.views import (
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
 from tasks.views import UserTaskViewSet
 from workflows.views import WorkflowViewSet, AutomationStatsView
+from compliance import urls as compliance_urls
 
 # --- Roteador DRF (Endpoints Automáticos) ---
 router = routers.DefaultRouter()
@@ -40,13 +42,15 @@ router.register(r'tasks', UserTaskViewSet, basename='task')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('healthz/', health_check, name='healthz'),
+    path('readyz/', readiness_check, name='readyz'),
 
     # --- Rotas Base da API V1 ---
     path('api/v1/', include(router.urls)),
 
     # --- Autenticação (JWT) ---
     path('api/v1/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/auth/token/refresh/', ThrottledTokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/auth/logout/', LogoutView.as_view(), name='auth_logout'),
     path('api/v1/auth/register/', RegisterUserView.as_view(), name='user_register'),
     path('api/v1/auth/register/empresa/', RegisterCompanyView.as_view(), name='company_register'),
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
@@ -89,6 +93,11 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
+    path('api/v1/audit/', include('audit.urls')),
+    path('api/v1/', include('privacy.urls')),
+    path('api/v1/ai/', include('aigov.urls')),
+    path('api/v1/security/', include((compliance_urls.api_urlpatterns, 'security-api'))),
+    path('security-center/', include('compliance.urls')),
     path('api/billing/', include('billing.urls')),
     path('api/webhooks/', include('webhooks.urls')),
 ]

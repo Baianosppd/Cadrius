@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -36,6 +37,19 @@ class UserTaskCreateSerializer(serializers.ModelSerializer):
     )
     responsavel = serializers.PrimaryKeyRelatedField(queryset=User.objects.none())
     sincronizar = serializers.BooleanField(required=False, default=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Antes qualquer utilizador autenticado podia atribuir tarefas a QUALQUER outro (IDOR
+        # entre escritórios). Agora só ele próprio e membros ativos do mesmo escritório.
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated:
+            org_ids = user.memberships.filter(is_active=True).values_list('organization_id', flat=True)
+            allowed = User.objects.filter(
+                Q(pk=user.pk) | Q(memberships__organization_id__in=org_ids, memberships__is_active=True)
+            ).distinct()
+            self.fields['responsavel'].queryset = allowed
 
     class Meta:
         model = UserTask

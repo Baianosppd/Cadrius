@@ -1,0 +1,65 @@
+{% extends "securitycenter/base.html" %}
+{% load l10n %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="sub">Verificação dos controles: itens com <strong>verificação automática</strong> refletem a configuração e os dados reais do ambiente;
+  os demais dependem de <strong>avaliação manual</strong> com responsável e evidência (documentos, contratos, treinamentos).</p>
+
+<div class="card">
+  <div class="row">
+    {% with score=summary.score %}{% include "securitycenter/_ring.html" %}{% endwith %}
+    <div style="flex:1;min-width:240px">
+      <div class="label">{{ summary.total }} controles · {{ summary.applicable }} aplicáveis</div>
+      <div style="margin:8px 0">
+        <span class="pill s-implemented">{{ summary.counts.implemented }} implementados</span>
+        <span class="pill s-partial">{{ summary.counts.partial }} parciais</span>
+        <span class="pill s-not_implemented">{{ summary.counts.not_implemented }} não implementados</span>
+        <span class="pill s-not_assessed">{{ summary.counts.not_assessed }} não avaliados</span>
+        <span class="pill s-not_applicable">{{ summary.counts.not_applicable }} N/A</span>
+      </div>
+      <a class="btn small ghost" href="{% url 'sc-framework-csv' framework=framework %}">Exportar matriz (CSV) para auditoria</a>
+    </div>
+  </div>
+</div>
+
+<div class="chips" style="margin:16px 0 0">
+  <a class="btn small {% if status_filter %}ghost{% endif %}" href="?">Todos</a>
+  {% for value, label in labels.items %}<a class="btn small {% if status_filter != value %}ghost{% endif %}" href="?status={{ value }}">{{ label }}</a>{% endfor %}
+</div>
+
+{% for theme, rows in groups %}
+<h3 class="theme">{{ theme }}</h3>
+<div class="card flat"><div class="scroll"><table>
+  <thead><tr><th style="width:70px">ID</th><th>Controle</th><th style="width:150px">Status</th><th>Evidência e verificações</th></tr></thead>
+  {% for r in rows %}
+  <tr id="c-{{ r.control.id }}">
+    <td><strong>{{ r.control.id }}</strong></td>
+    <td>{{ r.control.title }}<div class="muted">{% if r.source == 'auto' %}verificação automática{% elif r.source == 'mixed' %}automática + avaliação manual{% else %}avaliação manual{% endif %}</div></td>
+    <td><span class="pill s-{{ r.status }}">{{ r.label }}</span></td>
+    <td>
+      {% if r.control.evidence %}<div>{{ r.control.evidence }}</div>{% endif %}
+      {% for name, title, res in r.auto %}<div class="muted"><span class="pill s-{{ res.status }}">{{ res.status }}</span> {{ title }} — {{ res.detail }}</div>{% endfor %}
+      {% if r.assessment %}<div class="muted" style="margin-top:4px">Responsável: {{ r.assessment.owner|default:"—" }}
+        {% if r.assessment.evidence_url %}· <a href="{{ r.assessment.evidence_url }}" rel="noopener noreferrer">evidência</a>{% endif %}
+        · revisado em {{ r.assessment.reviewed_at|date:"d/m/Y" }}{% if r.assessment.justification %}<br>Justificativa: {{ r.assessment.justification }}{% endif %}</div>{% endif %}
+      <details><summary>Registrar avaliação manual</summary>
+        <form method="post" action="{% url 'sc-assess' %}">{% csrf_token %}
+          <input type="hidden" name="framework" value="{{ framework }}"><input type="hidden" name="control_id" value="{{ r.control.id }}">
+          <label>Status <select name="status">{% for value, label in statuses %}<option value="{{ value }}" {% if r.assessment and r.assessment.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+          <label>Responsável <input name="owner" value="{{ r.assessment.owner }}" maxlength="120"></label>
+          <label>Link da evidência <input name="evidence_url" value="{{ r.assessment.evidence_url }}" placeholder="https://…"></label>
+          <label>Justificativa (obrigatória p/ “Não aplicável”) <textarea name="justification" rows="2">{{ r.assessment.justification }}</textarea></label>
+          <label>Próxima revisão <input type="date" name="next_review_at" value="{{ r.assessment.next_review_at|date:'Y-m-d' }}"></label>
+          <button class="btn small">Salvar</button>
+        </form></details>
+    </td>
+  </tr>
+  {% endfor %}
+</table></div></div>
+{% empty %}<p class="muted">Nenhum controle neste filtro.</p>{% endfor %}
+
+{% if snapshots %}<h3 class="theme">Histórico (fotografias diárias)</h3>
+<div class="card flat"><table><thead><tr><th>Data</th><th>Pontuação</th></tr></thead>
+  {% for s in snapshots %}<tr><td>{{ s.created_at|date:"d/m/Y H:i" }}</td><td><div class="bar" style="width:240px"><i style="width:{{ s.score|unlocalize }}%"></i></div> {{ s.score }}%</td></tr>{% endfor %}</table></div>{% endif %}
+{% endblock %}
