@@ -142,6 +142,8 @@ INSTALLED_APPS = [
     'webhooks',  # Recebedor de Eventos Externos
     'billing',# Módulo de Assinaturas e Pagamentos
     'audit',  # Trilha de auditoria imutável + anomalias (LGPD/ISO 27001)
+    'documents',  # Documentos do escritório (ficheiros + metadados)
+    'notifications',  # Sino de notificações
 ]
 
 MIDDLEWARE = [

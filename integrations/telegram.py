@@ -73,6 +73,14 @@ def notify_telegram(email_msg: EmailMessage, message: str, chat_id: str = None) 
         log.response_code = status_code
         log.response_body = {"error": error_details}
         log.save()
+
+        from notifications.services import notify_integration_failure
+        notify_integration_failure(
+            integration="Telegram",
+            actor_id=email_msg.mailbox.user_id,
+            detalhes=error_details,
+            dedupe_key=f"integracao-telegram:{log.pk}",
+        )
         
         logger.error(f"Falha ao enviar Telegram (Status {status_code}): {error_details}")
         raise

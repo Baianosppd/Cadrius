@@ -103,14 +103,14 @@ class HeadersTests(TestCase):
 
 class AuthHardeningTests(APITestCase):
     def test_registo_rejeita_senha_fraca(self):
-        resp = self.client.post('/api/v1/auth/register/', {'email': 'a@example.com', 'password': '12345678'})
+        from billing.models import SubscriptionPlan
+        plan = SubscriptionPlan.objects.create(name='Starter', tier='FREE', price_brl=0, max_users=1, max_ai_extractions=5)
+        resp = self.client.post('/api/v1/auth/register/', {
+            'nome_completo': 'Ana Souza', 'cpf': '529.982.247-25', 'email': 'a@example.com',
+            'senha': '12345678', 'plano_id': plan.id,
+        })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('password', resp.data)
-
-    def test_dois_registos_sem_cpf_nao_colidem(self):
-        for email in ('a@example.com', 'b@example.com'):
-            resp = self.client.post('/api/v1/auth/register/', {'email': email, 'password': 'Str0ng-Passw0rd!x'})
-            self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIn('senha', resp.data)
 
     def test_troca_de_senha_valida_a_nova_senha(self):
         user = make_user('p@example.com')
