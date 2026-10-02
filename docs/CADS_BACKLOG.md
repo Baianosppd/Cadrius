@@ -102,4 +102,4 @@ Ordem de merge sugerida: `CAD-056 → 057 → 058 → 059 → 065 → 066 → 06
 **CAD-105: Task - Rotas de SSO inexistentes no back** (Thales/Ryan) · o front chama `/api/v1/auth/google|microsoft/`, que não existem no back: login social não funciona em teste (e-mail/senha funciona). Implementar a troca do token do provedor por JWT (SimpleJWT) com aceite de termos (428) e auditoria.
 **CAD-106: Task - Front-end: usar `deploy/frontend/Dockerfile`** (Ryan) · copiar o Dockerfile/nginx do kit para o repositório do front, gerar `VITE_API_URL` por build e remover fallback para `localhost`.
 **CAD-107: Task - `docker-socket-proxy` e MFA no servidor** (Jullio) · ver CAD-083/085; após o primeiro deploy, executar `bootstrap.sh --lock-ssh`.
-
+**CAD-108: Task - Alinhar front e back (itens 1–9 de `docs/CONFORMIDADE_FRONT_BACK.md`)** (Ryan + Thales) · cadastro no contrato novo com aceite LGPD, correção de URLs (`workflows/generate-from-prompt/`), contrato do editor de fluxos, `connections/`, `reprocess`, remoção do `.env` do repo do front. Aceite: fluxo cadastro → login → criar automação funciona em `app-teste.cadrius.ia.br`.
