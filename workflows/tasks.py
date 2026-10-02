@@ -17,6 +17,12 @@ from integrations.models import AppConnection
 from integrations.webhook_executor import WebhookExecutor
 from audit import service as audit_service
 from cadrius.sentry_context import set_sentry_context
+from notifications.services import (
+    ACTION_LABELS,
+    notify_automation_failed,
+    notify_automation_succeeded,
+    notify_integration_failure,
+)
 from workflows.models import Action, ExecutionLog, Workflow
 
 logger = logging.getLogger(__name__)
@@ -408,6 +414,7 @@ def process_workflow_execution(execution_log_id):
         record_automation_run(user_id)
         record_outbound_message_send(user_id, action.action_type)
         _audit_outbound(exec_log, tenant, action.action_type, "success")
+        notify_automation_succeeded(exec_log, action.action_type, user_id, trigger_data)
 
     except requests.exceptions.RequestException as e:
         _audit_outbound(exec_log, tenant, getattr(action, "action_type", ""), "error")
@@ -430,6 +437,13 @@ def process_workflow_execution(execution_log_id):
         exec_log.save(
             update_fields=["status", "error_message", "execution_time_ms"]
         )
+        notify_integration_failure(
+            integration=ACTION_LABELS.get(action.action_type, action.action_type),
+            actor_id=_resolve_execution_user_id(exec_log, workflow),
+            organization=workflow.organization,
+            detalhes=str(e),
+            dedupe_key=f"automacao-erro:{exec_log.pk}",
+        )
 
     except Exception as e:
         logger.exception(
@@ -446,6 +460,7 @@ def process_workflow_execution(execution_log_id):
         exec_log.save(
             update_fields=["status", "error_message", "execution_time_ms"]
         )
+        notify_automation_failed(exec_log, _resolve_execution_user_id(exec_log, workflow))
 
 
 _MESSAGE_ACTIONS = {"WHATSAPP_EVOLUTION", "EMAIL_SMTP"}
