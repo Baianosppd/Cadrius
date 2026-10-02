@@ -122,7 +122,7 @@ jobs:
       - name: Imagem não corre como root
         run: test "$(docker run --rm --entrypoint id cadrius-app:ci -u)" != "0"
       - name: Trivy (CVEs CRITICAL/HIGH com correção disponível)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: cadrius-app:ci
           severity: CRITICAL,HIGH
