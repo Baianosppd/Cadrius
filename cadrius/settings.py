@@ -142,6 +142,7 @@ INSTALLED_APPS = [
     'webhooks',  # Recebedor de Eventos Externos
     'billing',# Módulo de Assinaturas e Pagamentos
     'audit',  # Trilha de auditoria imutável + anomalias (LGPD/ISO 27001)
+    'privacy',  # Termos, consentimento versionado, DSR e retenção (LGPD)
 ]
 
 MIDDLEWARE = [
@@ -360,6 +361,14 @@ LOGGING = {
 # --- 7.2 AUDITORIA ---
 AUDIT_RETENTION_DAYS = env.int('AUDIT_RETENTION_DAYS', default=365)
 SECURITY_ALERT_EMAILS = env.list('SECURITY_ALERT_EMAILS', default=[])
+
+# --- 7.3 PRIVACIDADE / LGPD ---
+# Exige aceite dos documentos vigentes (cadastro e API). Desligar só em testes de integração legados.
+LEGAL_ACCEPTANCE_REQUIRED = env.bool('LEGAL_ACCEPTANCE_REQUIRED', default=True)
+PRIVACY_CONTACT_EMAIL = env('PRIVACY_CONTACT_EMAIL', default='privacidade@cadrius.ia.br')  # canal do encarregado (DPO)
+RETENTION_EMAIL_BODY_DAYS = env.int('RETENTION_EMAIL_BODY_DAYS', default=90)
+RETENTION_EXECUTION_PAYLOAD_DAYS = env.int('RETENTION_EXECUTION_PAYLOAD_DAYS', default=90)
+RETENTION_INTEGRATION_LOG_DAYS = env.int('RETENTION_INTEGRATION_LOG_DAYS', default=30)
 
 # --- 8. FILAS E BACKGROUND TASKS ---
 Q_CLUSTER = {

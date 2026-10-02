@@ -2,6 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
+from cadrius.tests_security import legal_acceptance
 
 User = get_user_model()
 
@@ -38,7 +39,8 @@ class AccountTests(APITestCase):
             'email': 'newuser@example.com',
             'password': 'new-password-123',
             'first_name': 'New',
-            'last_name': 'User'
+            'last_name': 'User',
+            **legal_acceptance(),
         }
         response = self.client.post(url, data, format='json')
 

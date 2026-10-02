@@ -37,7 +37,7 @@ ACTIONS = frozenset({
     'anomaly.detected', 'anomaly.reviewed', 'ratelimit.hit', 'permission.denied',
     'audit.viewed', 'audit.export', 'audit.chain_broken', 'audit.chain_verified',
     'billing.checkout', 'billing.payment_confirmed',
-    'compliance.assessment_updated',
+    'compliance.assessment_updated', 'org.closure',
 })
 
 

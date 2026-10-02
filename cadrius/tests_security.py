@@ -17,6 +17,15 @@ from workflows.tasks import parse_action_template_to_dict
 User = get_user_model()
 
 
+def legal_acceptance():
+    """Campos de aceite exigidos no cadastro (versões vigentes dos documentos legais)."""
+    from privacy.models import LegalDocument
+    return {
+        f'accepted_{d.kind}_version': d.version
+        for d in LegalDocument.objects.filter(is_current=True, kind__in=['terms', 'privacy', 'ciencia'])
+    }
+
+
 def make_org(name='Escritório'):
     plan, _ = SubscriptionPlan.objects.get_or_create(
         tier='FREE', defaults=dict(name='Free', price_brl=0, max_users=10, max_ai_extractions=100),
@@ -103,13 +112,13 @@ class HeadersTests(TestCase):
 
 class AuthHardeningTests(APITestCase):
     def test_registo_rejeita_senha_fraca(self):
-        resp = self.client.post('/api/v1/auth/register/', {'email': 'a@example.com', 'password': '12345678'})
+        resp = self.client.post('/api/v1/auth/register/', {'email': 'a@example.com', 'password': '12345678', **legal_acceptance()})
         self.assertEqual(resp.status_code, 400)
         self.assertIn('password', resp.data)
 
     def test_dois_registos_sem_cpf_nao_colidem(self):
         for email in ('a@example.com', 'b@example.com'):
-            resp = self.client.post('/api/v1/auth/register/', {'email': email, 'password': 'Str0ng-Passw0rd!x'})
+            resp = self.client.post('/api/v1/auth/register/', {'email': email, 'password': 'Str0ng-Passw0rd!x', **legal_acceptance()})
             self.assertEqual(resp.status_code, 201, resp.data)
 
     def test_troca_de_senha_valida_a_nova_senha(self):

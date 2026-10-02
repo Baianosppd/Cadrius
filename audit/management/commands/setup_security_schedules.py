@@ -5,7 +5,7 @@ from django_q.models import Schedule
 JOBS = {
     'Segurança: detetar anomalias': ('run_anomaly_detection', Schedule.MINUTES, 5),
     'Segurança: verificar cadeia de auditoria': ('verify_audit_chain', Schedule.DAILY, None),
-    'Segurança: expurgo de retenção (auditoria)': ('purge_audit', Schedule.DAILY, None),
+    'Privacidade: aplicar retenção (LGPD)': ('enforce_retention', Schedule.DAILY, None),
 }
 
 

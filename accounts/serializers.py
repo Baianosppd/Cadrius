@@ -114,6 +114,10 @@ class ChangePasswordSerializer(serializers.Serializer):
         return user
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
+    # Aceite dos documentos vigentes (LGPD): versão exata exibida ao utilizador.
+    accepted_terms_version = serializers.CharField(write_only=True, required=False)
+    accepted_privacy_version = serializers.CharField(write_only=True, required=False)
+    accepted_ciencia_version = serializers.CharField(write_only=True, required=False)
     email = serializers.EmailField(write_only=True, required=True)
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
 
@@ -121,8 +125,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         # Expondo os campos para o formulário de Registo no Front-end
         fields = (
-            'id', 'email', 'password', 'first_name', 'last_name', 
-            'cpf', 'phone'
+            'id', 'email', 'password', 'first_name', 'last_name',
+            'cpf', 'phone',
+            'accepted_terms_version', 'accepted_privacy_version', 'accepted_ciencia_version',
         )
         extra_kwargs = {
             'password': {'write_only': True},
@@ -132,6 +137,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if User.objects.filter(username=data['email']).exists():
             raise serializers.ValidationError({"email": "Este e-mail já está a ser utilizado."})
         data['username'] = data['email']
+        self._validate_legal_acceptance(data)
         candidate = User(username=data['email'], email=data['email'],
                          first_name=data.get('first_name', ''), last_name=data.get('last_name', ''))
         try:
@@ -140,7 +146,31 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'password': list(exc.messages)})
         return data
 
+    LEGAL_FIELDS = {
+        'terms': 'accepted_terms_version',
+        'privacy': 'accepted_privacy_version',
+        'ciencia': 'accepted_ciencia_version',
+    }
+
+    def _validate_legal_acceptance(self, data):
+        from privacy import consent
+
+        if not consent.acceptance_required():
+            return
+        errors = {}
+        self._documents_to_record = []
+        for doc in consent.current_documents(consent.REQUIRED_KINDS):
+            field = self.LEGAL_FIELDS[doc.kind]
+            if data.get(field) != doc.version:
+                errors[field] = f'É necessário aceitar a versão vigente ({doc.version}) de: {doc.title}.'
+            else:
+                self._documents_to_record.append(doc)
+        if errors:
+            raise serializers.ValidationError(errors)
+
     def create(self, validated_data):
+        for field in self.LEGAL_FIELDS.values():
+            validated_data.pop(field, None)
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -151,6 +181,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             cpf=validated_data.get('cpf') or None,
             phone=validated_data.get('phone', ''),
         )
+        from privacy import consent
+        for doc in getattr(self, '_documents_to_record', []):
+            consent.record_consent(user, doc, method='checkbox')
         return user
 
 
