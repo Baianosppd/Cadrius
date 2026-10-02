@@ -19,6 +19,7 @@ from core.views import health_check, readiness_check, DashboardStatsView, Activi
 from emails.views import MailBoxViewSet, EmailMessageViewSet, ExtractionProfileViewSet
 from tasks.views import UserTaskViewSet
 from workflows.views import WorkflowViewSet, AutomationStatsView
+from compliance import urls as compliance_urls
 
 # --- Roteador DRF (Endpoints Automáticos) ---
 router = routers.DefaultRouter()
@@ -66,6 +67,8 @@ urlpatterns = [
     path('api/v1/audit/', include('audit.urls')),
     path('api/v1/', include('privacy.urls')),
     path('api/v1/ai/', include('aigov.urls')),
+    path('api/v1/security/', include((compliance_urls.api_urlpatterns, 'security-api'))),
+    path('security-center/', include('compliance.urls')),
     path('api/billing/', include('billing.urls')),
     path('api/webhooks/', include('webhooks.urls')),
 ]

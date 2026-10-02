@@ -1,0 +1,6 @@
+{% load l10n %}<svg class="ring" viewBox="0 0 42 42" role="img" aria-label="Pontuação {{ score }}%">
+  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#E5EAF3" stroke-width="4"/>
+  <circle cx="21" cy="21" r="15.9" fill="none" stroke="{% if score >= 80 %}#1E7B4B{% elif score >= 50 %}#C98200{% else %}#A4262C{% endif %}" stroke-width="4" stroke-linecap="round"
+          pathLength="100" stroke-dasharray="{{ score|unlocalize }} 100" transform="rotate(-90 21 21)"/>
+  <text x="21" y="24.5" text-anchor="middle" font-size="9.5">{{ score }}%</text>
+</svg>

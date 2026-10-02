@@ -1,0 +1,23 @@
+{% extends "securitycenter/base.html" %}
+{% block title %}RoPA{% endblock %}
+{% block content %}
+<h1>Registro das operações de tratamento (RoPA)</h1>
+<p class="sub">LGPD art. 37 · ISO 27701 (7.2.8 / 8.2.6). Mantido em código e revisado em PR para refletir o que o sistema realmente faz.
+  <a class="btn small ghost" href="?format=csv">Exportar CSV</a></p>
+{% for p in activities %}
+<div class="card" style="margin-bottom:14px">
+  <div class="row" style="justify-content:space-between"><h2 style="margin:0">{{ p.id }} · {{ p.name }}</h2><span class="pill s-implemented">{{ p.role }}</span></div>
+  <div class="grid g3" style="margin-top:10px">
+    <div><div class="label">Finalidade</div>{{ p.purpose }}</div>
+    <div><div class="label">Base legal</div>{{ p.legal_basis }}</div>
+    <div><div class="label">Titulares</div>{{ p.data_subjects }}</div>
+    <div><div class="label">Categorias de dados</div>{{ p.data_categories|join:"; " }}</div>
+    <div><div class="label">Origem</div>{{ p.sources }}</div>
+    <div><div class="label">Destinatários</div>{{ p.recipients }}</div>
+    <div><div class="label">Transferência internacional</div>{{ p.international_transfer }}</div>
+    <div><div class="label">Retenção</div>{{ p.retention }}</div>
+    <div><div class="label">Medidas de segurança</div>{{ p.security }}</div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

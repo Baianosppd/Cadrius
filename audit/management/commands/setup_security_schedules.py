@@ -6,6 +6,7 @@ JOBS = {
     'Segurança: detetar anomalias': ('run_anomaly_detection', Schedule.MINUTES, 5),
     'Segurança: verificar cadeia de auditoria': ('verify_audit_chain', Schedule.DAILY, None),
     'Privacidade: aplicar retenção (LGPD)': ('enforce_retention', Schedule.DAILY, None),
+    'Conformidade: fotografia diária': ('snapshot_compliance', Schedule.DAILY, None),
 }
 
 

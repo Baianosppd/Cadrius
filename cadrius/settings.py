@@ -144,6 +144,7 @@ INSTALLED_APPS = [
     'audit',  # Trilha de auditoria imutável + anomalias (LGPD/ISO 27001)
     'privacy',  # Termos, consentimento versionado, DSR e retenção (LGPD)
     'aigov',  # Governança de IA: políticas, kill switch, humano no circuito
+    'compliance',  # Centro de Segurança: ISO 27001/27701, LGPD, RoPA
 ]
 
 MIDDLEWARE = [
@@ -433,7 +434,10 @@ CACHES = {
 }
 
 # 2. Transferindo o controle de sessão do Postgres para o Redis
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# cached_db: leitura rápida pelo Redis, mas a sessão persiste no banco. Com o backend "cache" puro,
+# uma queda do Redis (IGNORE_EXCEPTIONS=True) fazia o login ENTRAR EM LOOP INFINITO ao criar a
+# sessão (add() sempre falhando) e um flush do Redis deslogava todos os utilizadores.
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_CACHE_ALIAS = "default"
 
 
