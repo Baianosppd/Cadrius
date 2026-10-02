@@ -236,6 +236,35 @@ CSP_IMG_SRC = ("'self'", "data:", "blob:")
 CSP_CONNECT_SRC = ("'self'",) 
 
 
+# --- 7.1 LOGGING (stdout -> Docker -> Dozzle) ---
+# Sem handler no root, os logger.info/warning/error da app não apareciam no Dozzle.
+# Mensagens seguem o padrão chave=valor (ex.: execution_log_id=42) para busca rápida.
+LOG_LEVEL = env('LOG_LEVEL', default='INFO')
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'structured': {
+            'format': '%(asctime)s level=%(levelname)s logger=%(name)s %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'structured',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': LOG_LEVEL,
+    },
+    'loggers': {
+        # Evita ruído de debug de libs HTTP que podem incluir headers/URLs com tokens.
+        'urllib3': {'level': 'WARNING'},
+    },
+}
+
+
 # --- 8. FILAS E BACKGROUND TASKS ---
 Q_CLUSTER = {
     'name': 'cadrius_tasks',
