@@ -128,71 +128,100 @@ class ActivitiesTests(APITestCase):
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
 
 
-class NotificationsTests(APITestCase):
+class SyncHistoryTests(APITestCase):
     def setUp(self):
-        from billing.models import SubscriptionPlan
-        from accounts.models import Organization, OrganizationMembership
+        from workflows.models import Action
 
         self.plan = SubscriptionPlan.objects.create(
-            name='Plano Teste',
-            tier='FREE',
+            name='Plano Sync',
+            tier='PRO',
             price_brl=0,
             max_users=5,
             max_ai_extractions=100,
         )
-        self.org = Organization.objects.create(name='Escritório Teste', plan=self.plan)
-        self.user = User.objects.create_user(
-            username='notify@example.com',
-            email='notify@example.com',
+        self.org = Organization.objects.create(name='Escritório Sync', plan=self.plan)
+        self.owner = self._user('sync-owner@example.com', 'OWNER')
+        self.member = self._user('sync-member@example.com', 'MEMBER')
+        self.other = self._user('sync-other@example.com', 'MEMBER')
+
+        self.whatsapp_flow = Workflow.objects.create(name='Avisar Cliente', organization=self.org)
+        Action.objects.create(
+            workflow=self.whatsapp_flow,
+            action_type='WHATSAPP_EVOLUTION',
+            payload_template='{}',
+        )
+        self.email_flow = Workflow.objects.create(name='Fluxo E-mail', organization=self.org)
+        Action.objects.create(workflow=self.email_flow, action_type='EMAIL_SMTP', payload_template='{}')
+
+    def _user(self, email, role):
+        user = User.objects.create_user(username=email, email=email, password='strong-password-123')
+        OrganizationMembership.objects.create(user=user, organization=self.org, role=role)
+        return user
+
+    def _log(self, user, status_value, workflow=None, error_message=None):
+        return ExecutionLog.objects.create(
+            workflow=workflow or self.whatsapp_flow,
+            triggered_by=user,
+            status=status_value,
+            error_message=error_message,
+        )
+
+    def _get(self, user):
+        self.client.force_authenticate(user=user)
+        return self.client.get(reverse('sync-history'))
+
+    def test_success_and_external_failure(self):
+        self._log(self.member, 'SUCCESS')
+        self._log(
+            self.member,
+            'FAILED',
+            error_message='Erro na requisição HTTP externa após 3 tentativas (ex.: API indisponível).',
+        )
+
+        response = self._get(self.member)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
+        failure, success = response.data['results']
+        self.assertEqual(failure['title'], 'Falha na sincronização')
+        self.assertEqual(failure['status'], 'falha')
+        self.assertEqual(
+            failure['description'],
+            'Não foi possível enviar Avisar Cliente para WhatsApp. Tente reconectar.',
+        )
+        self.assertEqual(success['title'], 'Sincronização concluída')
+        self.assertEqual(success['description'], 'Avisar Cliente enviado para WhatsApp com sucesso.')
+        self.assertEqual(success['status'], 'sucesso')
+
+    def test_ignores_internal_failures_and_non_external_actions(self):
+        self._log(self.member, 'FAILED', error_message='Erro interno ao processar a execução do workflow.')
+        self._log(self.member, 'FAILED', error_message='Workflow inativo; execução cancelada.')
+        self._log(self.member, 'SUCCESS', workflow=self.email_flow)
+        self._log(self.member, 'PENDING')
+
+        self.assertEqual(self._get(self.member).data['count'], 0)
+
+    def test_member_sees_own_and_owner_sees_all(self):
+        self._log(self.member, 'SUCCESS')
+        self._log(self.other, 'SUCCESS')
+
+        self.assertEqual(self._get(self.member).data['count'], 1)
+        self.assertEqual(self._get(self.owner).data['count'], 2)
+
+    def test_other_organization_is_not_visible(self):
+        other_org = Organization.objects.create(name='Outro Escritório', plan=self.plan)
+        outsider = User.objects.create_user(
+            username='sync-out@example.com',
+            email='sync-out@example.com',
             password='strong-password-123',
         )
-        OrganizationMembership.objects.create(
-            user=self.user,
-            organization=self.org,
-            role='OWNER',
-        )
-        self.mailbox = MailBox.objects.create(
-            user=self.user,
-            name='Caixa Teste',
-            imap_host='imap.example.com',
-            username='user',
-            password='pass',
-        )
-        self.workflow = Workflow.objects.create(
-            name='Notificar Cliente',
-            organization=self.org,
-        )
+        OrganizationMembership.objects.create(user=outsider, organization=other_org, role='OWNER')
+        self._log(self.member, 'SUCCESS')
 
-    def test_notifications_document(self):
-        EmailMessage.objects.create(
-            mailbox=self.mailbox,
-            message_id='msg-notify-1',
-            subject='Petição Inicial - Caso Silva',
-            sender='tribunal@example.com',
-            received_at=timezone.now(),
-            body_text='Corpo',
-            is_dispatched=True,
-        )
-        url = reverse('notifications')
-        self.client.force_authenticate(user=self.user)
-        response = self.client.get(url)
+        self.assertEqual(self._get(outsider).data['count'], 0)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['type'], 'documento')
-        self.assertEqual(response.data[0]['read'], False)
-        self.assertEqual(response.data[0]['actionLabel'], 'Ir para Módulo de Documentos')
-        self.assertIn('Petição Inicial - Caso Silva', response.data[0]['documento'])
-
-    def test_notifications_empty(self):
-        url = reverse('notifications')
-        self.client.force_authenticate(user=self.user)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [])
-
-    def test_notifications_unauthenticated(self):
-        response = self.client.get(reverse('notifications'))
+    def test_unauthenticated(self):
+        response = self.client.get(reverse('sync-history'))
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
 
 

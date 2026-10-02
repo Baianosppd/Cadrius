@@ -82,7 +82,11 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         )
 
         try:
-            data = generate_workflow_from_prompt(prompt_clean, organization)
+            data = generate_workflow_from_prompt(
+                prompt_clean,
+                organization,
+                user_id=request.user.id,
+            )
         except WorkflowGenerationQuotaExceeded as exc:
             return Response(
                 {"detail": exc.detail, "code": "quota_exceeded"},

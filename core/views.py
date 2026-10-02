@@ -6,7 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 
 from accounts.message_usage import dashboard_stats_for_user
 from core.activities import recent_activities_for_user
-from core.notifications import notifications_for_user
+from core.sync_history import sync_history_item, sync_history_queryset
+from rest_framework.pagination import PageNumberPagination
 
 # --- 2. VIEWS DE API (BACKEND) ---
 
@@ -51,12 +52,20 @@ class ActivitiesView(APIView):
         return Response(recent_activities_for_user(request.user))
 
 
-class NotificationsView(APIView):
+class SyncHistoryPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class SyncHistoryView(APIView):
     """
-    GET /api/v1/notifications/
-    Feed de notificações do utilizador autenticado.
+    GET /api/v1/sync-history/?page=&page_size=
+    Envios das automações para integrações externas (WhatsApp, webhook), sucesso e falha.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(notifications_for_user(request.user))
+        paginator = SyncHistoryPagination()
+        page = paginator.paginate_queryset(sync_history_queryset(request.user), request, view=self)
+        return paginator.get_paginated_response([sync_history_item(log) for log in page])

@@ -8,8 +8,9 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from accounts.models import Organization
+from accounts.team_roles import get_active_membership
 from billing.models import SubscriptionPlan
-from billing.serializers import SubscriptionPlanSerializer
+from billing.serializers import SubscriptionPlanSerializer, current_plan_payload
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,23 @@ class PlansListView(APIView):
         return Response(SubscriptionPlanSerializer(plans, many=True).data)
 
 
+class CurrentPlanView(APIView):
+    """
+    GET /api/billing/plans/current/
+    Plano atual do escritório do utilizador + outros planos disponíveis (card do Perfil).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        membership = get_active_membership(request.user)
+        if membership is None:
+            return Response(
+                {'detail': 'Utilizador sem organização ativa.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(current_plan_payload(membership.organization))
+
+
 class CreateCheckoutSessionView(APIView):
     """
     O Front-end chama isto quando o cliente clica em "Assinar Plano Pro".
@@ -37,9 +55,16 @@ class CreateCheckoutSessionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        membership = get_active_membership(request.user)
+        if membership is None:
+            return Response(
+                {'detail': 'Utilizador sem organização ativa.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         try:
             # 1. Pega a organização do utilizador que fez o pedido
-            user_org = request.user.organizationmembership_set.first().organization
+            user_org = membership.organization
             
             # 2. Pega o plano que ele quer assinar (vem no JSON do Front-end)
             plan_id = request.data.get('plan_id')
