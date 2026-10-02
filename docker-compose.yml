@@ -1,5 +1,14 @@
 version: '3.8'
 
+# Rotação dos logs JSON do Docker (CAD-058): evita que web/worker/db encham o disco.
+# Máx. 10 MB x 5 ficheiros = ~50 MB por contentor. Também limita o histórico visível no Dozzle.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+    compress: "true"
+
 networks:
   proxy_net:
     name: proxy_net
@@ -30,6 +39,7 @@ services:
 
   # --- 2. BANCO DE DADOS ---
   db:
+    logging: *default-logging
     image: postgres:15-alpine
     restart: always
     volumes:
@@ -84,6 +94,7 @@ services:
 
   # --- 5. APLICAÇÃO WEB (DJANGO) ---
   web:
+      logging: *default-logging
       build: .
       restart: always
       command: >
@@ -121,6 +132,7 @@ services:
 
   # --- 6. WORKER ---
   worker:
+    logging: *default-logging
     build: .
     restart: always
     command: python manage.py qcluster
