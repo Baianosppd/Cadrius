@@ -15,6 +15,7 @@ from extraction.ai_wrapper import check_and_update_quota
 from integrations.evolution import WhatsAppEvolutionExecutor
 from integrations.models import AppConnection
 from integrations.webhook_executor import WebhookExecutor
+from cadrius.sentry_context import set_sentry_context
 from workflows.models import Action, ExecutionLog, Workflow
 
 logger = logging.getLogger(__name__)
@@ -289,6 +290,8 @@ def process_workflow_execution(execution_log_id):
     workflow = exec_log.workflow
     # CAD-062: isolamento de contexto — organização do fluxo em execução.
     tenant = exec_log.workflow.organization
+    # Worker em background: o Sentry deve indicar o escritório afetado (CAD-056).
+    set_sentry_context(exec_log.triggered_by, workflow.organization)
     trigger_data = extract_trigger_payload(exec_log)
 
     if tenant is None:

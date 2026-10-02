@@ -1,5 +1,6 @@
 from django.utils.deprecation import MiddlewareMixin
 
+from cadrius.sentry_context import set_sentry_context
 
 # Rotas sem isolamento de tenant (auth pública, webhooks, admin, health).
 _SKIP_TENANT_PATH_PREFIXES = (
@@ -45,4 +46,7 @@ class TenantMiddleware(MiddlewareMixin):
             return None
 
         request.tenant = request.user.organization
+        # Sessões Django (ex.: allauth): associa utilizador e escritório ao Sentry.
+        # Pedidos JWT são tratados em cadrius.authentication.SentryJWTAuthentication.
+        set_sentry_context(request.user, request.tenant)
         return None
