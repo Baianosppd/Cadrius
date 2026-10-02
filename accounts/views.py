@@ -7,18 +7,32 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.throttling import ScopedRateThrottle
 from django.contrib.auth import get_user_model
+from .registration import (
+    CompanyRegistrationSerializer,
+    IndividualRegistrationSerializer,
+    registration_response,
+)
 from .serializers import (
-    UserRegistrationSerializer,
     UserProfileSerializer,
     UserProfileUpdateSerializer,
     ChangePasswordSerializer,
     TeamMemberSerializer,
     TeamMemberInviteSerializer,
+    MemberCreditLimitSerializer,
+    FuncionarioSerializer,
     CustomTokenObtainPairSerializer,
 )
+from django.db.models import OuterRef, Subquery
+from billing.credits import (
+    current_billing_month,
+    distributed_credits,
+    organization_credits_used,
+)
+from billing.models import MemberCreditUsage
 from .models import OrganizationMembership
 from .tenancy import resolve_request_tenant
 from audit import service as audit_service
+from .team_roles import MANAGE_TEAM_ROLES, get_active_membership
 
 User = get_user_model()
 
@@ -57,18 +71,29 @@ class LogoutView(APIView):
 
 class RegisterUserView(generics.CreateAPIView):
     """
-    Endpoint para registrar um novo usuário.
+    POST /api/v1/auth/register/ — cadastro de pessoa física.
+    Cria usuário + escritório pessoal (owner) e devolve access/refresh.
     """
-    queryset = User.objects.all()
     permission_classes = (permissions.AllowAny,)
-    serializer_class = UserRegistrationSerializer
-
-    def perform_create(self, serializer):
-        user = serializer.save()
-        audit_service.log('auth.register', actor=user, data_categories=['identificacao', 'contato'],
-                          legal_basis='contrato')
+    serializer_class = IndividualRegistrationSerializer
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'auth_register'
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        membership = serializer.save()
+        audit_service.log('auth.register', actor=membership.user, data_categories=['identificacao', 'contato'],
+                          legal_basis='contrato')
+        return Response(registration_response(membership), status=status.HTTP_201_CREATED)
+
+
+class RegisterCompanyView(RegisterUserView):
+    """
+    POST /api/v1/auth/register/empresa/ — cadastro de empresa.
+    Cria escritório + gerente responsável (owner) e devolve access/refresh.
+    """
+    serializer_class = CompanyRegistrationSerializer
 
 class GetUserProfileView(generics.RetrieveAPIView):
     """
@@ -137,12 +162,17 @@ class TeamMemberListCreateView(generics.ListCreateAPIView):
         tenant = resolve_request_tenant(self.request)
         if tenant is None:
             return OrganizationMembership.objects.none()
+        used_this_month = MemberCreditUsage.objects.filter(
+            membership=OuterRef('pk'),
+            billing_cycle_month=current_billing_month(),
+        ).values('credits_used')[:1]
         return (
             OrganizationMembership.objects.filter(
                 organization=tenant,
                 is_active=True,
             )
             .select_related('user')
+            .annotate(creditos_usados=Subquery(used_this_month))
             .order_by('joined_at')
         )
 
@@ -157,6 +187,90 @@ class TeamMemberListCreateView(generics.ListCreateAPIView):
         return Response(
             TeamMemberSerializer(membership).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+class MemberCreditLimitView(APIView):
+    """
+    PATCH /api/v1/teams/members/{id}/credits/
+    Define a cota mensal de créditos do membro (só OWNER/ADMIN). null = sem cota.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        requester = get_active_membership(request.user)
+        if requester is None or requester.role not in MANAGE_TEAM_ROLES:
+            return Response(
+                {'detail': 'Sem permissão para gerir créditos da equipa.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        membership = (
+            OrganizationMembership.objects.select_related('user', 'organization__plan')
+            .filter(pk=pk, organization=requester.organization, is_active=True)
+            .first()
+        )
+        if membership is None:
+            return Response({'detail': 'Membro não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = MemberCreditLimitSerializer(
+            data=request.data,
+            context={'membership': membership},
+        )
+        serializer.is_valid(raise_exception=True)
+        membership.credit_limit = serializer.validated_data['creditos_limite']
+        membership.save(update_fields=['credit_limit'])
+        return Response(TeamMemberSerializer(membership).data)
+
+
+class TeamCreditsSummaryView(APIView):
+    """
+    GET /api/v1/teams/credits/
+    Créditos gerais do escritório no mês corrente.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        membership = get_active_membership(request.user)
+        if membership is None:
+            return Response(
+                {'detail': 'Utilizador sem organização ativa.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        organization = membership.organization
+        total = organization.plan.max_ai_extractions
+        usados = organization_credits_used(organization)
+        distribuidos = distributed_credits(organization)
+        return Response({
+            'creditos_total': total,
+            'creditos_usados': usados,
+            'creditos_disponiveis': max(total - usados, 0),
+            'creditos_distribuidos': distribuidos,
+            'creditos_nao_distribuidos': max(total - distribuidos, 0),
+        })
+
+
+class FuncionariosListView(generics.ListAPIView):
+    """
+    GET /api/v1/funcionarios/
+    Funcionários ativos do escritório da sessão (dropdown Responsável / NewTask).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+    serializer_class = FuncionarioSerializer
+
+    def get_queryset(self):
+        membership = get_active_membership(self.request.user)
+        if membership is None:
+            return OrganizationMembership.objects.none()
+        return (
+            OrganizationMembership.objects.filter(
+                organization=membership.organization,
+                is_active=True,
+            )
+            .select_related('user')
+            .order_by('user__first_name', 'user__last_name', 'user__email')
         )
 
 

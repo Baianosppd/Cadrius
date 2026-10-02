@@ -44,7 +44,10 @@ class LegalDocumentTests(TestCase):
 
 class ConsentTests(APITestCase):
     def test_cadastro_exige_aceite_da_versao_vigente_e_grava_prova(self):
-        base = {'email': 'c@example.com', 'password': 'Str0ng-Passw0rd!x'}
+        from billing.models import SubscriptionPlan
+        plan = SubscriptionPlan.objects.create(name='Starter', tier='FREE', price_brl=0, max_users=1, max_ai_extractions=5)
+        base = {'nome_completo': 'Carla Souza', 'cpf': '529.982.247-25', 'email': 'c@example.com',
+                'senha': 'Str0ng-Passw0rd!x', 'plano_id': plan.id}
         resp = self.client.post('/api/v1/auth/register/', base)
         self.assertEqual(resp.status_code, 400)
         self.assertIn('accepted_terms_version', resp.data)
@@ -54,7 +57,7 @@ class ConsentTests(APITestCase):
 
         ok = self.client.post('/api/v1/auth/register/', {**base, **legal_acceptance()})
         self.assertEqual(ok.status_code, 201, ok.data)
-        records = ConsentRecord.objects.filter(user_ref=str(ok.data['id']))
+        records = ConsentRecord.objects.filter(user_ref=str(ok.data['user']['id']))
         self.assertEqual(records.count(), 3)
         doc = LegalDocument.objects.get(kind='ciencia', is_current=True)
         self.assertEqual(records.get(document=doc).evidence_sha256, doc.content_sha256)

@@ -49,7 +49,8 @@ def generate_workflow_from_prompt(user_prompt: str, organization: Organization, 
     """
     from aigov.guard import run_guarded
 
-    ok, quota_message = check_and_update_quota(organization)
+    user_id = getattr(user, 'id', None)
+    ok, quota_message = check_and_update_quota(organization, user_id=user_id)
     if not ok:
         raise WorkflowGenerationQuotaExceeded(quota_message)
 
