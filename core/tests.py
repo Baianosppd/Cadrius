@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 
+from django.test import SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -193,3 +194,42 @@ class NotificationsTests(APITestCase):
     def test_notifications_unauthenticated(self):
         response = self.client.get(reverse('notifications'))
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
+
+
+class SentryContextTests(SimpleTestCase):
+    """CAD-056: erros no Sentry indicam utilizador e escritório afetados."""
+
+    def _scope_data(self):
+        import sentry_sdk
+
+        scope = sentry_sdk.get_isolation_scope()
+        return scope._user, scope._tags, scope._contexts
+
+    def test_set_sentry_context_envia_apenas_ids(self):
+        import sentry_sdk
+        from types import SimpleNamespace
+
+        from cadrius.sentry_context import set_sentry_context
+
+        user = SimpleNamespace(pk='u-1', is_authenticated=True, email='x@y.com')
+        org = SimpleNamespace(pk='o-1')
+        with sentry_sdk.isolation_scope():
+            set_sentry_context(user, org)
+            scope_user, tags, contexts = self._scope_data()
+
+        self.assertEqual(scope_user, {'id': 'u-1'})
+        self.assertEqual(tags['organization_id'], 'o-1')
+        self.assertEqual(contexts['organization'], {'id': 'o-1'})
+
+    def test_utilizador_anonimo_nao_e_associado(self):
+        import sentry_sdk
+        from types import SimpleNamespace
+
+        from cadrius.sentry_context import set_sentry_context
+
+        with sentry_sdk.isolation_scope():
+            set_sentry_context(SimpleNamespace(pk='u-1', is_authenticated=False), None)
+            scope_user, tags, _ = self._scope_data()
+
+        self.assertFalse(scope_user)
+        self.assertNotIn('organization_id', tags)
