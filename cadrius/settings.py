@@ -28,6 +28,9 @@ env = environ.Env(
 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
+# Ambiente lógico: development | staging | production (também vira tag/ambiente no Sentry).
+DJANGO_ENV = env('DJANGO_ENV', default='development')
+
 # --- 2. MONITORAMENTO (SENTRY) ---
 SENTRY_DSN = env('SENTRY_DSN', default=None)
 if SENTRY_DSN:
@@ -363,6 +366,10 @@ LOGGING = {
 # --- 7.2 AUDITORIA ---
 AUDIT_RETENTION_DAYS = env.int('AUDIT_RETENTION_DAYS', default=365)
 SECURITY_ALERT_EMAILS = env.list('SECURITY_ALERT_EMAILS', default=[])
+
+# URL pública do front-end: usada nos redirecionamentos do Stripe (sucesso/cancelamento).
+# Antes não era definida e, em produção, o pagamento redirecionava para http://localhost:5173.
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173').rstrip('/')
 
 # --- 7.3 PRIVACIDADE / LGPD ---
 # Exige aceite dos documentos vigentes (cadastro e API). Desligar só em testes de integração legados.

@@ -19,6 +19,7 @@ Ordem de merge sugerida: `CAD-056 → 057 → 058 → 059 → 065 → 066 → 06
 | CAD-069 | Governança da IA autônoma (humano no circuito, kill switch) | `CAD-069` | ✅ |
 | CAD-070 | Centro de Segurança (telas) + conformidade ISO 27001/27701/LGPD + RoPA | `CAD-070` | ✅ |
 | CAD-071 | Análise do projeto, plano por equipe, backlog e eventos de comunicação (RNE-011) | `CAD-071` | ✅ |
+| CAD-104 | Provisionamento do VPS Locaweb: produção + teste, PostgreSQL, backups automáticos cifrados, CI/CD | `CAD-104` | ✅ kit pronto (`deploy/`); execução no servidor é manual (ver `deploy/README.md`) |
 
 ## B. Back-end (Thales)
 
@@ -97,3 +98,8 @@ Ordem de merge sugerida: `CAD-056 → 057 → 058 → 059 → 065 → 066 → 06
 **CAD-089: Task - Monitoramento externo e teste trimestral de restauração** (uptime em `/readyz/`, alerta Discord/Telegram, restauração em staging com evidência anexada ao controle ISO A.8.13).
 **CAD-100: Task - Saneamento do histórico do git e rotação de segredos** (⛔ manual): `git filter-repo` (senha Gmail, dumps), revogar/rotacionar, ativar *secret scanning* e *push protection* no GitHub e tornar o job `gitleaks` **bloqueante**.
 **CAD-101: Task - Jurídico/Governança**: nomear encarregado (DPO), revisar e publicar os 4 documentos (v1.0), assinar DPAs com suboperadores (marcar `contract_verified`), preencher RIPD (`docs/RIPD_MODELO.md`), política de resposta a incidentes aprovada pela direção.
+
+**CAD-105: Task - Rotas de SSO inexistentes no back** (Thales/Ryan) · o front chama `/api/v1/auth/google|microsoft/`, que não existem no back: login social não funciona em teste (e-mail/senha funciona). Implementar a troca do token do provedor por JWT (SimpleJWT) com aceite de termos (428) e auditoria.
+**CAD-106: Task - Front-end: usar `deploy/frontend/Dockerfile`** (Ryan) · copiar o Dockerfile/nginx do kit para o repositório do front, gerar `VITE_API_URL` por build e remover fallback para `localhost`.
+**CAD-107: Task - `docker-socket-proxy` e MFA no servidor** (Jullio) · ver CAD-083/085; após o primeiro deploy, executar `bootstrap.sh --lock-ssh`.
+

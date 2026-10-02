@@ -1,0 +1,38 @@
+# Configuração dinâmica do Traefik (arquivo): TLS moderno e middlewares reutilizáveis pelos ambientes.
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      sniStrict: true
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: false
+        forceSTSHeader: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "same-origin"
+        customResponseHeaders:
+          Server: ""
+          X-Powered-By: ""
+    # Limite por IP (defesa básica contra abuso/DoS; o Django ainda aplica seus próprios throttles).
+    rate-limit:
+      rateLimit:
+        average: 60
+        period: 1s
+        burst: 120
+    # Corpo máximo de 2 MB (alinhado ao DATA_UPLOAD_MAX_MEMORY_BYTES do Django).
+    body-limit:
+      buffering:
+        maxRequestBodyBytes: 2097152
+        memRequestBodyBytes: 2097152

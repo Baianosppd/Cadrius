@@ -268,13 +268,41 @@ def _masking():
     return CheckResult(PASS if ok else FAIL, 'Redação automática de CPF, e-mail, tokens e corpos.' if ok else 'Redação falhou.')
 
 
+def _host_backup_status(env='prod'):
+    """Lê o status gravado por deploy/backup/backup.sh (montado somente-leitura no contêiner)."""
+    path = Path(getattr(settings, 'BACKUP_STATUS_FILE', '/host-status/backup.status'))
+    try:
+        lines = path.read_text(encoding='utf-8').splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        parts = line.split()
+        if len(parts) >= 3 and parts[0] == env:
+            info = dict(p.split('=', 1) for p in parts[3:] if '=' in p)
+            return {'status': parts[1], 'at': parts[2], **info}
+    return None
+
+
 @check('backup', 'Backups cifrados agendados')
 def _backup():
+    st = _host_backup_status('prod')
+    if st:
+        from datetime import datetime, timezone as dt_tz
+        try:
+            when = datetime.strptime(st['at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt_tz.utc)
+            age_h = (timezone.now() - when).total_seconds() / 3600
+        except ValueError:
+            age_h = None
+        if st['status'] == 'ok' and age_h is not None and age_h <= 26:
+            if st.get('offsite') == 'true':
+                return CheckResult(PASS, f'Último backup de produção há {age_h:.0f} h, cifrado (GPG) e copiado para fora do servidor.')
+            return CheckResult(PARTIAL, 'Backup de produção cifrado e recente, mas SEM cópia externa (configure RCLONE_REMOTE).')
+        return CheckResult(FAIL, 'Último backup de produção falhou ou está desatualizado (> 26 h). Veja deploy/README.md.')
     from django_q.models import Schedule
     scheduled = Schedule.objects.filter(args__contains='backup_to_supabase').exists()
     if scheduled:
         return CheckResult(PASS, 'backup_to_supabase agendado (dump cifrado com Fernet).')
-    return CheckResult(PARTIAL, 'db-backup (compose) ativo; agende backup_to_supabase para cópia externa cifrada.')
+    return CheckResult(PARTIAL, 'Sem status de backup do servidor; agende backup_to_supabase ou use o kit deploy/backup.')
 
 
 # --------------------------------------------------------------------------- privacidade (LGPD)

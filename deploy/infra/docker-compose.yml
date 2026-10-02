@@ -1,0 +1,139 @@
+# INFRA COMPARTILHADA do VPS: Traefik (TLS), PostgreSQL (2 bancos: produção e teste) e Dozzle (logs).
+# Os ambientes (staging/prod) são stacks separadas em deploy/app e se conectam por redes externas.
+# Subir:  docker compose --env-file .env up -d      (feito por deploy/bootstrap.sh)
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5", compress: "true" }
+
+networks:
+  proxy_net:
+    name: proxy_net
+  db_net:
+    name: db_net
+    internal: true        # sem saída para a internet: o banco só conversa com as aplicações
+
+volumes:
+  pgdata:
+    name: cadrius_pgdata
+  traefik_acme:
+    name: cadrius_traefik_acme
+
+services:
+  traefik:
+    image: traefik:v2.11
+    container_name: cadrius_traefik
+    restart: always
+    logging: *logging
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=proxy_net"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls.options=default@file"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL:?defina ACME_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/acme/acme.json"
+      - "--certificatesresolvers.le.acme.caserver=${ACME_CASERVER:-https://acme-v02.api.letsencrypt.org/directory}"
+      - "--certificatesresolvers.le.acme.httpchallenge=true"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--global.sendanonymoususage=false"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.fields.headers.defaultmode=drop"      # nunca grava Authorization/cookies
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik_acme:/acme
+    security_opt: ["no-new-privileges:true"]
+    deploy: { resources: { limits: { cpus: "0.5", memory: 192M } } }
+    networks: [proxy_net]
+    labels:
+      - "traefik.enable=true"
+      # cadrius.ia.br e www -> app (um único endereço canônico)
+      - "traefik.http.routers.root-redirect.rule=Host(`${ROOT_DOMAIN}`) || Host(`www.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.root-redirect.entrypoints=websecure"
+      - "traefik.http.routers.root-redirect.tls.certresolver=le"
+      - "traefik.http.routers.root-redirect.middlewares=root-to-app"
+      - "traefik.http.routers.root-redirect.service=noop@internal"
+      - "traefik.http.middlewares.root-to-app.redirectregex.regex=^https://[^/]+/(.*)"
+      - "traefik.http.middlewares.root-to-app.redirectregex.replacement=https://app.${ROOT_DOMAIN}/$${1}"
+      - "traefik.http.middlewares.root-to-app.redirectregex.permanent=true"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: cadrius_postgres
+    restart: always
+    logging: *logging
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?defina POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8 --data-checksums"
+      TZ: America/Sao_Paulo
+    # Ajuste fino calculado por bootstrap.sh a partir da RAM do VPS (veja infra/.env).
+    command:
+      - "postgres"
+      - "-c" 
+      - "shared_buffers=${PG_SHARED_BUFFERS:-256MB}"
+      - "-c"
+      - "effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-768MB}"
+      - "-c"
+      - "work_mem=${PG_WORK_MEM:-8MB}"
+      - "-c"
+      - "maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}"
+      - "-c"
+      - "max_connections=${PG_MAX_CONNECTIONS:-100}"
+      - "-c"
+      - "password_encryption=scram-sha-256"
+      - "-c"
+      - "log_min_duration_statement=500"       # consultas lentas (>0,5s) no log
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_disconnections=on"
+      - "-c"
+      - "log_checkpoints=on"
+      - "-c"
+      - "idle_in_transaction_session_timeout=60000"
+      - "-c"
+      - "timezone=America/Sao_Paulo"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    shm_size: 256mb
+    security_opt: ["no-new-privileges:true"]
+    deploy: { resources: { limits: { cpus: "1.5", memory: "${PG_MEM_LIMIT:-1536M}" } } }
+    networks:
+      db_net: { aliases: [postgres] }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  dozzle:
+    image: amir20/dozzle:v8
+    container_name: cadrius_dozzle
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      DOZZLE_NO_ANALYTICS: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt: ["no-new-privileges:true"]
+    deploy: { resources: { limits: { cpus: "0.25", memory: 128M } } }
+    networks: [proxy_net]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dozzle.rule=Host(`logs.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.dozzle.entrypoints=websecure"
+      - "traefik.http.routers.dozzle.tls.certresolver=le"
+      - "traefik.http.routers.dozzle.middlewares=dozzle-auth,secure-headers@file"
+      - "traefik.http.middlewares.dozzle-auth.basicauth.users=${DOZZLE_BASIC_AUTH:?defina DOZZLE_BASIC_AUTH}"
+      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
