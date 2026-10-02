@@ -144,6 +144,8 @@ INSTALLED_APPS = [
     'audit',  # Trilha de auditoria imutável + anomalias (LGPD/ISO 27001)
     'privacy',  # Termos, consentimento versionado, DSR e retenção (LGPD)
     'aigov',  # Governança de IA: políticas, kill switch, humano no circuito
+    'documents',  # Documentos do escritório (ficheiros + metadados)
+    'notifications',  # Sino de notificações
 ]
 
 MIDDLEWARE = [

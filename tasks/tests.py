@@ -7,6 +7,8 @@ from rest_framework.test import APITestCase
 
 from django.contrib.auth import get_user_model
 
+from accounts.models import Organization, OrganizationMembership
+from billing.models import SubscriptionPlan
 from tasks.models import UserTask
 
 User = get_user_model()
@@ -14,12 +16,25 @@ User = get_user_model()
 
 class UserTaskAPITests(APITestCase):
     def setUp(self):
+        self.plan = SubscriptionPlan.objects.create(
+            name='Plano Tasks',
+            tier='PRO',
+            price_brl=99,
+            max_users=10,
+            max_ai_extractions=1000,
+        )
+        self.org = Organization.objects.create(name='Escritório Tasks', plan=self.plan)
         self.user = User.objects.create_user(
             username='taskuser@example.com',
             email='taskuser@example.com',
             password='strong-password-123',
             first_name='Task',
             last_name='User',
+        )
+        OrganizationMembership.objects.create(
+            user=self.user,
+            organization=self.org,
+            role='OWNER',
         )
         self.other_user = User.objects.create_user(
             username='other@example.com',
