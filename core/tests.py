@@ -213,7 +213,8 @@ class SentryContextTests(SimpleTestCase):
 
         user = SimpleNamespace(pk='u-1', is_authenticated=True, email='x@y.com')
         org = SimpleNamespace(pk='o-1')
-        with sentry_sdk.isolation_scope():
+        with sentry_sdk.isolation_scope() as scope:
+            scope.clear()  # evita herdar tags de outros testes (ex.: worker de workflows)
             set_sentry_context(user, org)
             scope_user, tags, contexts = self._scope_data()
 
@@ -227,7 +228,8 @@ class SentryContextTests(SimpleTestCase):
 
         from cadrius.sentry_context import set_sentry_context
 
-        with sentry_sdk.isolation_scope():
+        with sentry_sdk.isolation_scope() as scope:
+            scope.clear()
             set_sentry_context(SimpleNamespace(pk='u-1', is_authenticated=False), None)
             scope_user, tags, _ = self._scope_data()
 
