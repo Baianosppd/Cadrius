@@ -133,7 +133,10 @@ if [ -n "${SMOKE_USER:-}" ] && [ -n "${SMOKE_PASS:-}" ]; then
         for p in audit/summary/ ai/executions/pending/; do expect_code "GET /api/v1/$p (não-gestor deve ser negado)" 403 "$API/api/v1/$p" "${A[@]}"; done
       fi
     fi
-    if [ "$staff" = True ] || [ "${SMOKE_ROLE:-}" = staff ]; then
+    probe="$(code "${A[@]}" "$API/api/v1/security/overview/")"
+    if [ "$probe" = 428 ]; then
+      note "usuário ainda não aceitou os termos (428 consent_required): entre uma vez no app com ele e aceite; rotas de equipe não testadas"
+    elif [ "$staff" = True ] || [ "${SMOKE_ROLE:-}" = staff ]; then
       for p in security/overview/ security/controls/ security/checks/ security/ropa/; do expect_code "GET /api/v1/$p (equipe)" 200 "$API/api/v1/$p" "${A[@]}"; done
       ov="$(body "${A[@]}" "$API/api/v1/security/overview/")"
       echo "$ov" | json "d['audit']['chain_ok']" | grep -q True && ok "cadeia de auditoria ÍNTEGRA ($(echo "$ov" | json "d['audit']['chain_checked']") eventos)" || bad "cadeia de auditoria inconsistente!"
