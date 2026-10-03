@@ -4,7 +4,7 @@
 # (Não usa a chave privada: valida dump + restauração; o ciclo com GPG é validado no simulado trimestral.)
 #   verify-restore.sh [prod|staging]    (padrão: prod)
 set -Eeuo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"; source "$HERE/lib-backup.sh"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; source "$HERE/lib-backup.sh"
 ENV_NAME="${1:-prod}"; DB="$(db_name "$ENV_NAME")"; SCRATCH="restore_test_$$"
 load_backup_env; need_root
 TMP="$(make_tmp)"
