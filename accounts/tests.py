@@ -1,4 +1,5 @@
 from django.urls import reverse
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
@@ -314,6 +315,7 @@ class RegistrationTests(APITestCase):
     VALID_CNPJ = '11.222.333/0001-81'
 
     def setUp(self):
+        cache.clear()  # o limite de cadastro (5/h) acumula no Redis entre os testes
         from billing.models import SubscriptionPlan
 
         self.plan = SubscriptionPlan.objects.create(
