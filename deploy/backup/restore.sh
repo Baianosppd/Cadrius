@@ -8,7 +8,7 @@
 #   1) pare a stack (docker compose stop web worker)  2) ALTER DATABASE cadrius_prod RENAME TO cadrius_prod_old;
 #   3) ALTER DATABASE <novo> RENAME TO cadrius_prod;   4) docker compose up -d      (veja deploy/README.md §Restauração)
 set -Eeuo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"; source "$HERE/lib-backup.sh"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; source "$HERE/lib-backup.sh"
 FILE="${1:?uso: $0 <arquivo.dump.gpg> <novo_banco> <papel_dono>}"; NEWDB="${2:?}"; OWNER="${3:?}"
 [[ "$NEWDB" =~ ^[a-z0-9_]+$ ]] || die "nome de banco inválido"
 [[ "$NEWDB" != cadrius_prod && "$NEWDB" != cadrius_staging ]] || die "Recuso restaurar por cima de $NEWDB. Use um banco novo e depois renomeie."

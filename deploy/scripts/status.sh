@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Visão rápida do servidor: contêineres, saúde das aplicações, disco, último backup e certificados.
 set -Eeuo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"; source "$HERE/../lib/common.sh"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; source "$HERE/../lib/common.sh"
 ROOT_DOMAIN="$(env_get "$CADRIUS_ROOT/infra/.env" ROOT_DOMAIN 2>/dev/null || echo cadrius.ia.br)"
 echo "== Contêineres"; docker ps --format 'table {{.Names}}\t{{.Status}}'
 echo; echo "== Saúde (via HTTPS)"

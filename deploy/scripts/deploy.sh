@@ -4,12 +4,17 @@
 #
 # Uso:  deploy.sh <prod|staging> [sha-do-commit-para-registrar-no-Sentry]
 set -Eeuo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"; source "$HERE/../lib/common.sh"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; source "$HERE/../lib/common.sh"
 
 ENV_NAME="${1:-}"; [[ "$ENV_NAME" =~ ^(prod|staging)$ ]] || die "Uso: $0 <prod|staging> [sha]"
 SHA="${2:-}"
 ENV_DIR="$CADRIUS_ROOT/$ENV_NAME"
 [ -f "$ENV_DIR/.env" ] || die "Falta $ENV_DIR/.env (rode o bootstrap.sh)."
+# Autocorreção: o healthcheck do contêiner chama 127.0.0.1; sem ele em ALLOWED_HOSTS o /readyz responde 400.
+if ! grep -qE '^ALLOWED_HOSTS=.*127\.0\.0\.1' "$ENV_DIR/.env"; then
+  warn "ALLOWED_HOSTS sem 127.0.0.1 — corrigindo em $ENV_DIR/.env"
+  sed -i -E 's|^(ALLOWED_HOSTS=.*)$|\1,127.0.0.1,localhost|' "$ENV_DIR/.env"
+fi
 
 # Branches: prod = main; staging = develop (back) / Develop (front)
 case "$ENV_NAME" in
@@ -42,7 +47,13 @@ PREV_FRONT="$(git -C "$ENV_DIR/frontend" rev-parse HEAD 2>/dev/null || echo '')"
 log "[$ENV_NAME] atualizando código (back: $BACK_BRANCH, front: $FRONT_BRANCH)"
 sync_repo "$ENV_DIR/backend" "$BACK_BRANCH"
 sync_repo "$ENV_DIR/frontend" "$FRONT_BRANCH"
-cp "$CADRIUS_ROOT/infra/deploy/frontend/Dockerfile" "$CADRIUS_ROOT/infra/deploy/frontend/nginx.conf.template" "$ENV_DIR/frontend/"
+# O front agora traz o próprio Dockerfile de produção (target "prod" + nginx/). Se for uma versão antiga, usa o do kit.
+if ! grep -q "AS prod" "$ENV_DIR/frontend/Dockerfile" 2>/dev/null; then
+  warn "front sem Dockerfile de produção — usando o do kit (deploy/frontend)"
+  cp "$CADRIUS_ROOT/infra/deploy/frontend/Dockerfile" "$ENV_DIR/frontend/Dockerfile"
+  mkdir -p "$ENV_DIR/frontend/nginx"
+  cp "$CADRIUS_ROOT/infra/deploy/frontend/nginx/"* "$ENV_DIR/frontend/nginx/"
+fi
 cp "$CADRIUS_ROOT/infra/deploy/app/docker-compose.yml" "$ENV_DIR/docker-compose.yml"
 
 NEW_BACK="$(git -C "$ENV_DIR/backend" rev-parse --short HEAD)"

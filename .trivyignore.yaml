@@ -1,0 +1,9 @@
+# Exceções do Trivy (CI). Cada item precisa de justificativa e VALIDADE: depois da data o job volta a falhar
+# e alguém precisa reavaliar. O build já roda `apt-get upgrade`, então o patch entra sozinho quando o Debian publicar.
+vulnerabilities:
+  - id: CVE-2026-103111
+    statement: >
+      libpcre2-8-0 (Debian 13): correção 10.46-1~deb13u3 ainda não estava disponível nos repositórios no momento do build
+      (apt-get upgrade não a encontrou). A aplicação não compila expressões regulares fornecidas por terceiros com PCRE2
+      (usa o módulo `re` do Python); a biblioteca só é usada por utilitários do sistema (grep). Risco baixo e temporário.
+    expired_at: 2026-10-20

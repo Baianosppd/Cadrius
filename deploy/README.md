@@ -131,3 +131,14 @@ docker compose -p cadrius-prod up -d
 * **Login Google/Microsoft não funciona** em teste: as rotas `/api/v1/auth/google|microsoft/` que o front chama não existem no back (CAD-105). E-mail/senha funciona.
 * `docker-socket-proxy` e MFA ainda pendentes (CAD-083/085/107).
 * Segredos do histórico do git antigo precisam ser rotacionados (CAD-100).
+
+## 7. Atualizar o servidor com o que está no git
+
+```bash
+sudo -i
+/opt/cadrius/infra/deploy/scripts/update-kit.sh main          # scripts, compose, timers de backup (branch do KIT)
+/opt/cadrius/infra/deploy/scripts/deploy.sh staging           # código: back em develop, front em Develop
+/opt/cadrius/infra/deploy/scripts/deploy.sh prod              # código: back e front em main
+# antes de mergear, dá para testar uma branch:  BACK_BRANCH=CAD-110 FRONT_BRANCH=CAD-113 .../deploy.sh staging
+```
+O deploy também corrige sozinho o `ALLOWED_HOSTS` de `.env` antigos (o healthcheck chama `127.0.0.1`).
