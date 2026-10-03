@@ -79,3 +79,23 @@ class SupportRequestSchema(ExtractedData):
     is_critical: bool = Field(description="Verdadeiro se o problema impedir a operação normal do cliente.")
     error_code: str | None = Field(default=None, description="Qualquer código de erro mencionado.")
     requester_email: str = Field(description="Email de quem enviou a solicitação (para follow-up).")
+
+
+def get_extraction_schema(name: str):
+    """
+    Resolve o nome gravado em ``ExtractionProfile.pydantic_schema_name`` para uma classe.
+
+    Só aceita subclasses de ``ExtractedData`` deste módulo — antes qualquer atributo do módulo
+    (ex.: ``date``, ``BaseModel``) podia ser escolhido por um utilizador.
+    """
+    candidate = globals().get(name or "")
+    if isinstance(candidate, type) and issubclass(candidate, ExtractedData):
+        return candidate
+    return None
+
+
+def list_extraction_schemas() -> list[str]:
+    return sorted(
+        n for n, v in globals().items()
+        if isinstance(v, type) and issubclass(v, ExtractedData) and v is not ExtractedData
+    )

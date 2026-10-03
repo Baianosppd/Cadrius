@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 
+from core.utils import EncryptedTextField
+
 class MailBox(models.Model):
     """
     Define a caixa de entrada de onde os emails são buscados.
@@ -18,7 +20,8 @@ class MailBox(models.Model):
     imap_host = models.CharField(max_length=255)
     imap_port = models.IntegerField(default=993)
     username = models.CharField(max_length=255)
-    password = models.CharField(max_length=255) # Lembrete DevSecOps: Encriptar isso no banco no futuro
+    # Cifrada em repouso (Fernet, ver core.utils); transparente ao ler/gravar em Python.
+    password = EncryptedTextField()
     
     last_fetch_at = models.DateTimeField(null=True, blank=True, verbose_name="Última Busca")
     is_active = models.BooleanField(default=True)

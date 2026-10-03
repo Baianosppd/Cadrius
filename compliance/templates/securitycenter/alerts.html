@@ -1,0 +1,28 @@
+{% extends "securitycenter/base.html" %}
+{% block title %}Alertas de anomalia{% endblock %}
+{% block content %}
+<h1>Alertas de anomalia</h1>
+<p class="sub">Comportamento fora do padrão — inclusive de usuários autenticados (conta comprometida, abuso interno, exfiltração).
+  Cada alerta traz a evidência; trate dentro do SLA (crítico/alto: 24 h).</p>
+<div class="chips" style="margin-bottom:10px">
+  {% for value, label in statuses %}<a class="btn small {% if status != value %}ghost{% endif %}" href="?status={{ value }}">{{ label }}</a>{% endfor %}
+  <a class="btn small {% if status != 'all' %}ghost{% endif %}" href="?status=all">Todos</a>
+</div>
+<div class="card flat"><div class="scroll"><table>
+  <thead><tr><th>Severidade</th><th>Regra</th><th>Resumo e evidência</th><th>Estado</th><th>Triagem</th></tr></thead>
+  {% for a in alerts %}
+  <tr>
+    <td><span class="pill s-{{ a.severity }}">{{ a.get_severity_display }}</span></td>
+    <td class="mono">{{ a.rule }}</td>
+    <td><strong>{{ a.summary }}</strong>
+      <div class="muted">{{ a.created_at|date:"d/m/Y H:i" }} · ator {{ a.actor_label|default:"—" }} · IP <span class="mono">{{ a.ip|default:"—" }}</span></div>
+      {% if a.details %}<details><summary>Evidência</summary><pre class="mono" style="white-space:pre-wrap">{{ a.details }}</pre></details>{% endif %}</td>
+    <td><span class="pill s-{{ a.status }}">{{ a.get_status_display }}</span>{% if a.reviewed_at %}<div class="muted">{{ a.reviewed_at|date:"d/m H:i" }}</div>{% endif %}</td>
+    <td><form method="post" action="{% url 'sc-alert-review' pk=a.pk %}" class="row" style="gap:6px">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <select name="status" aria-label="Novo estado">{% for value, label in statuses %}<option value="{{ value }}" {% if a.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <button class="btn small">Salvar</button></form></td>
+  </tr>
+  {% empty %}<tr><td colspan="5" class="muted">Nenhum alerta neste filtro. ✔</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

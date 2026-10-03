@@ -6,8 +6,6 @@ import os
 
 from pydantic import BaseModel, ValidationError
 
-from billing.models import AIUsageLog
-
 # Bibliotecas das IAs
 from google import genai
 from google.genai import types
@@ -15,7 +13,9 @@ from groq import Groq
 from openai import OpenAI
 
 # Importa os schemas definidos por Juliano
-from .schemas import ExtractedData, ServiceOrderSchema, SupportRequestSchema
+from aigov.sanitize import UNTRUSTED_NOTICE, wrap_untrusted
+
+from .schemas import ServiceOrderSchema
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,9 @@ def _get_gemini_client() -> genai.Client:
             "GEMINI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Gemini."
         )
     return genai.Client(api_key=key)
+  
+  
+  
 
 def extract_fields_from_text(
     text: str, 
@@ -68,11 +71,12 @@ def extract_fields_from_text(
         "Você é um extrator de dados altamente eficiente. Sua única tarefa é analisar o texto "
         "fornecido e retornar os dados estritamente no formato JSON, conforme o schema abaixo. "
         f"Se não for possível preencher um campo, use `null` ou um valor padrão razoável.\n\n"
-        f"SCHEMA JSON: {json.dumps(schema_json)}"
+        f"SCHEMA JSON: {json.dumps(schema_json)}\n\n{UNTRUSTED_NOTICE}"
     )
 
     # 2. Montagem da Mensagem do Usuário
-    user_prompt = f"{prompt_template}\n\nTEXTO DE ENTRADA:\n---\n{text}"
+    # Texto de terceiros é NÃO CONFIÁVEL: delimitado, sem caracteres de controle e com tamanho limitado.
+    user_prompt = f"{prompt_template}\n\nTEXTO DE ENTRADA:\n{wrap_untrusted(text)}"
     
     # Estratégia de Fallback com Retries
     for attempt in range(MAX_RETRY_ATTEMPTS):
@@ -160,21 +164,8 @@ def mock_extract_fields_from_text(text: str, schema: type[BaseModel], **kwargs) 
         ).model_dump()
     return None
 
-def check_and_update_quota(organization):
-    """ Verifica se o escritório ainda tem 'créditos' de IA este mês """
-    from django.utils import timezone
-    month_start = timezone.now().replace(day=1)
-    
-    usage, created = AIUsageLog.objects.get_or_create(
-        organization=organization,
-        billing_cycle_month=month_start
-    )
-    
-    # Se o plano do escritório permitir menos extrações do que o contador atual
-    if usage.extractions_count >= organization.plan.max_ai_extractions:
-        return False, "Limite de extrações do seu plano atingido."
-    
-    # Incrementa o uso
-    usage.extractions_count += 1
-    usage.save()
-    return True, ""
+def check_and_update_quota(organization, user_id=None):
+    """ Verifica e desconta 1 crédito do plano do escritório e da cota do membro (se houver). """
+    from billing.credits import consume_credit
+
+    return consume_credit(organization, user_id=user_id)

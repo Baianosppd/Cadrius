@@ -16,6 +16,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from audit import service as audit_service
+
 from .models import Trigger
 from .tasks import execute_workflow_pipeline
 from .throttles import WebhookCatchRateThrottle
@@ -81,6 +83,8 @@ def catch_webhook_event(request, token):
             workflow__is_active=True,
         )
     except Trigger.DoesNotExist:
+        audit_service.log('webhook.invalid_token', outcome='denied', actor_type='webhook',
+                          reason='token inválido, gatilho inexistente ou workflow inativo')
         return Response(
             {"detail": "Token inválido, gatilho inexistente ou workflow inativo."},
             status=status.HTTP_404_NOT_FOUND,
@@ -103,6 +107,9 @@ def catch_webhook_event(request, token):
         )
 
     exec_log = result
+    audit_service.log('webhook.accepted', actor_type='webhook', target=workflow, organization=workflow.organization,
+                      changes={'execution_log_id': exec_log.id}, data_categories=['conteudo_comunicacao'],
+                      legal_basis='contrato')
     logger.info(
         "Webhook externo aceite: workflow_id=%s trigger_id=%s log_id=%s",
         workflow.id,
@@ -139,10 +146,11 @@ class WebhookReceiverView(APIView):
             ).get("text")
 
             if numero_remetente and texto:
+                # LGPD: não gravar o número completo do titular nos logs (só os 4 últimos dígitos).
                 logger.info(
-                    "[WhatsApp Cadrius] connection=%s de=%s",
+                    "[WhatsApp Cadrius] connection=%s de=***%s",
                     connection_id,
-                    numero_remetente,
+                    str(numero_remetente).split("@")[0][-4:],
                 )
 
         return Response({"status": "sucesso"}, status=status.HTTP_202_ACCEPTED)

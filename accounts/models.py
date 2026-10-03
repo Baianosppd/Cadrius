@@ -4,38 +4,97 @@ from django.contrib.auth.models import AbstractUser
 from billing.models import SubscriptionPlan
 
 class Organization(models.Model):
-    # Segurança: UUID evita que IDs sequenciais sejam expostos na URL ou APIs
+    ACCOUNT_TYPE_CHOICES = (
+        ('PESSOA_FISICA', 'Pessoa Física'),
+        ('EMPRESA', 'Empresa'),
+    )
+    COMPANY_SIZE_CHOICES = (
+        ('MEI', 'Microempreendedor Individual'),
+        ('ME', 'Microempresa'),
+        ('EPP', 'Empresa de Pequeno Porte'),
+        ('GRANDE_PORTE', 'Grande Porte'),
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-    cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True)
-    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.RESTRICT, verbose_name="Plano Atual")
-    
-    # Fundamental para o nosso SSO B2B funcionar (Auto-Provisionamento)
-    allowed_domain = models.CharField(
-        max_length=255, 
-        unique=True, 
-        null=True, 
-        blank=True, 
-        help_text="Ex: machado.adv.br. Usado para vincular utilizadores via Google/Microsoft SSO."
+    account_type = models.CharField(
+        max_length=20,
+        choices=ACCOUNT_TYPE_CHOICES,
+        default='EMPRESA',
+        verbose_name="Tipo de Conta",
     )
     
-    # Controlo de Estado
+    # Identificação da Empresa
+    name = models.CharField(max_length=255, verbose_name="Nome Interno")
+    nome_fantasia = models.CharField(max_length=255, null=True, blank=True)
+    razao_social = models.CharField(max_length=255, null=True, blank=True)
+    cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True)
+    
+    # Natureza Jurídica / Fiscal
+    company_type = models.CharField(max_length=100, null=True, blank=True, verbose_name="Tipo de Sociedade")
+    tax_regime = models.CharField(max_length=100, null=True, blank=True, verbose_name="Regime Tributário")
+    company_size = models.CharField(
+        max_length=20,
+        choices=COMPANY_SIZE_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name="Porte da Empresa",
+    )
+    
+    # Endereço
+    cep = models.CharField(max_length=9, null=True, blank=True)
+    street = models.CharField(max_length=255, null=True, blank=True, verbose_name="Logradouro")
+    number = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número")
+    neighborhood = models.CharField(max_length=100, null=True, blank=True, verbose_name="Bairro")
+    city = models.CharField(max_length=100, null=True, blank=True, verbose_name="Cidade")
+    state_uf = models.CharField(max_length=2, null=True, blank=True, verbose_name="Estado (UF)")
+    
+    # Contatos
+    main_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Principal")
+    corporate_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Corporativo")
+    corporate_email = models.EmailField(null=True, blank=True, verbose_name="E-mail Corporativo")
+
+    # SSO e Plano
+    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.RESTRICT, verbose_name="Plano Atual")
+    next_billing_date = models.DateField(null=True, blank=True, verbose_name="Próxima Cobrança")
+    allowed_domain = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return self.nome_fantasia or self.razao_social or self.name
 
 
 class CustomUser(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
-    # Campos extras úteis para futuras integrações (ex: MFA via WhatsApp)
     phone = models.CharField(max_length=20, blank=True, null=True)
     
-    # NOTA: Removemos o ForeignKey direto para a Organization daqui.
-    # O vínculo agora é feito pela tabela OrganizationMembership abaixo.
+    # Novos campos do Advogado / Indivíduo
+    cpf = models.CharField(max_length=14, unique=True, null=True, blank=True)
+    oab_number = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número da OAB")
+    oab_uf = models.CharField(max_length=2, null=True, blank=True, verbose_name="Estado da OAB (UF)")
+    practice_area = models.CharField(max_length=100, null=True, blank=True, verbose_name="Área de Atuação Principal")
+
+    profile_picture = models.ImageField(
+        upload_to='users/avatars/', 
+        null=True, 
+        blank=True, 
+        verbose_name="Foto de Perfil"
+    )
+
+    @property
+    def organization(self):
+        """
+        Escritório ativo associado ao utilizador (primeira membership ativa).
+        Alinha ``request.user.organization`` com o modelo multi-tenant real.
+        """
+        membership = (
+            self.memberships.filter(is_active=True)
+            .select_related("organization")
+            .first()
+        )
+        return membership.organization if membership else None
 
     def __str__(self):
         return self.email or self.username
@@ -58,6 +117,13 @@ class OrganizationMembership(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='memberships')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='members')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='MEMBER')
+    job_title = models.CharField(max_length=100, blank=True, default='', verbose_name="Cargo")
+    # null = sem cota individual (consome só do total do plano)
+    credit_limit = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Cota mensal de créditos",
+    )
     
     is_active = models.BooleanField(default=True)
     joined_at = models.DateTimeField(auto_now_add=True)

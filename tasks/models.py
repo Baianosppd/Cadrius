@@ -1,8 +1,9 @@
 # julliodutra/cadrius/cadrius-d2664e7d9d3cdaaeb4729d29c9fafb13438707c0/integrations/models.py
 
 from django.db import models
+
+from core.utils import EncryptedTextField
 # REMOVIDO: from emails.models import EmailMessage 
-from django.utils import timezone
 
 class IntegrationStatus(models.TextChoices):
     SUCCESS = 'SUCCESS', 'Sucesso'
@@ -19,12 +20,12 @@ class IntegrationConfig(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Nome da Configuração")
     
     # TRELLO (Para Projuris/Card Creation)
-    trello_api_key = models.CharField(max_length=255, blank=True, verbose_name="Trello API Key")
-    trello_api_token = models.CharField(max_length=255, blank=True, verbose_name="Trello API Token")
+    trello_api_key = EncryptedTextField(blank=True, verbose_name="Trello API Key")
+    trello_api_token = EncryptedTextField(blank=True, verbose_name="Trello API Token")
     trello_list_id = models.CharField(max_length=255, blank=True, verbose_name="Trello List ID Padrão")
     
     # TELEGRAM (Para Notificações)
-    telegram_bot_token = models.CharField(max_length=255, blank=True, verbose_name="Telegram Bot Token")
+    telegram_bot_token = EncryptedTextField(blank=True, verbose_name="Telegram Bot Token")
     telegram_chat_id = models.CharField(max_length=255, blank=True, verbose_name="Telegram Chat ID Padrão")
     
     is_active = models.BooleanField(default=True)
@@ -75,3 +76,38 @@ class IntegrationLog(models.Model):
     
     def __str__(self):
         return f'[{self.get_service_display()}] {self.status} - Email: {self.email_message.id}'
+
+
+class UserTask(models.Model):
+    """Tarefa do dashboard (lista do dia)."""
+
+    class Priority(models.TextChoices):
+        ALTA = 'alta', 'Alta'
+        MEDIA = 'media', 'Média'
+        BAIXA = 'baixa', 'Baixa'
+
+    titulo = models.CharField(max_length=255)
+    descricao = models.TextField(blank=True, default='')
+    scheduled_at = models.DateTimeField(verbose_name='Data e horário')
+    priority = models.CharField(
+        max_length=10,
+        choices=Priority.choices,
+        default=Priority.MEDIA,
+    )
+    responsavel = models.ForeignKey(
+        'accounts.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='assigned_tasks',
+        verbose_name='Responsável',
+    )
+    sincronizar = models.BooleanField(default=False)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['scheduled_at']
+        verbose_name = 'Tarefa'
+        verbose_name_plural = 'Tarefas'
+
+    def __str__(self):
+        return self.titulo

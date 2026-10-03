@@ -1,0 +1,11 @@
+[Unit]
+Description=Cadrius - backup cifrado do banco de TESTE (diário)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/cadrius/infra/deploy/backup/backup.sh staging scheduled
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

@@ -1,0 +1,46 @@
+# Dependências DIRETAS do runtime (editar aqui). O requirements.txt é gerado (pinado) a partir deste
+# ficheiro:  pip-compile --generate-hashes requirements.in   (ou: pip install -r requirements.in && pip freeze)
+# Removidas por não terem uso no código: pandas, numpy, scikit-learn, matplotlib, openpyxl,
+# python-telegram-bot, aiohttp, qrcode, pypng, python-slugify, pytz, dj-database-url, django-filter,
+# drf-yasg, django-admin-interface, django-colorfield, email-validator, bandit/safety (movidos p/ dev).
+
+# --- Django core & API ---
+Django>=5.2,<5.3
+djangorestframework
+djangorestframework_simplejwt
+django-cors-headers
+drf-spectacular
+django-environ
+Pillow
+
+# --- Banco, cache e filas ---
+psycopg2-binary
+redis
+django-redis>=5.4.0
+django-q2
+
+# --- Autenticação / SSO / segurança ---
+django-allauth[socialaccount]
+django-axes
+django-csp
+cryptography
+whitenoise
+uvicorn[standard]
+
+# --- Integrações ---
+requests
+IMAPClient
+stripe
+supabase
+
+# --- IA ---
+pydantic
+openai
+groq
+google-genai
+
+# --- Observabilidade ---
+sentry-sdk
+
+# --- Ferramentas de build (a imagem base traz um setuptools antigo com jaraco.context/wheel vulneráveis embutidos) ---
+setuptools>=84

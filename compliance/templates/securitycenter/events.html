@@ -1,0 +1,43 @@
+{% extends "securitycenter/base.html" %}
+{% block title %}Trilha de auditoria{% endblock %}
+{% block content %}
+<h1>Trilha de auditoria</h1>
+<p class="sub">Eventos imutáveis e encadeados por hash (nenhum conteúdo pessoal é gravado). Use o <span class="mono">request_id</span> para correlacionar com os logs do Dozzle e com o Sentry.</p>
+
+<form class="filters" method="get">
+  <div><label for="prefix">Categoria</label><select id="prefix" name="prefix"><option value="">Todas</option>
+    {% for p in prefixes %}<option value="{{ p }}" {% if params.prefix == p %}selected{% endif %}>{{ p }}.*</option>{% endfor %}</select></div>
+  <div><label for="outcome">Resultado</label><select id="outcome" name="outcome"><option value="">Todos</option>
+    <option value="success" {% if params.outcome == 'success' %}selected{% endif %}>Sucesso</option>
+    <option value="denied" {% if params.outcome == 'denied' %}selected{% endif %}>Negado</option>
+    <option value="error" {% if params.outcome == 'error' %}selected{% endif %}>Erro</option></select></div>
+  <div><label for="actor">Ator</label><input id="actor" name="actor" value="{{ params.actor }}" placeholder="e-mail mascarado ou ID"></div>
+  <div><label for="request_id">request_id</label><input id="request_id" name="request_id" value="{{ params.request_id }}"></div>
+  <div><label for="from">De</label><input id="from" type="date" name="from" value="{{ params.from }}"></div>
+  <div><label for="to">Até</label><input id="to" type="date" name="to" value="{{ params.to }}"></div>
+  <button class="btn" type="submit">Filtrar</button>
+  <a class="btn ghost" href="{% url 'sc-events' %}">Limpar</a>
+</form>
+<form method="post" action="{% url 'sc-verify-chain' %}" style="margin-bottom:14px">{% csrf_token %}<button class="btn ghost">Verificar integridade da cadeia</button></form>
+
+<div class="card flat"><div class="scroll"><table>
+  <thead><tr><th>#</th><th>Quando</th><th>Ação</th><th>Resultado</th><th>Ator</th><th>Alvo</th><th>IP</th><th>request_id</th></tr></thead>
+  {% for e in page %}
+  <tr>
+    <td class="muted">{{ e.seq }}</td><td>{{ e.occurred_at|date:"d/m/Y H:i:s" }}</td>
+    <td class="mono">{{ e.action }}{% if e.reason %}<div class="muted" style="font-family:inherit">{{ e.reason|truncatechars:90 }}</div>{% endif %}</td>
+    <td><span class="pill {% if e.outcome == 'success' %}ok{% elif e.outcome == 'denied' %}warn{% else %}bad{% endif %}">{{ e.get_outcome_display }}</span></td>
+    <td>{{ e.actor_label|default:"—" }}<div class="muted">{{ e.get_actor_type_display }}{% if e.auth_method %} · {{ e.auth_method }}{% endif %}</div></td>
+    <td>{{ e.target_type }}{% if e.target_id %} #{{ e.target_id }}{% endif %}</td>
+    <td class="mono">{{ e.ip|default:"—" }}</td>
+    <td class="mono"><a href="?request_id={{ e.request_id }}">{{ e.request_id|truncatechars:10 }}</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="8" class="muted">Nenhum evento para os filtros informados.</td></tr>{% endfor %}
+</table></div></div>
+
+<p class="muted" style="margin-top:12px">
+  Página {{ page.number }} de {{ page.paginator.num_pages }} · {{ page.paginator.count }} eventos
+  {% if page.has_previous %}· <a href="?{{ querystring }}&page={{ page.previous_page_number }}">← anterior</a>{% endif %}
+  {% if page.has_next %}· <a href="?{{ querystring }}&page={{ page.next_page_number }}">próxima →</a>{% endif %}
+</p>
+{% endblock %}

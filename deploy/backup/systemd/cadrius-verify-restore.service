@@ -1,0 +1,11 @@
+[Unit]
+Description=Cadrius - teste automático de RESTAURAÇÃO (semanal)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/cadrius/infra/deploy/backup/verify-restore.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

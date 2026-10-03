@@ -1,0 +1,16 @@
+# Configuração do gitleaks. Mantém todas as regras padrão e libera SOMENTE valores conhecidos e inofensivos
+# que já estão no histórico do git (não dá para apagá-los sem reescrever o histórico — ver CAD-100).
+title = "Cadrius"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores de exemplo/teste conhecidos (não são segredos de produção)"
+regexes = [
+  # Padrão de DESENVOLVIMENTO da chave da Evolution API: o settings.py recusa esse valor em produção
+  # e o servidor gera chaves aleatórias. Se ele chegou a ser usado em algum servidor real, troque a chave (CAD-100).
+  '''cadrius_mestre_secreto_123''',
+  # Chave Fernet usada SÓ nos testes do CI (efêmera, sem acesso a dados reais)
+  '''Zm9yLWNpLW9ubHktbm90LWEtcmVhbC1rZXktMTIzNDU2Nzg=''',
+]

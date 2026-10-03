@@ -1,0 +1,130 @@
+# STACK DE AMBIENTE (uma instância por ambiente: prod e staging), via COMPOSE_PROJECT_NAME.
+# Variáveis vêm do .env do ambiente (/opt/cadrius/<env>/.env). Código: ./backend e ./frontend (git).
+# Subir:  deploy/scripts/deploy.sh <prod|staging>     (não rode compose à mão em produção)
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5", compress: "true" }
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
+networks:
+  proxy_net: { external: true, name: proxy_net }
+  db_net:    { external: true, name: db_net }
+  internal:                      # Redis/Evolution de CADA ambiente, invisíveis para o outro
+    internal: true
+
+volumes:
+  redis_data:
+  media:
+  evolution_instances:
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    logging: *logging
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD}"]
+    environment: { REDIS_PASSWORD: "${REDIS_PASSWORD}" }
+    volumes: [redis_data:/data]
+    security_opt: ["no-new-privileges:true"]
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256M } } }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    <<: *hardening
+    image: cadrius-web:${ENV_NAME}
+    build: { context: ./backend }
+    restart: always
+    logging: *logging
+    # migrate + collectstatic a cada subida; uvicorn atrás do Traefik (--proxy-headers).
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             uvicorn cadrius.asgi:application --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"
+    env_file: [.env]
+    volumes:
+      - media:/app/media
+      - /var/lib/cadrius:/host-status:ro     # status dos backups (lido pelo Centro de Segurança)
+    depends_on:
+      redis: { condition: service_healthy }
+    deploy: { resources: { limits: { cpus: "1.0", memory: 768M } } }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks: [proxy_net, db_net, internal]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy_net"
+      - "traefik.http.routers.${ENV_NAME}-api.rule=Host(`${API_HOST}`)"
+      - "traefik.http.routers.${ENV_NAME}-api.entrypoints=websecure"
+      - "traefik.http.routers.${ENV_NAME}-api.tls.certresolver=le"
+      - "traefik.http.routers.${ENV_NAME}-api.middlewares=secure-headers@file,rate-limit@file,body-limit@file"
+      - "traefik.http.services.${ENV_NAME}-api.loadbalancer.server.port=8000"
+
+  worker:
+    <<: *hardening
+    image: cadrius-web:${ENV_NAME}
+    restart: always
+    logging: *logging
+    command: python manage.py qcluster
+    env_file: [.env]
+    volumes: [media:/app/media]
+    depends_on:
+      web: { condition: service_healthy }     # só inicia depois das migrações
+    deploy: { resources: { limits: { cpus: "1.0", memory: 1G } } }
+    networks: [db_net, internal, proxy_net]    # proxy_net: saída para APIs externas (IA/WhatsApp/webhooks)
+
+  frontend:
+    image: cadrius-frontend:${ENV_NAME}
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        VITE_API_URL: "https://${API_HOST}/api/v1/"
+        VITE_APP_ENV: "${DJANGO_ENV:-production}"
+        VITE_APP_VERSION: "${APP_VERSION:-unset}"
+        VITE_SENTRY_DSN: "${FRONT_SENTRY_DSN:-}"
+        VITE_SSO_ENABLED: "${FRONT_SSO_ENABLED:-false}"
+    restart: always
+    logging: *logging
+    environment:
+      API_ORIGIN: "https://${API_HOST}"
+    security_opt: ["no-new-privileges:true"]
+    deploy: { resources: { limits: { cpus: "0.25", memory: 64M } } }
+    networks: [proxy_net]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy_net"
+      - "traefik.http.routers.${ENV_NAME}-app.rule=Host(`${APP_HOST}`)"
+      - "traefik.http.routers.${ENV_NAME}-app.entrypoints=websecure"
+      - "traefik.http.routers.${ENV_NAME}-app.tls.certresolver=le"
+      - "traefik.http.routers.${ENV_NAME}-app.middlewares=secure-headers@file,rate-limit@file"
+      - "traefik.http.services.${ENV_NAME}-app.loadbalancer.server.port=8080"
+
+  # WhatsApp (Evolution API) — opcional: docker compose --profile whatsapp up -d
+  evolution-api:
+    profiles: ["whatsapp"]
+    image: atendai/evolution-api:v2.1.1
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SERVER_URL: "https://${API_HOST}"
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: "${EVOLUTION_API_GLOBAL_KEY:?defina EVOLUTION_API_GLOBAL_KEY}"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: "postgresql://${DB_USER}:${DB_PASSWORD_URLENC}@postgres:5432/${DB_NAME}?schema=evolution_api"
+      CACHE_REDIS_ENABLED: "false"
+    volumes: [evolution_instances:/evolution/instances]
+    security_opt: ["no-new-privileges:true"]
+    deploy: { resources: { limits: { cpus: "1.0", memory: 1G } } }
+    networks: [db_net, internal, proxy_net]

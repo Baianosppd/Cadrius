@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 
+from core.utils import EncryptedJSONField
+
 class IntegrationStatus(models.TextChoices):
     SUCCESS = 'SUCCESS', 'Sucesso'
     FAILED = 'FAILED', 'Falha na Integração'
@@ -32,9 +34,9 @@ class AppConnection(models.Model):
     name = models.CharField(max_length=100, verbose_name="Nome da Conexão (ex: WhatsApp do Suporte)")
     app_name = models.CharField(max_length=50, choices=APP_CHOICES, verbose_name="Aplicativo")
     
-    credentials = models.JSONField(
-        default=dict, 
-        help_text="Credenciais no formato JSON. (Deverão ser encriptadas no banco!)"
+    credentials = EncryptedJSONField(
+        default=dict,
+        help_text="Credenciais no formato JSON. Cifradas em repouso (Fernet)."
     )
     
     is_active = models.BooleanField(default=True)

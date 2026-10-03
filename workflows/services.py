@@ -38,7 +38,7 @@ def _workflow_ai_provider() -> str:
     return "GROQ"
 
 
-def generate_workflow_from_prompt(user_prompt: str, organization: Organization) -> dict | None:
+def generate_workflow_from_prompt(user_prompt: str, organization: Organization, user=None) -> dict | None:
     """
     Chama a IA para gerar um objeto compatível com ``WorkflowGenerationSchema`` a partir
     de linguagem natural. Usa ``extract_fields_from_text`` (validação Pydantic) e o
@@ -47,7 +47,10 @@ def generate_workflow_from_prompt(user_prompt: str, organization: Organization) 
     Antes de qualquer chamada ao LLM, usa ``check_and_update_quota(organization)`` para
     respeitar o limite mensal de extrações/IA do plano do escritório.
     """
-    ok, quota_message = check_and_update_quota(organization)
+    from aigov.guard import run_guarded
+
+    user_id = getattr(user, 'id', None)
+    ok, quota_message = check_and_update_quota(organization, user_id=user_id)
     if not ok:
         raise WorkflowGenerationQuotaExceeded(quota_message)
 
@@ -60,9 +63,12 @@ def generate_workflow_from_prompt(user_prompt: str, organization: Organization) 
         "e `actions` (lista de ações com action_type, endpoint_url quando for WEBHOOK, "
         "payload_template com templates JSON e marcadores {{variável}} quando fizer sentido).\n"
     )
-    return extract_fields_from_text(
-        text=user_prompt.strip(),
-        schema=WorkflowGenerationSchema,
-        prompt_template=prompt_template,
-        provider=_workflow_ai_provider(),
+    provider = _workflow_ai_provider()
+    return run_guarded(
+        organization=organization, user=user, kind='workflow_generation', provider=provider,
+        categories=['processual'], input_text=user_prompt,
+        fn=lambda: extract_fields_from_text(
+            text=user_prompt.strip(), schema=WorkflowGenerationSchema,
+            prompt_template=prompt_template, provider=provider,
+        ),
     )

@@ -1,0 +1,10 @@
+[Unit]
+Description=Agenda: backup cifrado do banco de PRODUÇÃO (a cada 6 h)
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:15:00
+RandomizedDelaySec=120
+Persistent=true
+
+[Install]
+WantedBy=timers.target
