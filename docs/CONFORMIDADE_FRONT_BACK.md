@@ -26,3 +26,21 @@ O front usa `baseURL = VITE_API_URL` (`…/api/v1/`).
 * `Dockerfile` do front roda `npm start` (servidor de desenvolvimento) e `.env` versionado aponta para `127.0.0.1`. Em servidor use `deploy/frontend/Dockerfile` (build estático + nginx) com `VITE_API_URL` por ambiente (CAD-106) e **remova `.env` do git**.
 * Rotas com barra inicial (`/auth/user/`) funcionam porque o axios junta com o `baseURL`; as que começam com `/api/…` não (itens 4).
 * O login por e-mail/senha (`auth/token/`) funciona hoje; só o login social está pendente.
+
+---
+
+## Atualização (CAD-106…CAD-113, branches do repositório do front)
+
+| # | Item | Situação |
+|---|---|---|
+| 1, 2 | Cadastro individual/empresa no contrato novo + aceite LGPD | ✅ `CAD-108` (front) |
+| 3 | SSO Google/Microsoft | ⏳ botões ocultos (`VITE_SSO_ENABLED`); back: `CAD-105` |
+| 4 | `/api/workflows/generate/` | ✅ usa `workflows/generate-from-prompt/` |
+| 5 | `/ai/flow-assistant/` | ✅ o chat do editor usa `workflows/generate-from-prompt/` |
+| 6 | `/automacoes/fluxos/` | ✅ editor mapeia nós ↔ `workflows/` (somente blocos que o back executa) |
+| 7 | `automation-rules/` | ✅ removido (legado) |
+| 8 | `integration-configs/` | ✅ back criou `GET/POST/DELETE /api/v1/connections/` (`CAD-110`); front em Integrações |
+| 9 | `emails/{id}/reprocess/` | ⏳ tela legado fora do menu (`CAD-134`) |
+| 10 | Telas de segurança/privacidade/IA/auditoria | ✅ `CAD-109` |
+
+Novos pontos: `/auth/user/` agora devolve `organization`, `role` e `is_staff` (o front esconde telas por papel); assistente de tarefas por IA sem endpoint (`CAD-116`); recuperação de senha (`CAD-115`); plano pago antes do pagamento (`CAD-119`). Plano completo: `docs/PLANO_FRONT_END.md` no repositório do front.
