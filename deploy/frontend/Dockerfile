@@ -6,7 +6,11 @@ RUN npm ci --no-audit --no-fund
 COPY . .
 # A URL da API é fixada no build: https://api[-teste].cadrius.ia.br/api/v1/
 ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_SENTRY_DSN
+ARG VITE_APP_ENV=production
+ARG VITE_APP_VERSION
+ARG VITE_SSO_ENABLED=false
+ENV VITE_API_URL=${VITE_API_URL} VITE_SENTRY_DSN=${VITE_SENTRY_DSN} VITE_APP_ENV=${VITE_APP_ENV} VITE_APP_VERSION=${VITE_APP_VERSION} VITE_SSO_ENABLED=${VITE_SSO_ENABLED}
 RUN npm run build
 
 # ---- Produção: Nginx sem privilégios servindo o build estático ---------------------------

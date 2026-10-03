@@ -91,6 +91,10 @@ services:
       target: prod
       args:
         VITE_API_URL: "https://${API_HOST}/api/v1/"
+        VITE_APP_ENV: "${DJANGO_ENV:-production}"
+        VITE_APP_VERSION: "${APP_VERSION:-unset}"
+        VITE_SENTRY_DSN: "${FRONT_SENTRY_DSN:-}"
+        VITE_SSO_ENABLED: "${FRONT_SSO_ENABLED:-false}"
     restart: always
     logging: *logging
     environment:
