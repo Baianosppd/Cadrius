@@ -41,3 +41,6 @@ google-genai
 
 # --- Observabilidade ---
 sentry-sdk
+
+# --- Ferramentas de build (a imagem base traz um setuptools antigo com jaraco.context/wheel vulneráveis embutidos) ---
+setuptools>=84
