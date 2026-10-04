@@ -99,3 +99,21 @@ class PasswordResetTests(APITestCase):
         self.user.save()
         self.assertEqual(self.request_reset().status_code, 202)
         self.assertEqual(len(mail.outbox), 0)
+
+
+class SendTestEmailCommandTests(APITestCase):
+    def test_recusa_quando_nada_seria_enviado(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with override_settings(EMAIL_BACKEND='django.core.mail.backends.dummy.EmailBackend'):
+            with self.assertRaises(CommandError):
+                call_command('send_test_email', 'a@b.com')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend', EMAIL_HOST='smtp.example.com')
+    def test_envia_quando_ha_smtp(self):
+        from unittest import mock
+
+        from django.core.management import call_command
+        with mock.patch('core.management.commands.send_test_email.send_mail') as send:
+            call_command('send_test_email', 'a@b.com')
+        send.assert_called_once()

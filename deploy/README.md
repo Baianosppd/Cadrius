@@ -92,14 +92,38 @@ Crie os *environments* `staging` e `production` (em `production` marque **Requir
 
 * **Cifrados com GPG** (chave pública no servidor, privada com você); dump em texto claro só em RAM (`/dev/shm`).
 * **Retenção:** 3 dias (todos) · 14 diários · 60 dias de semanais · 400 dias de mensais (`/etc/cadrius/backup.env`).
-* **Cópia externa (obrigatória):** um backup só no VPS não protege contra perder o VPS. Configure o rclone:
+* **Cópia externa (obrigatória):** um backup só no VPS não protege contra perder o VPS. Guiado e com teste de escrita:
   ```bash
-  sudo rclone config                       # crie o remote "offsite" (Backblaze B2, Wasabi, S3, Google Drive…)
-  sudo nano /etc/cadrius/backup.env        # RCLONE_REMOTE=offsite:cadrius-backups
-  sudo /opt/cadrius/infra/deploy/backup/backup.sh prod manual && sudo cadrius-status
+  # 1) no provedor — DECIDIDO: Supabase Storage (bucket PRIVADO + chaves S3 em Storage → S3 Connection). Alternativas: Backblaze B2 / Wasabi / S3 (com Object Lock)
+  sudo /opt/cadrius/infra/deploy/backup/setup-offsite.sh          # pede endpoint, bucket e chaves (sem eco) e grava RCLONE_REMOTE
+  sudo /opt/cadrius/infra/deploy/backup/backup.sh prod manual
+  sudo /opt/cadrius/infra/deploy/backup/verify-offsite.sh prod    # confere: existe no destino, tamanho e hash iguais, recente
+  cadrius-status
   ```
+  * **Supabase:** crie um bucket **privado** `cadrius-backups` (Storage → New bucket), gere as *S3 access keys* (Storage → Settings → S3 Connection) e informe
+    o *project ref* e a região no script. O Supabase **não tem Object Lock** nem chave só de escrita: a proteção é a **cifra GPG** (o provedor só vê arquivo cifrado)
+    e a guarda da chave S3 (só em `/root/.config/rclone/rclone.conf`, `chmod 600`). Confira o **limite de tamanho de arquivo** do projeto (a mídia diária pode passar de 50 MB).
+  * Com B2/Wasabi/S3: chave **sem** permissão de apagar + Object Lock = ransomware no servidor não consegue destruir as cópias. Nesse caso use
+    `OFFSITE_PRUNE=false` em `/etc/cadrius/backup.env` e deixe a retenção às regras de ciclo de vida do bucket.
+  * O `verify-offsite.sh` roda **todo dia às 07:20** (timer) e alerta se a cópia sumiu, divergiu ou ficou velha; o resultado vira o controle
+    `offsite_verified` do Centro de Segurança (e `restore_drill` para o teste semanal de restauração).
+  * **Mídia** (documentos dos clientes, volume `media`) também é copiada: `media/<ambiente>/media_*.tar.gz.gpg`, 1×/dia, cifrada com a mesma chave.
+    Restaurar: `gpg -d media_prod_X.tar.gz.gpg | docker compose -p cadrius-prod exec -T web tar -xz -C /app/media`.
 * **Alertas:** `ALERT_WEBHOOK_URL` (Discord/Slack) e `HC_PING_URL_PROD` (healthchecks.io avisa se o backup **não rodar**).
 * O **Centro de Segurança** (`/security-center/` → Postura → controle A.8.13) lê o status do último backup de produção (PASSA só se < 26 h, cifrado e com cópia externa).
+
+### Rotacionar a chave GPG (quando a privada vazou ou trimestralmente por política)
+```bash
+# Na SUA máquina (nunca no servidor): gere o novo par; guarde a privada em cofre, 2 cópias, 2 pessoas
+bash deploy/backup/make-keypair.sh      # gera cadrius-backup-public.asc (vai ao servidor) e cadrius-backup-PRIVADA.asc (fica com você)
+scp cadrius-backup-public.asc root@191.252.221.133:/root/
+# No servidor: importe só a PÚBLICA e troque o destinatário
+sudo gpg --import /root/cadrius-backup-public.asc && sudo gpg --list-keys --fingerprint
+sudo sed -i 's/^BACKUP_GPG_RECIPIENT=.*/BACKUP_GPG_RECIPIENT=<FINGERPRINT_NOVO>/' /etc/cadrius/backup.env
+sudo deploy/backup/backup.sh all manual && sudo deploy/backup/verify-offsite.sh
+# Só depois de conferir que há backups com a chave nova (local e fora): apague os antigos cifrados com a chave exposta
+# (local: /srv/cadrius/backups/*/{recent,daily,weekly,monthly}; fora: pelo painel do provedor) e REVOGUE a chave antiga.
+```
 
 ### Restaurar (na sua máquina ou temporariamente no servidor)
 ```bash
@@ -216,3 +240,67 @@ O Centro de Segurança passa a mostrar o controle **pii_encrypted** (conta linha
 
 **Atenção:** `QuerySet.update(...)` e SQL direto **não** atualizam os índices — depois de qualquer carga em massa rode `encrypt_pii`.
 Ordenar por nome no banco não funciona (valor cifrado): a API ordena em Python. Se algum relatório precisar filtrar/ordenar por esses campos, peça uma consulta própria.
+
+## 12. Google Calendar — cada escritório com o PRÓPRIO app do Google (CAD-162)
+
+Decisão: **cada cliente usa o seu app OAuth no Google Cloud**. Assim o Cadrius **não** precisa passar pela verificação do Google para o escopo de agenda
+(`calendar.events` é "sensível"): quem cria e limita o app é o próprio escritório. Sem chave do Google no servidor do Cadrius — o escritório cadastra
+as credenciais na tela **Integrações → Google Calendar** (o segredo é cifrado no banco e nunca volta pela API).
+
+**Passo a passo para o escritório (quem tem Google Workspace faz em ~10 min):**
+1. https://console.cloud.google.com → criar um projeto (ex.: "Cadrius – Agenda").
+2. *APIs e serviços → Biblioteca* → ativar a **Google Calendar API**.
+3. *Tela de permissão OAuth*:
+   * **Workspace:** tipo **Interno** (só usuários do domínio; **não exige verificação do Google**). Ideal.
+   * **Gmail comum:** tipo **Externo** em modo **Teste** e adicionar os e-mails dos usuários em "Usuários de teste" (limite de 100; o login expira a cada 7 dias em modo de teste — o Cadrius pede para reconectar).
+   * Escopo: apenas `.../auth/calendar.events`.
+4. *Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web*:
+   * **URI de redirecionamento autorizado:** o valor mostrado na tela do Cadrius (ex.: `https://api.cadrius.ia.br/api/v1/integrations/google-calendar/callback/`).
+5. Na tela do Cadrius (dono/administrador): colar o **ID do cliente** e o **segredo** → salvar. Depois cada usuário clica em **Conectar** e autoriza.
+
+**Como funciona:** tarefa com "sincronizar" vira evento (cor pela prioridade; concluída vira "✔" e livre). Editar/excluir no Cadrius atualiza/remove o evento.
+Mudar horário ou título no Google atualiza a tarefa (a cada 15 min; botão "Sincronizar agora"). Apagar o evento no Google **desliga** a sincronização, mas a tarefa permanece.
+**Privacidade:** desmarque "enviar título e descrição" e o evento sai só como "Tarefa Cadrius".
+**Falhas:** token revogado → a conexão fica "Precisa reconectar" e o usuário recebe uma notificação. Limites do Google (429) são reenfileirados.
+**Agenda (django-q):** `gcal_pull` a cada 15 min, criado pelo `setup_security_schedules` (o `deploy.sh` já roda).
+
+## 13. Leitura automática de documentos e arquivos cifrados (CAD-163/164)
+
+**O que acontece no upload:** o documento é salvo **cifrado no disco** (Fernet, mesma `ENCRYPTION_KEY`; o download decifra) e entra numa fila:
+confere o **tipo pelo conteúdo** (um `.exe` renomeado para `.pdf` é recusado) → antivírus (se configurado) → texto (PDF, DOCX, TXT; imagem/PDF digitalizado só com OCR)
+→ **mascara CPF/CNPJ/e-mail/telefone** → IA (provedor mais barato permitido: Groq → Gemini → OpenAI; respeita política, kill switch e créditos) →
+**"Aguardando revisão"**. Só quando uma pessoa **confirma** os prazos viram tarefas (e vão ao Google Calendar se a pessoa tiver conectado).
+Cobra **1 crédito por extração bem-sucedida** (peso editável em Financeiro → Pesos de crédito). Falha de IA não cobra.
+
+**Depois do deploy (uma vez):** cifrar os arquivos antigos —
+`docker compose --project-name cadrius-<env> exec web python manage.py encrypt_files --dry-run` e, se estiver certo, sem `--dry-run`.
+Limite por arquivo: `DOCUMENT_MAX_BYTES` (25 MB; a cifra é em memória). Os backups da pasta `media/` já vão cifrados duas vezes (arquivo + GPG).
+
+**OCR (opcional, desligado por padrão):** `WITH_OCR=1` no `.env` do ambiente e `deploy.sh` (instala Tesseract `por`+`eng` e poppler; a imagem cresce e ganha pacotes que o Trivy
+passa a examinar — rode o CI antes). Sem OCR, escaneados ficam "não processados" com o motivo, e dá para reprocessar depois que o OCR for ligado. Para melhor qualidade em manuscrito,
+avalie OCR pago (ele passa a ser suboperador: DPA).
+
+**Antivírus (opcional):** suba um contêiner `clamav/clamav` (≥ 1,5 GB de RAM) na rede interna e defina `CLAMAV_HOST=<nome>`. Configurado e **fora do ar = falha fechada**
+(o documento não é processado até o antivírus voltar); infectado = bloqueado e auditado (`document.blocked`).
+
+**Auditoria:** `document.extracted` (provedor, páginas/caracteres, OCR) e `document.extraction_confirmed` — sem o conteúdo.
+
+## 14. Motor Cadrius: a IA que aprende com o escritório (CAD-165)
+
+O diferencial do produto, **sem treinar modelo de terceiros**: o sistema **lembra, mede e propõe — o advogado decide**.
+
+| Peça | O que faz | Onde |
+|---|---|---|
+| **Leitura local** | Número do processo, tipo e prazos explícitos por regras, sem IA e sem custo. Primeira passada e **plano B** (sem crédito, política, provedor ou pausa de cobrança): o advogado sempre recebe um rascunho | `brain/local.py` |
+| **Memória do escritório** | Peças-modelo, anotações e leituras **aprovadas**, com busca por similaridade (embeddings locais, sem rede), **isolada por escritório** e cifrada | `brain/memory.py` |
+| **Few-shot** | Antes de chamar a IA, junta 2 exemplos aprovados parecidos (mascarados, tratados como texto não confiável) | `documents/pipeline.py` |
+| **Feedback** | Cada confirmação registra se a pessoa aprovou sem editar, editou ou rejeitou e **o que mudou** | `brain/feedback.py` |
+| **Regras do escritório** | Correção repetida (ex.: OUTRO→DECISAO ≥ 5 vezes) vira **proposta**; só vale depois de aprovada por dono/administrador; visível e desligável | `OfficeRule` |
+| **Matriz de autonomia** | Por tipo de ação: `off`/`review`/`auto`/`auto_undo`. **R4 (protocolar, prazo fatal, pagamento, exclusão) nunca é automático**; R3 fica em revisão | `brain/autonomy.py` |
+| **Promoção sugerida** | Se ≥ 30 decisões em 60 dias, ≥ 95 % aprovadas sem edição e nenhuma rejeitada/desfeita → **sugere** subir o nível; **só o dono** aprova | `AutonomyProposal` |
+| **Rede de segurança** | Confirmação automática é desfeita em até 24 h (apaga as tarefas, volta para revisão) e **rebaixa a autonomia na hora** | `…/extraction/undo-auto/` |
+
+**Agenda:** `brain_evaluate` roda diariamente (criado pelo `setup_security_schedules`): propõe regras e sugere promoções. Nada muda sozinho.
+**APIs** (`/api/v1/brain/`): `approvals/` (Central de aprovações), `rules/`, `autonomy/`, `memory/` e `memory/search/`.
+**Limites conhecidos:** os embeddings são lexicais (acham vocabulário parecido, não sinônimos) — para semântica troque por um modelo local via `BRAIN_EMBEDDER` ou use pgvector (`§10`);
+o aprendizado é por escritório (não há conhecimento compartilhado entre clientes, de propósito). LLM local de uso geral fica para quando houver máquina com GPU (`docs/MOTOR_IA_LOCAL.md`).

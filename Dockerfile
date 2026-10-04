@@ -14,6 +14,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
+# OCR opcional (CAD-163): documentos digitalizados. Desligado por padrão (aumenta a imagem e a superfície de CVEs); ligue com
+# --build-arg WITH_OCR=1 (no servidor: WITH_OCR=1 no .env do ambiente e redeploy). Sem OCR, escaneados ficam "não processados" com o motivo.
+ARG WITH_OCR=0
+RUN if [ "$WITH_OCR" = "1" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por tesseract-ocr-eng poppler-utils \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # Dependências pinadas e com hash (supply chain): requirements.txt é gerado de requirements.in.
 COPY requirements.txt /app/
 RUN pip install --require-hashes -r requirements.txt

@@ -21,7 +21,7 @@ chown -R deploy:deploy "$INFRA" 2>/dev/null || true
 log "timers de backup e atalhos"
 cp "$INFRA"/deploy/backup/systemd/*.service "$INFRA"/deploy/backup/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now cadrius-backup-prod.timer cadrius-backup-staging.timer cadrius-verify-restore.timer >/dev/null
+systemctl enable --now cadrius-backup-prod.timer cadrius-backup-staging.timer cadrius-verify-restore.timer cadrius-verify-offsite.timer >/dev/null
 printf '#!/bin/sh\nexec %s/infra/deploy/scripts/status.sh "$@"\n' "$CADRIUS_ROOT" >/usr/local/bin/cadrius-status
 chmod +x /usr/local/bin/cadrius-status
 

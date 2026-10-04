@@ -25,6 +25,11 @@ from integrations.api import ConnectionDeleteView, ConnectionListCreateView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
     ClientDocumentCreateView,
+    DocumentDetailView,
+    DocumentExtractionConfirmView,
+    DocumentExtractionReprocessView,
+    DocumentExtractionUndoView,
+    DocumentExtractionView,
     DocumentDownloadView,
     DocumentListCreateView,
 )
@@ -82,6 +87,13 @@ urlpatterns = [
         DocumentDownloadView.as_view(),
         name='documentos-download',
     ),
+    path('api/v1/documentos/<int:pk>/', DocumentDetailView.as_view(), name='documentos-detail'),
+    path('api/v1/documentos/<int:pk>/extraction/', DocumentExtractionView.as_view(), name='documentos-extraction'),
+    path('api/v1/documentos/<int:pk>/extraction/reprocess/', DocumentExtractionReprocessView.as_view(),
+         name='documentos-extraction-reprocess'),
+    path('api/v1/documentos/<int:pk>/extraction/confirm/', DocumentExtractionConfirmView.as_view(),
+         name='documentos-extraction-confirm'),
+    path('api/v1/documentos/<int:pk>/extraction/undo-auto/', DocumentExtractionUndoView.as_view(), name='documentos-extraction-undo'),
     path(
         'api/v1/teams/permission-groups/',
         PermissionGroupListView.as_view(),
@@ -92,6 +104,11 @@ urlpatterns = [
     path('api/v1/activities/', ActivitiesView.as_view(), name='activities'),
     path('api/v1/sync-history/', SyncHistoryView.as_view(), name='sync-history'),
     path('api/v1/notifications/', include('notifications.urls')),
+    path('api/v1/integrations/google-calendar/', include('gcal.urls')),
+    path('api/v1/research/', include('research.urls')),
+    path('api/v1/erp/', include('erp.urls')),
+    path('api/v1/backoffice/', include('backoffice.urls')),
+    path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),

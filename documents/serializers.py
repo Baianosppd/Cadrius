@@ -23,6 +23,14 @@ class DocumentSerializer(serializers.ModelSerializer):
         }
 
 
+    def validate_arquivo(self, f):
+        from django.conf import settings
+        limit = getattr(settings, "DOCUMENT_MAX_BYTES", 25 * 1024 * 1024)
+        if f.size > limit:
+            raise serializers.ValidationError(f"Arquivo maior que o limite de {limit // (1024 * 1024)} MB.")
+        return f
+
+
 class ClientDocumentCreateSerializer(DocumentSerializer):
     """Mesmo payload do documento + nome_cliente."""
 
@@ -53,6 +61,11 @@ def save_document(*, serializer, organization, uploaded_by):
         data=timezone.now(),
     )
     notify_document_uploaded(doc)
+    # leitura automática (CAD-163): cria o registro "na fila" e enfileira depois do commit; falha de fila não derruba o upload
+    from .models import DocumentExtraction
+    from .pipeline import enqueue_processing
+    DocumentExtraction.objects.get_or_create(document=doc)
+    enqueue_processing(doc.pk, getattr(uploaded_by, "pk", None))
     return doc
 
 

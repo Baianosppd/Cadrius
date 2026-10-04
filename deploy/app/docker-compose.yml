@@ -40,7 +40,7 @@ services:
   web:
     <<: *hardening
     image: cadrius-web:${ENV_NAME}
-    build: { context: ./backend }
+    build: { context: ./backend, args: { WITH_OCR: "${WITH_OCR:-0}" } }
     restart: always
     logging: *logging
     # migrate + collectstatic a cada subida; uvicorn atrás do Traefik (--proxy-headers).

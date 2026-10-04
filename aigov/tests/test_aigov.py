@@ -13,6 +13,8 @@ from cadrius.tests_security import make_org, make_user
 from emails.models import EmailMessage, MailBox
 from extraction.models import ExtractionProfile
 from integrations.models import AppConnection
+from redis.exceptions import ConnectionError as RedisConnectionError
+
 from privacy import consent
 from workflows import tasks as wf_tasks
 from workflows.models import Action, ExecutionLog, Trigger, Workflow
@@ -264,7 +266,7 @@ class ExecutionReviewTests(APITestCase):
         self.assertEqual(queue.data[0]['payload_fields'], ['numero'])  # só nomes de campos, nunca valores
         self.assertNotIn('"1"', str(queue.data))
 
-        with mock.patch('aigov.views.async_task') as enqueue:
+        with mock.patch('core.queue.async_task') as enqueue:
             ok = self.client.post(f'/api/v1/ai/executions/{pending.pk}/review/', {'decision': 'approve'})
         self.assertEqual(ok.status_code, 200)
         enqueue.assert_called_once_with('workflows.tasks.process_workflow_execution', pending.pk)
@@ -280,6 +282,31 @@ class ExecutionReviewTests(APITestCase):
         rejected.refresh_from_db()
         self.assertEqual((rejected.status, rejected.review_decision, rejected.trigger_payload), ('FAILED', 'rejected', None))
         self.assertEqual(self.client.post(f'/api/v1/ai/executions/{rejected.pk}/review/', {'decision': 'approve'}).status_code, 404)
+
+    def test_redis_fora_do_ar_devolve_503_e_nao_perde_a_revisao(self):
+        """CAD-121: broker caído → 503 + Retry-After (não 500) e a execução continua aguardando revisão."""
+        pending, _ = self.run_exec(ai_origin=True)
+        self.client.force_authenticate(self.owner)
+        with mock.patch('core.queue.async_task', side_effect=RedisConnectionError('redis down')):
+            resp = self.client.post(f'/api/v1/ai/executions/{pending.pk}/review/', {'decision': 'approve'})
+        self.assertEqual(resp.status_code, 503)
+        self.assertEqual(resp['Retry-After'], '30')
+        self.assertEqual(resp.data['detail'].code, 'queue_unavailable')
+        pending.refresh_from_db()
+        self.assertEqual((pending.status, pending.review_decision), ('PENDING_REVIEW', ''))
+        # com o Redis de volta, a mesma revisão funciona
+        with mock.patch('core.queue.async_task'):
+            ok = self.client.post(f'/api/v1/ai/executions/{pending.pk}/review/', {'decision': 'approve'})
+        self.assertEqual(ok.status_code, 200)
+
+    def test_pipeline_marca_falha_quando_a_fila_esta_fora(self):
+        from core.queue import QueueUnavailable
+        wf = Workflow.objects.create(name='w', organization=self.org)
+        with mock.patch('core.queue.async_task', side_effect=RedisConnectionError('redis down')):
+            with self.assertRaises(QueueUnavailable):
+                wf_tasks.execute_workflow_pipeline(wf.pk, {'a': 1})
+        log = ExecutionLog.objects.get(workflow=wf)
+        self.assertEqual(log.status, 'FAILED')
 
     def test_membro_comum_nao_revisa(self):
         member = make_user('m@example.com', self.org, role='MEMBER')

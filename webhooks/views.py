@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
-from django_q.tasks import async_task # Resgatámos a tua importação assíncrona!
+from core.queue import RETRY_AFTER_SECONDS, QueueUnavailable, enqueue
 
 from integrations.models import AppConnection
 from workflows.models import Trigger
@@ -42,7 +42,7 @@ class WebhookReceiverView(APIView):
                 # Validação de Segurança (Freio B2B que tinhas feito muito bem!)
                 if workflow.is_active and workflow.organization.is_active:
                     # 🚀 Lançamos para a fila em vez de congelar a resposta
-                    async_task(
+                    enqueue(
                         'workflows.tasks.execute_workflow_pipeline',
                         workflow.id,
                         payload,
@@ -53,6 +53,12 @@ class WebhookReceiverView(APIView):
             # 5. Responde em milissegundos (HTTP 202 Accepted) para evitar Timeouts
             return Response({"status": "success", "message": "Orquestração enfileirada!"}, status=status.HTTP_202_ACCEPTED)
 
+        except QueueUnavailable:
+            # Origem externa deve repetir a entrega: 503 + Retry-After (não 500).
+            response = Response({"error": "Fila indisponível, tente novamente."},
+                                status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            response["Retry-After"] = str(RETRY_AFTER_SECONDS)
+            return response
         except AppConnection.DoesNotExist:
             logger.warning(f"⚠️ Tentativa de Webhook fantasma. ID: {connection_id}")
             return Response({"error": "Gateway não encontrado."}, status=status.HTTP_404_NOT_FOUND)

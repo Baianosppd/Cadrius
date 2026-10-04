@@ -161,3 +161,30 @@ def plaintext_counts():
                             [ENC_PREFIX + '%'])
                 counts[f'{model._meta.db_table}.{f.column}'] = cur.fetchone()[0]
     return counts
+
+
+# ----------------------------------------------------------------------------- minimização antes de enviar a terceiros (IA)
+_MASKS = (
+    (re.compile(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b'), '[CPF]'),
+    (re.compile(r'\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b'), '[CNPJ]'),
+    (re.compile(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+'), '[EMAIL]'),
+    (re.compile(r'(?<!\d)(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}(?!\d)'), '[TELEFONE]'),
+)
+_CNJ = re.compile(r'\b\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\b')
+
+
+def mask_text(text: str) -> str:
+    """Troca CPF, CNPJ, e-mail e telefone por marcadores antes de mandar o texto a um provedor de IA. Número de processo (CNJ) é preservado."""
+    keep = {}
+
+    def stash(m):
+        key = f'\x00CNJ{len(keep)}\x00'
+        keep[key] = m.group(0)
+        return key
+
+    out = _CNJ.sub(stash, text or '')
+    for rx, repl in _MASKS:
+        out = rx.sub(repl, out)
+    for key, value in keep.items():
+        out = out.replace(key, value)
+    return out

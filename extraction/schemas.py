@@ -46,6 +46,33 @@ class ProcessoJuridicoSchema(ExtractedData):
         description="Sugestão de ação clara e objetiva para o advogado (ex: 'Preparar recurso de apelação', 'Dar ciência', 'Agendar pagamento de custas')."
     )
 
+class ParteSchema(BaseModel):
+    papel: str = Field(description="Papel da parte (ex.: Autor, Réu, Contratante, Contratado, Advogado).")
+    nome: str = Field(description="Nome ou razão social. CPF/CNPJ/telefone/e-mail já vêm mascarados no texto: não os invente.")
+
+
+class PrazoSchema(BaseModel):
+    descricao: str = Field(description="O que precisa ser feito (ex.: 'Contestação', 'Apresentar documentos').")
+    data: date | None = Field(default=None, description="Data limite, se constar no texto. Formato AAAA-MM-DD.")
+    dias: int | None = Field(default=None, description="Prazo em dias, se o texto fala em dias e não em data.")
+    fatal: bool = Field(default=False, description="Verdadeiro se o texto indicar prazo fatal/peremptório.")
+
+
+class DocumentoJuridicoSchema(ExtractedData):
+    """Leitura de qualquer documento jurídico anexado (petição, decisão, contrato, procuração...). O advogado SEMPRE revisa o resultado."""
+
+    document_type: Literal['DOCUMENTO_JURIDICO']
+
+    tipo_documento: Literal['PETICAO', 'SENTENCA', 'DECISAO', 'INTIMACAO', 'CONTRATO', 'PROCURACAO', 'CERTIDAO', 'OUTRO'] = Field(
+        description="Classificação do documento.")
+    numero_processo: str | None = Field(default=None, description="Número CNJ do processo (NNNNNNN-DD.AAAA.J.TR.OOOO), se houver.")
+    partes: list[ParteSchema] = Field(default_factory=list, description="Partes e papéis identificados.")
+    resumo: str = Field(description="Resumo objetivo em até 5 linhas, em linguagem simples.")
+    prazos: list[PrazoSchema] = Field(default_factory=list, description="Prazos e datas relevantes. Não invente: só o que está no texto.")
+    valor: str | None = Field(default=None, description="Valor da causa/contrato, como aparece no texto.")
+    proximos_passos: list[str] = Field(default_factory=list, description="Ações sugeridas ao advogado.")
+
+
 # --- 1. Exemplo de Pedido de Serviço (SERVICE_ORDER) ---
 
 class ServiceOrderSchema(ExtractedData):

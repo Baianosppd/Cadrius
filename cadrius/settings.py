@@ -145,6 +145,11 @@ INSTALLED_APPS = [
     'emails',
     'integrations', 
     'extraction', # Módulo de Extração de Dados (NLP, OCR, etc)
+    'gcal',  # Google Calendar por escritório (CAD-162)
+    'research',  # monitoramento de processos (DataJud) e notícias (CAD-166)
+    'erp',  # conector declarativo de ERP jurídico (CAD-167)
+    'backoffice',  # Gestão Cadrius: TI e Financeiro (CAD-168)
+    'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
     'webhooks',  # Recebedor de Eventos Externos
@@ -263,6 +268,11 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+DOCUMENT_PIPELINE_ENABLED = env.bool('DOCUMENT_PIPELINE_ENABLED', default=True)   # leitura automática após o upload (CAD-163)
+CLAMAV_HOST = env('CLAMAV_HOST', default='')            # antivírus opcional (clamd); vazio = etapa pulada e registrada
+CLAMAV_PORT = env.int('CLAMAV_PORT', default=3310)
+OCR_LANGS = env('OCR_LANGS', default='por+eng')
+DOCUMENT_MAX_BYTES = env.int('DOCUMENT_MAX_BYTES', default=25 * 1024 * 1024)   # teto por arquivo (a cifra é em memória)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -311,11 +321,15 @@ API_PUBLIC_URL = env('API_PUBLIC_URL', default='')  # ex.: https://api.cadrius.i
 
 # --- E-mail transacional (recuperação de senha, convites, avisos). CAD-115/CAD-155 ---
 # Sem EMAIL_HOST: em DEBUG imprime no console; em produção NÃO envia (backend 'dummy') para o link nunca ir parar nos logs.
-EMAIL_HOST = env('EMAIL_HOST', default='')
-EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+# Provedor por preset (gmail | brevo | ses | locaweb | custom): troca futura = mudar EMAIL_PROVIDER + credenciais no .env.
+from cadrius.email_presets import resolve as _email_preset  # noqa: E402
+EMAIL_PROVIDER = env('EMAIL_PROVIDER', default='')
+_preset = _email_preset(EMAIL_PROVIDER)
+EMAIL_HOST = env('EMAIL_HOST', default=_preset['host'])
+EMAIL_PORT = env.int('EMAIL_PORT', default=_preset['port'])
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=_preset['tls'])
 EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Cadrius <no-reply@cadrius.ia.br>')
 EMAIL_BACKEND = env('EMAIL_BACKEND', default=(
@@ -330,6 +344,8 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
+    # Registra o último acesso no login por senha (Gestão Cadrius: "último acesso", usuários ativos 24 h/30 dias)
+    'UPDATE_LAST_LOGIN': True,
 }
 
 SWAGGER_SETTINGS = {
@@ -492,3 +508,8 @@ SESSION_CACHE_ALIAS = "default"
 STRIPE_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+# Pesquisa jurídica (CAD-166). [VALIDAR] chave pública e URL do DataJud na documentação vigente do CNJ.
+DATAJUD_API_KEY = os.environ.get('DATAJUD_API_KEY', '')
+DATAJUD_BASE_URL = os.environ.get('DATAJUD_BASE_URL', 'https://api-publica.datajud.cnj.jus.br')
+# "Nome|URL" separados por vírgula (só a equipe define; usuário nunca informa URL).
+NEWS_FEEDS = [tuple(x.split('|', 1)) for x in os.environ.get('NEWS_FEEDS', '').split(',') if '|' in x]
