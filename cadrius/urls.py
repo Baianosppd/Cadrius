@@ -25,6 +25,9 @@ from integrations.api import ConnectionDeleteView, ConnectionListCreateView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
     ClientDocumentCreateView,
+    DocumentExtractionConfirmView,
+    DocumentExtractionReprocessView,
+    DocumentExtractionView,
     DocumentDownloadView,
     DocumentListCreateView,
 )
@@ -82,6 +85,11 @@ urlpatterns = [
         DocumentDownloadView.as_view(),
         name='documentos-download',
     ),
+    path('api/v1/documentos/<int:pk>/extraction/', DocumentExtractionView.as_view(), name='documentos-extraction'),
+    path('api/v1/documentos/<int:pk>/extraction/reprocess/', DocumentExtractionReprocessView.as_view(),
+         name='documentos-extraction-reprocess'),
+    path('api/v1/documentos/<int:pk>/extraction/confirm/', DocumentExtractionConfirmView.as_view(),
+         name='documentos-extraction-confirm'),
     path(
         'api/v1/teams/permission-groups/',
         PermissionGroupListView.as_view(),

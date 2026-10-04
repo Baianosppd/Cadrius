@@ -264,6 +264,11 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+DOCUMENT_PIPELINE_ENABLED = env.bool('DOCUMENT_PIPELINE_ENABLED', default=True)   # leitura automática após o upload (CAD-163)
+CLAMAV_HOST = env('CLAMAV_HOST', default='')            # antivírus opcional (clamd); vazio = etapa pulada e registrada
+CLAMAV_PORT = env.int('CLAMAV_PORT', default=3310)
+OCR_LANGS = env('OCR_LANGS', default='por+eng')
+DOCUMENT_MAX_BYTES = env.int('DOCUMENT_MAX_BYTES', default=25 * 1024 * 1024)   # teto por arquivo (a cifra é em memória)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 

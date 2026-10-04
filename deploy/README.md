@@ -239,3 +239,24 @@ Mudar horário ou título no Google atualiza a tarefa (a cada 15 min; botão "Si
 **Privacidade:** desmarque "enviar título e descrição" e o evento sai só como "Tarefa Cadrius".
 **Falhas:** token revogado → a conexão fica "Precisa reconectar" e o usuário recebe uma notificação. Limites do Google (429) são reenfileirados.
 **Agenda (django-q):** `gcal_pull` a cada 15 min, criado pelo `setup_security_schedules` (o `deploy.sh` já roda).
+
+## 13. Leitura automática de documentos e arquivos cifrados (CAD-163/164)
+
+**O que acontece no upload:** o documento é salvo **cifrado no disco** (Fernet, mesma `ENCRYPTION_KEY`; o download decifra) e entra numa fila:
+confere o **tipo pelo conteúdo** (um `.exe` renomeado para `.pdf` é recusado) → antivírus (se configurado) → texto (PDF, DOCX, TXT; imagem/PDF digitalizado só com OCR)
+→ **mascara CPF/CNPJ/e-mail/telefone** → IA (provedor mais barato permitido: Groq → Gemini → OpenAI; respeita política, kill switch e créditos) →
+**"Aguardando revisão"**. Só quando uma pessoa **confirma** os prazos viram tarefas (e vão ao Google Calendar se a pessoa tiver conectado).
+Cobra **1 crédito por extração bem-sucedida** (peso editável em Financeiro → Pesos de crédito). Falha de IA não cobra.
+
+**Depois do deploy (uma vez):** cifrar os arquivos antigos —
+`docker compose --project-name cadrius-<env> exec web python manage.py encrypt_files --dry-run` e, se estiver certo, sem `--dry-run`.
+Limite por arquivo: `DOCUMENT_MAX_BYTES` (25 MB; a cifra é em memória). Os backups da pasta `media/` já vão cifrados duas vezes (arquivo + GPG).
+
+**OCR (opcional, desligado por padrão):** `WITH_OCR=1` no `.env` do ambiente e `deploy.sh` (instala Tesseract `por`+`eng` e poppler; a imagem cresce e ganha pacotes que o Trivy
+passa a examinar — rode o CI antes). Sem OCR, escaneados ficam "não processados" com o motivo, e dá para reprocessar depois que o OCR for ligado. Para melhor qualidade em manuscrito,
+avalie OCR pago (ele passa a ser suboperador: DPA).
+
+**Antivírus (opcional):** suba um contêiner `clamav/clamav` (≥ 1,5 GB de RAM) na rede interna e defina `CLAMAV_HOST=<nome>`. Configurado e **fora do ar = falha fechada**
+(o documento não é processado até o antivírus voltar); infectado = bloqueado e auditado (`document.blocked`).
+
+**Auditoria:** `document.extracted` (provedor, páginas/caracteres, OCR) e `document.extraction_confirmed` — sem o conteúdo.

@@ -12,6 +12,7 @@ django-cors-headers
 drf-spectacular
 django-environ
 Pillow
+pypdf   # leitura de texto de PDFs (pipeline de documentos, CAD-163)
 
 # --- Banco, cache e filas ---
 psycopg2-binary

@@ -38,6 +38,7 @@ ACTIONS = frozenset({
     'audit.viewed', 'audit.export', 'audit.chain_broken', 'audit.chain_verified',
     'billing.checkout', 'billing.payment_confirmed', 'billing.payment_failed', 'billing.subscription_canceled',
     'billing.credits_purchased', 'billing.admin_changed', 'billing.price_changed',
+    'document.extracted', 'document.extraction_confirmed', 'document.blocked',
     'compliance.assessment_updated', 'org.closure',
 })
 
