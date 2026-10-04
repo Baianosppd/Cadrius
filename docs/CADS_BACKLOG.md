@@ -108,3 +108,7 @@ Ordem de merge sugerida: `CAD-056 → 057 → 058 → 059 → 065 → 066 → 06
 **Cards novos a partir da análise do front** (detalhes e responsáveis no repositório do front: `docs/PLANO_FRONT_END.md`)
 **CAD-115** recuperação de senha por e-mail (✅ back: `/auth/password-reset/` + `confirm/`; falta SMTP no servidor — CAD-155) · **CAD-116** assistente de tarefas por IA (ou remover) · **CAD-118** refresh em cookie HttpOnly + CSRF · **CAD-119** plano pago só após o Stripe confirmar (hoje atribui no cadastro) · **CAD-121** 503 (não 500) quando o broker Redis cair · **CAD-122** documentos: excluir/editar/validar tipo por conteúdo/antivírus · **CAD-135** executores de SMS/Drive/Slack, condição e espera (ou retirar da biblioteca) · **CAD-140** staging isolado (basic auth/allowlist, e-mail capturado, Stripe test).
 
+
+## F. Evolução do produto (2026-10-04) — detalhes em `docs/PLANO_EVOLUCAO_PRODUTO.md`
+
+Fase 0 (pronto para uso real): CAD-119, CAD-121, CAD-115, CAD-105, **CAD-150** (cadastro preserva rascunho), **CAD-151** (backups offsite), **CAD-155** (e-mail transacional) · Fase 1 (dados protegidos): **CAD-152/153/154** (criptografia de PII e arquivos) · Fase 2 (documentos e agenda): **CAD-160…168** (OCR/extração, Google Calendar) · Fase 3 (pesquisa jurídica): **CAD-170…176** (DataJud, DJEN, notícias, Jusbrasil sob contrato) · Fase 4 (IA que aprende): **CAD-180…188** (matriz de autonomia, Central de aprovações, memória por escritório) · Fase 5 (ERPs e centralização): **CAD-190…196**.
