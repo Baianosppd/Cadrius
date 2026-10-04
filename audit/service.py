@@ -18,6 +18,7 @@ ACTIONS = frozenset({
     # autenticação & sessão
     'auth.login.success', 'auth.login.failure', 'auth.login.locked', 'auth.logout',
     'auth.password.change', 'auth.password.reset_requested', 'auth.password.reset', 'auth.token.refresh', 'auth.sso.login', 'auth.register',
+    'auth.mfa.enabled', 'auth.mfa.disabled', 'auth.mfa.failed', 'auth.mfa.recovery_regenerated', 'auth.mfa.reset',
     # conta, equipa e acesso
     'user.updated', 'member.invited', 'member.role_changed', 'member.removed', 'org.updated',
     'admin.login', 'admin.access', 'admin.add', 'admin.change', 'admin.delete',

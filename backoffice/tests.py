@@ -38,7 +38,7 @@ class Base(APITestCase):
 
     def as_(self, user):
         client = APIClient()
-        client.force_authenticate(user)
+        client.force_authenticate(user, token={'amr': 'mfa'})   # sessão com MFA (CAD-169)
         return client
 
 
@@ -205,3 +205,37 @@ class CommandTests(Base):
         self.assertEqual(user_areas(user), ['financeiro'])
         call_command('cadrius_staff', 'nova@cadrius.ia.br', areas='', stdout=StringIO())
         self.assertEqual(user_areas(user), [])
+
+
+class SeedValidationUsersTests(Base):
+    def test_cria_contas_e_escritorios_de_teste_sem_repetir_e_remove(self):
+        out = StringIO()
+        call_command('seed_validation_users', stdout=out)
+        from django.contrib.auth import get_user_model
+        from accounts.models import Organization
+        from billing import entitlements as ent
+        users = get_user_model().objects.filter(email__endswith='@teste.cadrius.ia.br')
+        self.assertEqual(users.count(), 14)
+        self.assertEqual(user_areas(users.get(email='gestao.completa@teste.cadrius.ia.br')), ['financeiro', 'ti'])
+        self.assertEqual(user_areas(users.get(email='gestao.semarea@teste.cadrius.ia.br')), [])
+        states = {o.name: ent.effective_status(o) for o in Organization.objects.filter(name__startswith='[TESTE]')}
+        self.assertEqual(states, {'[TESTE] Ativo': 'active', '[TESTE] Em teste': 'trialing', '[TESTE] Teste vencido': 'restricted',
+                                  '[TESTE] Pagamento pendente': 'past_due', '[TESTE] Restrito': 'restricted',
+                                  '[TESTE] Suspenso': 'suspended', '[TESTE] Cancelado': 'canceled'})
+        # senhas aparecem uma vez e funcionam
+        line = next(li for li in out.getvalue().splitlines() if li.startswith('dono@teste'))
+        password = line.split()[1]
+        self.assertTrue(users.get(email='dono@teste.cadrius.ia.br').check_password(password))
+        out2 = StringIO()
+        call_command('seed_validation_users', stdout=out2)                       # idempotente
+        self.assertEqual(users.count(), 14)
+        self.assertIn('já existia', out2.getvalue())
+        call_command('seed_validation_users', remove=True, stdout=StringIO())
+        self.assertEqual(users.count(), 0)
+        self.assertFalse(Organization.objects.filter(name__startswith='[TESTE]').exists())
+        self.assertTrue(Organization.objects.filter(pk=self.org.pk).exists())      # escritório real intocado
+
+    def test_recusa_em_producao(self):
+        from django.core.management.base import CommandError
+        with self.settings(DJANGO_ENV='production'), self.assertRaises(CommandError):
+            call_command('seed_validation_users', stdout=StringIO())

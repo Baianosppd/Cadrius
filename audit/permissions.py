@@ -17,5 +17,11 @@ class IsPlatformStaff(BasePermission):
     """Equipa de segurança do Cadrius (is_staff) — visão global (Security Center)."""
 
     def has_permission(self, request, view):
+        from accounts import mfa
         user = request.user
-        return bool(user and user.is_authenticated and user.is_staff)
+        if not (user and user.is_authenticated and user.is_staff):
+            return False
+        if not mfa.staff_session_ok(request):
+            self.message = mfa.MFA_DENIED   # equipe só vê a visão global com sessão MFA (CAD-169)
+            return False
+        return True

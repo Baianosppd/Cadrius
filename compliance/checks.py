@@ -149,7 +149,18 @@ def _jwt_revocation():
 
 @check('mfa', 'MFA (autenticação multifator)')
 def _mfa():
-    return CheckResult(FAIL, 'MFA ainda não implementado (obrigatório para OWNER/ADMIN e staff) — backlog.')
+    from django.conf import settings as dj
+    from django.contrib.auth import get_user_model
+    staff = get_user_model().objects.filter(is_staff=True, is_active=True)
+    total = staff.count()
+    with_mfa = staff.filter(mfa_device__confirmed_at__isnull=False).count()
+    managers = 'obrigatório também para donos/admins' if getattr(dj, 'MFA_REQUIRED_FOR_MANAGERS', False) \
+        else 'opcional para donos/admins (MFA_REQUIRED_FOR_MANAGERS=False)'
+    if total and with_mfa < total:
+        return CheckResult(PARTIAL, f'TOTP ativo; {with_mfa}/{total} da equipe já cadastraram (sem MFA não entram na Gestão); {managers}. '
+                                    'O /admin/ do Django ainda é só senha.')
+    return CheckResult(PASS if getattr(dj, 'MFA_REQUIRED_FOR_MANAGERS', False) else PARTIAL,
+                       f'TOTP ativo; equipe 100% com MFA; {managers}. O /admin/ do Django ainda é só senha.')
 
 
 @check('email_verification', 'Verificação de e-mail no cadastro')

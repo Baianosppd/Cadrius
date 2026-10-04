@@ -21,6 +21,7 @@ from accounts.views import (
     ThrottledTokenRefreshView,
     LogoutView,
 )
+from accounts import mfa_api
 from integrations.api import ConnectionDeleteView, ConnectionListCreateView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
@@ -68,6 +69,12 @@ urlpatterns = [
     path('api/v1/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('api/v1/auth/password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),
     path('api/v1/auth/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('api/v1/auth/mfa/', mfa_api.MFAStatusView.as_view(), name='mfa_status'),
+    path('api/v1/auth/mfa/setup/', mfa_api.MFASetupView.as_view(), name='mfa_setup'),
+    path('api/v1/auth/mfa/confirm/', mfa_api.MFAConfirmView.as_view(), name='mfa_confirm'),
+    path('api/v1/auth/mfa/disable/', mfa_api.MFADisableView.as_view(), name='mfa_disable'),
+    path('api/v1/auth/mfa/recovery-codes/', mfa_api.MFARecoveryCodesView.as_view(), name='mfa_recovery_codes'),
+    path('api/v1/auth/mfa/verify/', mfa_api.MFAVerifyView.as_view(), name='mfa_verify'),
     path('api/v1/teams/members/', TeamMemberListCreateView.as_view(), name='team-members'),
     path(
         'api/v1/teams/members/<uuid:pk>/credits/',

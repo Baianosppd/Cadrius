@@ -27,8 +27,12 @@ class IsStaff(permissions.BasePermission):
     """Área Financeiro da Gestão Cadrius (CAD-168): equipe + (superusuário ou grupo "Cadrius Financeiro")."""
 
     def has_permission(self, request, view):
-        from backoffice.permissions import user_areas
-        return 'financeiro' in user_areas(request.user)
+        from backoffice.permissions import IsFinanceiro
+        checker = IsFinanceiro()
+        allowed = checker.has_permission(request, view)
+        if getattr(checker, 'message', None):
+            self.message = checker.message
+        return allowed
 
 
 # ----------------------------------------------------------------------------- serializers

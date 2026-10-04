@@ -13,6 +13,7 @@ drf-spectacular
 django-environ
 Pillow
 pypdf   # leitura de texto de PDFs (pipeline de documentos, CAD-163)
+qrcode  # QR code do cadastro da verificação em duas etapas (SVG, sem dependências) — CAD-169
 
 # --- Banco, cache e filas ---
 psycopg2-binary

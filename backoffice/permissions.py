@@ -5,6 +5,8 @@ Atribuir: ``manage.py cadrius_staff email@... --areas ti,financeiro``.
 """
 from rest_framework import permissions
 
+from accounts import mfa
+
 AREA_GROUPS = {'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro'}
 
 
@@ -28,7 +30,11 @@ class HasArea(permissions.BasePermission):
 
     def has_permission(self, request, view):
         mine = user_areas(request.user)
-        return any(a in mine for a in self.areas) if self.areas else bool(mine)
+        allowed = any(a in mine for a in self.areas) if self.areas else bool(mine)
+        if allowed and not mfa.staff_session_ok(request):
+            self.message = mfa.MFA_DENIED          # 403 com code=mfa_required: o front abre o cadastro do MFA
+            return False
+        return allowed
 
 
 IsBackoffice = HasArea.of()            # qualquer área

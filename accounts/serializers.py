@@ -18,7 +18,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return super().get_token(user)
 
     def validate(self, attrs):
-        data = super().validate(attrs)  # levanta 401 (e dispara user_login_failed) se inválido
+        # Autentica sem emitir tokens ainda: com MFA ativo o login só termina em /auth/mfa/verify/ (CAD-169).
+        from rest_framework_simplejwt.serializers import TokenObtainSerializer
+        TokenObtainSerializer.validate(self, attrs)  # levanta 401 (e dispara user_login_failed) se inválido
+        from accounts import mfa
+        if mfa.enabled(self.user):
+            return {'mfa_required': True, 'mfa_token': mfa.issue_challenge(self.user, 'pwd')}
         from accounts.team_roles import get_active_membership
         from audit import service
         membership = get_active_membership(self.user)
@@ -27,7 +32,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             organization=membership.organization if membership else None,
             data_categories=['identificacao'], legal_basis='contrato',
         )
+        data = mfa.issue_tokens(self.user, mfa=False)
+        if mfa.required(self.user):
+            data['mfa_setup_required'] = True        # equipe sem MFA: entra, mas a Gestão pede o cadastro
         return data
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """GET /api/v1/auth/user/ — somente leitura."""
@@ -36,19 +45,29 @@ class UserProfileSerializer(serializers.ModelSerializer):
     organization = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     is_staff = serializers.BooleanField(read_only=True)
+    mfa_enabled = serializers.SerializerMethodField()
+    mfa_required = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'initials',
             'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture',
-            'organization', 'role', 'is_staff',
+            'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required',
         ]
         read_only_fields = fields
 
     def _membership(self, obj):
         from .team_roles import get_active_membership
         return get_active_membership(obj)
+
+    def get_mfa_enabled(self, obj):
+        from accounts import mfa
+        return mfa.enabled(obj)
+
+    def get_mfa_required(self, obj):
+        from accounts import mfa
+        return mfa.required(obj)
 
     def get_organization(self, obj):
         membership = self._membership(obj)

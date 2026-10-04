@@ -37,7 +37,7 @@ class StaffOnlyTests(APITestCase):
         self.client.force_authenticate(self.owner)
         for url in ('plans/', 'promotions/', 'summary/'):
             self.assertEqual(self.client.get(BASE + url).status_code, 403, url)
-        self.client.force_authenticate(self.staff)
+        self.client.force_authenticate(self.staff, token={'amr': 'mfa'})   # sessão com MFA (CAD-169)
         for url in ('plans/', 'packs/', 'promotions/', 'notices/', 'credit-weights/', 'summary/', 'price-history/'):
             self.assertEqual(self.client.get(BASE + url).status_code, 200, url)
 
@@ -48,7 +48,7 @@ class PlanAdminTests(APITestCase):
         self.staff.is_staff = True
         self.staff.save()
         self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
-        self.client.force_authenticate(self.staff)
+        self.client.force_authenticate(self.staff, token={'amr': 'mfa'})   # sessão com MFA (CAD-169)
         self.pro = plan()
 
     def test_alterar_preco_gera_historico_e_auditoria_e_nao_mexe_na_assinatura_existente(self):
@@ -83,7 +83,7 @@ class PromotionRulesTests(APITestCase):
         self.staff.is_staff = True
         self.staff.save()
         self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
-        self.client.force_authenticate(self.staff)
+        self.client.force_authenticate(self.staff, token={'amr': 'mfa'})   # sessão com MFA (CAD-169)
         self.pro, self.start = plan(), plan('START', '99', 300, 1)
         self.org = Organization.objects.create(name='Cliente', plan=self.pro)
 
@@ -197,7 +197,7 @@ class NoticeTests(APITestCase):
 
     def test_equipe_cria_e_cliente_ve_conforme_plano_estado_e_periodo(self):
         now = timezone.now()
-        self.client.force_authenticate(self.staff)
+        self.client.force_authenticate(self.staff, token={'amr': 'mfa'})   # sessão com MFA (CAD-169)
         mk = lambda **kw: self.client.post(BASE + 'notices/', {'title': kw.pop('title'), 'body': 'texto', **kw}, format='json')  # noqa: E731
         self.assertEqual(mk(title='Todos').status_code, 201)
         mk(title='Só START', audience_tiers=['START'])
@@ -221,7 +221,7 @@ class WeightsAndSummaryTests(APITestCase):
         self.staff.is_staff = True
         self.staff.save()
         self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
-        self.client.force_authenticate(self.staff)
+        self.client.force_authenticate(self.staff, token={'amr': 'mfa'})   # sessão com MFA (CAD-169)
 
     def test_pesos_padrao_editaveis_e_credits_for(self):
         self.assertEqual(credits_for('draft_petition'), 15)       # padrão da análise, mesmo sem registro
