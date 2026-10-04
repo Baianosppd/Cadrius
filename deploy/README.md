@@ -221,7 +221,7 @@ Depois: `deploy.sh <ambiente>` (reinicia o back e refaz o build do front com `VI
 **Busca continua funcionando:** CPF/CNPJ por **índice cego** (exato e único, em qualquer formato); **nome por índice de tokens** (parcial e sem acento:
 `?cliente=silv` em `/api/v1/documentos/`, `?q=` em `/api/v1/funcionarios/`, busca do admin). No banco só há hashes. Ver `core/pii.py`.
 
-**Chaves (guarde as duas; entram no backup diário de segredos):**
+**Chaves (guarde as duas; entram no backup diário de segredos). Passo a passo do cofre: `docs/CHAVES_CRIPTOGRAFIA.md`.**
 | Chave | Para quê | Se perder |
 |---|---|---|
 | `ENCRYPTION_KEY` | decifrar os dados | **os dados cifrados ficam irrecuperáveis** — mantenha cópia em cofre fora do servidor |

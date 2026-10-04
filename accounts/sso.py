@@ -243,6 +243,10 @@ class SsoCallbackView(View):
             audit.log('auth.sso.login', actor_type='anonymous', outcome='denied', reason=f'{provider}: {exc.code}')
             return _front_redirect({'error': exc.code})
 
+        from accounts import mfa
+        if mfa.enabled(user):   # SSO não dispensa a 2ª etapa: o front pede o código (CAD-169)
+            audit.log('auth.sso.login', actor=user, reason=f'{provider} (aguardando MFA)', legal_basis='contrato')
+            return _front_redirect({'mfa_token': mfa.issue_challenge(user, f'sso:{provider}')})
         refresh = RefreshToken.for_user(user)
         update_last_login(None, user)   # mesmo registro do login por senha (UPDATE_LAST_LOGIN)
         audit.log('auth.sso.login', actor=user, reason=provider, legal_basis='contrato')

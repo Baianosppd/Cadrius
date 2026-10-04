@@ -25,5 +25,11 @@ python manage.py cadrius_staff pessoa@cadrius.ia.br --areas ""              # re
 Regras: ninguém desativa a própria conta; só superusuário altera outro superusuário; créditos de cortesia não contam como venda
 no resumo financeiro; o front esconde o que a área não pode, e o back recusa com 403 de qualquer forma.
 
+## Verificação em duas etapas (CAD-169)
+Obrigatória para a equipe: sem MFA a pessoa entra no app, mas a Gestão (e as APIs do Financeiro e do Centro de Segurança) respondem
+`403 mfa_required` e a tela abre o cadastro (QR + código + 10 códigos de recuperação). Celular perdido: TI → Usuários → "Redefinir
+verificação em duas etapas". Donos/admins de escritório: opcional no Perfil; para exigir, `MFA_REQUIRED_FOR_MANAGERS=True` no `.env`.
+O `/admin/` do Django ainda é só senha — use a Gestão no dia a dia.
+
 ## Ainda não tem (próximos passos)
-MFA para a equipe (verificação "MFA" segue em falha), reprocessar tarefa que falhou na fila, exportar listas, histórico de ações por escritório na tela.
+Reprocessar tarefa que falhou na fila, exportar listas, histórico de ações por escritório na tela.

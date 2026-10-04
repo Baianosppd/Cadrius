@@ -225,3 +225,28 @@ class SocialIdentity(models.Model):
 
     def __str__(self):
         return f'{self.provider}:{self.user_id}'
+
+
+class MFADevice(models.Model):
+    """Autenticador TOTP (Google Authenticator, Microsoft Authenticator, 1Password...) — CAD-169.
+
+    ``secret`` cifrado em repouso. ``confirmed_at`` vazio = cadastro iniciado mas não confirmado (não vale para login).
+    ``last_step`` impede reutilizar o mesmo código dentro da janela de 30 s (replay).
+    """
+
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='mfa_device')
+    secret = EncryptedTextField()
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    last_step = models.BigIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class MFARecoveryCode(models.Model):
+    """Código de recuperação de uso único (celular perdido). Só o hash fica no banco."""
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='mfa_recovery_codes')
+    code_hash = models.CharField(max_length=64)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['user', 'code_hash'])]

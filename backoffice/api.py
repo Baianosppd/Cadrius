@@ -21,7 +21,7 @@ PAGE = 50
 STATES = ('trialing', 'active', 'past_due', 'restricted', 'suspended', 'canceled')
 FINANCE_ACTIONS = {'extend_trial', 'grant_credits'}
 TI_ACTIONS = {'deactivate', 'activate'}
-USER_ACTIONS = {'unlock', 'deactivate', 'activate', 'revoke_sessions', 'send_password_reset'}
+USER_ACTIONS = {'unlock', 'deactivate', 'activate', 'revoke_sessions', 'send_password_reset', 'reset_mfa'}
 
 
 def _reason(request, minimum=10):

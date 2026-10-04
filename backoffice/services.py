@@ -14,6 +14,7 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 from audit import service as audit
 from billing import entitlements as ent
 from billing.credits import organization_credits_used
+from accounts import mfa
 from core.pii import mask_text
 
 
@@ -203,13 +204,14 @@ def user_row(user) -> dict:
         'id': str(user.pk), 'email': user.email, 'nome': user.get_full_name(), 'ativo': user.is_active,
         'equipe_cadrius': user.is_staff, 'superusuario': user.is_superuser,
         'ultimo_acesso': user.last_login, 'criado_em': user.date_joined, 'bloqueado': is_locked(user),
+        'mfa': mfa.enabled(user),
         'escritorios': [{'nome': str(m.organization), 'papel': m.role, 'ativo': m.is_active}
                         for m in user.memberships.select_related('organization')],
     }
 
 
 def user_action(actor, user, action: str, reason: str) -> dict:
-    if action in ('deactivate', 'revoke_sessions') and user.pk == actor.pk:
+    if action in ('deactivate', 'revoke_sessions', 'reset_mfa') and user.pk == actor.pk:
         raise ActionError('Você não pode aplicar esta ação na própria conta.')
     if user.is_superuser and not actor.is_superuser:
         raise ActionError('Só um superusuário altera outro superusuário.')
@@ -227,6 +229,12 @@ def user_action(actor, user, action: str, reason: str) -> dict:
         result = {'ativo': True}
     elif action == 'revoke_sessions':
         result = {'sessoes_encerradas': revoke_sessions(user)}
+    elif action == 'reset_mfa':
+        if not mfa.enabled(user):
+            raise ActionError('Esta conta não tem verificação em duas etapas ativa.')
+        mfa.disable(user)
+        result = {'mfa': False, 'sessoes_encerradas': revoke_sessions(user)}
+        audit.log('auth.mfa.reset', actor=actor, target=user, reason=reason[:255], data_categories=['credenciais'])
     elif action == 'send_password_reset':
         if not user.is_active:
             raise ActionError('Conta desativada: ative antes de enviar o link.')

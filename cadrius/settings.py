@@ -299,8 +299,12 @@ REST_FRAMEWORK = {
         'auth_register': '5/hour',
         'auth_refresh': '30/min',
         'auth_password_reset': '10/hour',
+        'auth_mfa': '20/min',   # códigos de verificação em duas etapas (CAD-169)
     },
 }
+
+# --- Verificação em duas etapas (CAD-169): equipe Cadrius sempre; donos/admins de escritório quando ligado ---
+MFA_REQUIRED_FOR_MANAGERS = env.bool('MFA_REQUIRED_FOR_MANAGERS', default=False)
 
 # --- Assinatura / trial (CAD-119) — ver docs/ANALISE_PRECOS_PLANOS.md §6 ---
 TRIAL_DAYS = env.int('TRIAL_DAYS', default=14)

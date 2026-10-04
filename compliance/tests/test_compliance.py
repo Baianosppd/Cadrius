@@ -49,7 +49,7 @@ class ChecksTests(TestCase):
         service.log('auth.logout')
         self.assertEqual(checks.run_all()['audit_trail'].status, 'pass')
         self.assertEqual(checks.run_all()['dsr_sla'].status, 'pass')
-        self.assertEqual(checks.run_all()['mfa'].status, 'fail')  # lacuna conhecida, exibida honestamente
+        self.assertEqual(checks.run_all()['mfa'].status, 'partial')  # TOTP ativo, mas donos/admins ainda opcional (CAD-169)
         # SLA de titular vencido derruba a verificação
         user = make_user('t@exemplo.com')
         from django.utils import timezone
@@ -190,6 +190,8 @@ class SecurityApiTests(TestCase):
         for path in ('overview', 'controls', 'checks', 'ropa'):
             self.assertEqual(client.get(f'/api/v1/security/{path}/').status_code, 403, path)
         client.force_authenticate(staff_user('s@exemplo.com'))
+        self.assertEqual(client.get('/api/v1/security/overview/').json()['code'], 'mfa_required')   # sem MFA não entra (CAD-169)
+        client.force_authenticate(staff_user('s2@exemplo.com'), token={'amr': 'mfa'})
         self.assertEqual(client.get('/api/v1/security/overview/').status_code, 200)
         data = client.get('/api/v1/security/controls/?framework=iso27001').data
         self.assertEqual(data['total'], 93)
