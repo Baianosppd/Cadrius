@@ -155,3 +155,20 @@ SMOKE_USER=owner@teste.cadrius.ia.br SMOKE_PASS='...' /opt/cadrius/infra/deploy/
 SMOKE_USER=voce@email.com SMOKE_PASS='...' /opt/cadrius/infra/deploy/scripts/smoke-test.sh prod
 ```
 Ordem recomendada: `switch-acme.sh real` **antes** do primeiro deploy de produção (assim `app.`/`api.` já nascem com certificado de verdade).
+
+## 10. Habilitar o pgvector (memória da IA) — CAD-159
+
+O PostgreSQL é **um só** para produção e teste. Para a memória por escritório da IA (`docs/MOTOR_IA_LOCAL.md`) troca-se a imagem `postgres:15-alpine`
+por `pgvector/pgvector:pg15` (mesma versão 15; o cluster usa `--locale=C.UTF-8`, então a ordenação dos índices não muda).
+A extensão é criada **só no banco de staging** primeiro. **Não foi testado em servidor real** — por isso o script faz backup antes e tem rollback.
+
+```bash
+sudo /opt/cadrius/infra/deploy/scripts/update-kit.sh <branch>     # traz o script
+# janela tranquila: o banco de prod E de staging reinicia (~10–30 s)
+sudo /opt/cadrius/infra/deploy/scripts/upgrade-postgres-pgvector.sh
+sudo /opt/cadrius/infra/deploy/scripts/smoke-test.sh prod && sudo /opt/cadrius/infra/deploy/scripts/smoke-test.sh staging
+# depois de validar o staging por alguns dias:
+sudo /opt/cadrius/infra/deploy/scripts/upgrade-postgres-pgvector.sh --prod
+# se algo der errado:
+sudo /opt/cadrius/infra/deploy/scripts/upgrade-postgres-pgvector.sh --rollback
+```

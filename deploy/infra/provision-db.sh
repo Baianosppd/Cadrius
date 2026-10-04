@@ -49,3 +49,14 @@ SQL
 # O statement_timeout de 60s é do app; backups/pg_dump usam o papel dedicado (sem esse limite).
 psql_admin -c "ALTER ROLE cadrius_backup RESET statement_timeout"
 echo ">> ok: cadrius_prod, cadrius_staging, cadrius_backup"
+
+# pgvector (CAD-159): habilita a extensão SOMENTE nos bancos listados em PGVECTOR_DBS (padrão: nenhum). Rode depois de
+# trocar a imagem (deploy/scripts/upgrade-postgres-pgvector.sh). A extensão exige superusuário, por isso é feita aqui.
+for db in ${PGVECTOR_DBS:-}; do
+  echo ">> pgvector em $db"
+  if [ "${CADRIUS_PG_MODE:-docker}" = "local" ]; then
+    psql -X -v ON_ERROR_STOP=1 -d "$db" -c "CREATE EXTENSION IF NOT EXISTS vector"
+  else
+    docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d "$db" -c "CREATE EXTENSION IF NOT EXISTS vector"
+  fi
+done

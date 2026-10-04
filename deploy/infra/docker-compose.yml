@@ -68,7 +68,9 @@ services:
       - "traefik.http.middlewares.root-to-app.redirectregex.permanent=true"
 
   postgres:
-    image: postgres:15-alpine
+    # Padrão: postgres:15-alpine. Para o pgvector (CAD-159) o script upgrade-postgres-pgvector.sh grava POSTGRES_IMAGE=pgvector/pgvector:pg15 no .env
+    # (mesma versão 15; o cluster usa --locale=C.UTF-8, então a troca de imagem não altera a ordenação dos índices).
+    image: ${POSTGRES_IMAGE:-postgres:15-alpine}
     container_name: cadrius_postgres
     restart: always
     logging: *logging
