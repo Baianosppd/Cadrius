@@ -145,6 +145,7 @@ INSTALLED_APPS = [
     'emails',
     'integrations', 
     'extraction', # Módulo de Extração de Dados (NLP, OCR, etc)
+    'gcal',  # Google Calendar por escritório (CAD-162)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
     'webhooks',  # Recebedor de Eventos Externos

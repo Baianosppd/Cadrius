@@ -216,3 +216,26 @@ O Centro de Segurança passa a mostrar o controle **pii_encrypted** (conta linha
 
 **Atenção:** `QuerySet.update(...)` e SQL direto **não** atualizam os índices — depois de qualquer carga em massa rode `encrypt_pii`.
 Ordenar por nome no banco não funciona (valor cifrado): a API ordena em Python. Se algum relatório precisar filtrar/ordenar por esses campos, peça uma consulta própria.
+
+## 12. Google Calendar — cada escritório com o PRÓPRIO app do Google (CAD-162)
+
+Decisão: **cada cliente usa o seu app OAuth no Google Cloud**. Assim o Cadrius **não** precisa passar pela verificação do Google para o escopo de agenda
+(`calendar.events` é "sensível"): quem cria e limita o app é o próprio escritório. Sem chave do Google no servidor do Cadrius — o escritório cadastra
+as credenciais na tela **Integrações → Google Calendar** (o segredo é cifrado no banco e nunca volta pela API).
+
+**Passo a passo para o escritório (quem tem Google Workspace faz em ~10 min):**
+1. https://console.cloud.google.com → criar um projeto (ex.: "Cadrius – Agenda").
+2. *APIs e serviços → Biblioteca* → ativar a **Google Calendar API**.
+3. *Tela de permissão OAuth*:
+   * **Workspace:** tipo **Interno** (só usuários do domínio; **não exige verificação do Google**). Ideal.
+   * **Gmail comum:** tipo **Externo** em modo **Teste** e adicionar os e-mails dos usuários em "Usuários de teste" (limite de 100; o login expira a cada 7 dias em modo de teste — o Cadrius pede para reconectar).
+   * Escopo: apenas `.../auth/calendar.events`.
+4. *Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web*:
+   * **URI de redirecionamento autorizado:** o valor mostrado na tela do Cadrius (ex.: `https://api.cadrius.ia.br/api/v1/integrations/google-calendar/callback/`).
+5. Na tela do Cadrius (dono/administrador): colar o **ID do cliente** e o **segredo** → salvar. Depois cada usuário clica em **Conectar** e autoriza.
+
+**Como funciona:** tarefa com "sincronizar" vira evento (cor pela prioridade; concluída vira "✔" e livre). Editar/excluir no Cadrius atualiza/remove o evento.
+Mudar horário ou título no Google atualiza a tarefa (a cada 15 min; botão "Sincronizar agora"). Apagar o evento no Google **desliga** a sincronização, mas a tarefa permanece.
+**Privacidade:** desmarque "enviar título e descrição" e o evento sai só como "Tarefa Cadrius".
+**Falhas:** token revogado → a conexão fica "Precisa reconectar" e o usuário recebe uma notificação. Limites do Google (429) são reenfileirados.
+**Agenda (django-q):** `gcal_pull` a cada 15 min, criado pelo `setup_security_schedules` (o `deploy.sh` já roda).

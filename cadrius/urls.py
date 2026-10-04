@@ -92,6 +92,7 @@ urlpatterns = [
     path('api/v1/activities/', ActivitiesView.as_view(), name='activities'),
     path('api/v1/sync-history/', SyncHistoryView.as_view(), name='sync-history'),
     path('api/v1/notifications/', include('notifications.urls')),
+    path('api/v1/integrations/google-calendar/', include('gcal.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),
