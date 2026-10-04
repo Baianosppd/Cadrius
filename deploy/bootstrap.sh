@@ -206,7 +206,7 @@ ok "bancos cadrius_prod e cadrius_staging prontos (papéis de menor privilégio 
 log "9/10 backups automáticos (systemd)"
 cp "$ROOT"/infra/deploy/backup/systemd/*.service "$ROOT"/infra/deploy/backup/systemd/*.timer /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now cadrius-backup-prod.timer cadrius-backup-staging.timer cadrius-verify-restore.timer >/dev/null
+systemctl enable --now cadrius-backup-prod.timer cadrius-backup-staging.timer cadrius-verify-restore.timer cadrius-verify-offsite.timer >/dev/null
 ok "timers: prod a cada 6 h, teste diário, teste de restauração semanal"
 printf '#!/bin/sh\nexec %s/infra/deploy/scripts/status.sh "$@"\n' "$ROOT" >/usr/local/bin/cadrius-status && chmod +x /usr/local/bin/cadrius-status
 

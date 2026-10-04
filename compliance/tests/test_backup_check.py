@@ -33,3 +33,23 @@ class BackupCheckTests(TestCase):
 
     def test_ignores_staging_lines(self):
         self.assertNotEqual(self._run(_line('staging', 'ok', 1, 'true')).status, checks.PASS)
+
+
+class OffsiteAndRestoreChecksTests(TestCase):
+    def _run(self, fn, content):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / 'backup.status'
+            f.write_text(content)
+            with override_settings(BACKUP_STATUS_FILE=str(f)):
+                return fn()
+
+    def test_offsite_verified(self):
+        self.assertEqual(self._run(checks._offsite_verified, _line('offsite-check-prod', 'ok', 5, 'true')).status, checks.PASS)
+        self.assertEqual(self._run(checks._offsite_verified, _line('offsite-check-prod', 'failed', 5, 'false')).status, checks.FAIL)
+        self.assertEqual(self._run(checks._offsite_verified, _line('offsite-check-prod', 'ok', 50, 'true')).status, checks.FAIL)
+        self.assertNotEqual(self._run(checks._offsite_verified, _line('prod', 'ok', 1, 'true')).status, checks.PASS)
+
+    def test_restore_drill(self):
+        self.assertEqual(self._run(checks._restore_drill, _line('restore-test-prod', 'ok', 24 * 3, 'false')).status, checks.PASS)
+        self.assertEqual(self._run(checks._restore_drill, _line('restore-test-prod', 'ok', 24 * 12, 'false')).status, checks.FAIL)
+        self.assertEqual(self._run(checks._restore_drill, _line('restore-test-prod', 'failed', 1, 'false')).status, checks.FAIL)

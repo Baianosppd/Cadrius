@@ -1,0 +1,11 @@
+[Unit]
+Description=Cadrius - confere a cópia EXTERNA dos backups (diário)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/cadrius/infra/deploy/backup/verify-offsite.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=1h

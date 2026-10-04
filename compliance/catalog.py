@@ -127,7 +127,7 @@ _ISO27001_AUTO = {
     '8.10': (('retention_policy',), 'enforce_retention agendado (e-mails 90d, payloads 90d, logs 30d, organizações 30d).'),
     '8.11': (('data_masking',), 'Redação de PII/segredos na trilha e nos logs; e-mail mascarado.'),
     '8.12': (('data_masking', 'ai_governance'), 'IA recebe só o necessário; conteúdo nunca vai à trilha; CSV à prova de injeção.'),
-    '8.13': (('backup',), 'db-backup diário + backup_to_supabase cifrado (Fernet).'),
+    '8.13': (('backup', 'offsite_verified', 'restore_drill'), 'Backup cifrado (GPG) a cada 6 h + mídia, cópia externa conferida diariamente e restauração testada semanalmente.'),
     '8.14': (('readiness',), 'Healthchecks e restart; redundância/HA ainda não implementada (manual).'),
     '8.15': (('audit_trail', 'logging_structured'), 'AuditEvent imutável + logging estruturado com request_id.'),
     '8.16': (('anomaly_detection', 'sentry_privacy'), 'Detectores A1–A12 a cada 5 min, Sentry e Dozzle protegido.'),

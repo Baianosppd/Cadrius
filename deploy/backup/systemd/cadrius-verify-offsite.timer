@@ -1,0 +1,10 @@
+[Unit]
+Description=Agenda: conferir a cópia externa dos backups (diário, depois do backup das 00:15/06:15)
+
+[Timer]
+OnCalendar=*-*-* 07:20:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -70,3 +70,20 @@ write_status() { # write_status <env> <ok|failed> <arquivo> <bytes> <offsite:tru
 }
 
 free_pct() { df -P "$BACKUP_ROOT" | awk 'NR==2 {gsub("%","",$5); print 100-$5}'; }
+
+# Backup cifrado do volume de documentos (media) do ambiente: tar.gz → GPG (chave pública). Falha NÃO derruba o backup do banco,
+# mas dispara alerta. Retenção local = RETENTION_DAILY_DAYS.
+backup_media() { # backup_media <prod|staging> <timestamp>
+  local env="$1" ts="$2" dir="$BACKUP_ROOT/media/$1" out
+  out="$dir/media_${1}_${ts}.tar.gz.gpg"; mkdir -p "$dir"
+  [ -f "$CADRIUS_ROOT/$env/docker-compose.yml" ] || { warn "media: compose de $env não encontrado; pulando"; return 0; }
+  if docker compose --project-name "cadrius-$env" --project-directory "$CADRIUS_ROOT/$env" -f "$CADRIUS_ROOT/$env/docker-compose.yml" \
+       exec -T web tar -czf - -C /app/media . 2>/dev/null \
+     | gpg --batch --yes --quiet --trust-model always -r "$BACKUP_GPG_RECIPIENT" -o "$out" -e && [ -s "$out" ]; then
+    ( cd "$dir" && sha256sum "$(basename "$out")" >"$(basename "$out").sha256" )
+    find "$dir" -type f -mtime +"$RETENTION_DAILY_DAYS" -delete
+    log "[$env] media cifrada: $(basename "$out") ($(stat -c %s "$out") bytes)"
+  else
+    rm -f "$out"; alert "Backup da MEDIA ($env) falhou — documentos dos clientes sem cópia hoje."
+  fi
+}

@@ -92,14 +92,34 @@ Crie os *environments* `staging` e `production` (em `production` marque **Requir
 
 * **Cifrados com GPG** (chave pública no servidor, privada com você); dump em texto claro só em RAM (`/dev/shm`).
 * **Retenção:** 3 dias (todos) · 14 diários · 60 dias de semanais · 400 dias de mensais (`/etc/cadrius/backup.env`).
-* **Cópia externa (obrigatória):** um backup só no VPS não protege contra perder o VPS. Configure o rclone:
+* **Cópia externa (obrigatória):** um backup só no VPS não protege contra perder o VPS. Guiado e com teste de escrita:
   ```bash
-  sudo rclone config                       # crie o remote "offsite" (Backblaze B2, Wasabi, S3, Google Drive…)
-  sudo nano /etc/cadrius/backup.env        # RCLONE_REMOTE=offsite:cadrius-backups
-  sudo /opt/cadrius/infra/deploy/backup/backup.sh prod manual && sudo cadrius-status
+  # 1) no provedor (Backblaze B2 / Wasabi / S3 São Paulo): bucket PRIVADO + versionamento + Object Lock, e uma chave SÓ DE ESCRITA
+  sudo /opt/cadrius/infra/deploy/backup/setup-offsite.sh          # pede endpoint, bucket e chaves (sem eco) e grava RCLONE_REMOTE
+  sudo /opt/cadrius/infra/deploy/backup/backup.sh prod manual
+  sudo /opt/cadrius/infra/deploy/backup/verify-offsite.sh prod    # confere: existe no destino, tamanho e hash iguais, recente
+  cadrius-status
   ```
+  * Chave **sem** permissão de apagar + Object Lock = ransomware no servidor não consegue destruir as cópias. Nesse caso use
+    `OFFSITE_PRUNE=false` em `/etc/cadrius/backup.env` e deixe a retenção às regras de ciclo de vida do bucket.
+  * O `verify-offsite.sh` roda **todo dia às 07:20** (timer) e alerta se a cópia sumiu, divergiu ou ficou velha; o resultado vira o controle
+    `offsite_verified` do Centro de Segurança (e `restore_drill` para o teste semanal de restauração).
+  * **Mídia** (documentos dos clientes, volume `media`) também é copiada: `media/<ambiente>/media_*.tar.gz.gpg`, 1×/dia, cifrada com a mesma chave.
+    Restaurar: `gpg -d media_prod_X.tar.gz.gpg | docker compose -p cadrius-prod exec -T web tar -xz -C /app/media`.
 * **Alertas:** `ALERT_WEBHOOK_URL` (Discord/Slack) e `HC_PING_URL_PROD` (healthchecks.io avisa se o backup **não rodar**).
 * O **Centro de Segurança** (`/security-center/` → Postura → controle A.8.13) lê o status do último backup de produção (PASSA só se < 26 h, cifrado e com cópia externa).
+
+### Rotacionar a chave GPG (quando a privada vazou ou trimestralmente por política)
+```bash
+# Na SUA máquina (nunca no servidor): gere o novo par; guarde a privada em cofre, 2 cópias, 2 pessoas
+bash deploy/backup/make-keypair.sh backup@cadrius.ia.br        # exporta cadrius-backup-pub.asc
+# No servidor: importe só a PÚBLICA e troque o destinatário
+sudo gpg --import cadrius-backup-pub.asc && sudo gpg --list-keys --fingerprint
+sudo sed -i 's/^BACKUP_GPG_RECIPIENT=.*/BACKUP_GPG_RECIPIENT=<FINGERPRINT_NOVO>/' /etc/cadrius/backup.env
+sudo deploy/backup/backup.sh all manual && sudo deploy/backup/verify-offsite.sh
+# Só depois de conferir que há backups com a chave nova (local e fora): apague os antigos cifrados com a chave exposta
+# (local: /srv/cadrius/backups/*/{recent,daily,weekly,monthly}; fora: pelo painel do provedor) e REVOGUE a chave antiga.
+```
 
 ### Restaurar (na sua máquina ou temporariamente no servidor)
 ```bash
