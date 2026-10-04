@@ -22,7 +22,7 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
 class AIUsageLogAdmin(admin.ModelAdmin):
     list_display = ('organization', 'billing_cycle_month', 'extractions_count', 'limite_atingido')
     list_filter = ('billing_cycle_month',)
-    search_fields = ('organization__name', 'organization__cnpj')
+    search_fields = ('organization__name',)
     readonly_fields = ('organization', 'billing_cycle_month', 'extractions_count')
     
     @admin.display(boolean=True, description='Atingiu o Limite?')

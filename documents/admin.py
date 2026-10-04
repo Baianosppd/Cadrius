@@ -13,5 +13,12 @@ class DocumentAdmin(admin.ModelAdmin):
 @admin.register(ClientDocument)
 class ClientDocumentAdmin(admin.ModelAdmin):
     list_display = ("id", "nome_cliente", "documento", "created_at")
-    search_fields = ("nome_cliente",)
+    # nome do cliente é cifrado: a busca usa o índice de tokens (core/pii.py)
+    search_fields = ()
+
+    def get_search_results(self, request, queryset, search_term):
+        from core.pii import filter_by_term
+        if not search_term.strip():
+            return queryset, False
+        return filter_by_term(queryset, "nome_cliente_idx", "client.name", search_term), False
     raw_id_fields = ("documento",)

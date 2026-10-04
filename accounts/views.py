@@ -272,8 +272,22 @@ class FuncionariosListView(generics.ListAPIView):
                 is_active=True,
             )
             .select_related('user')
-            .order_by('user__first_name', 'user__last_name', 'user__email')
+            .order_by('user__email')
         )
+
+    def list(self, request, *args, **kwargs):
+        # Nome é cifrado em repouso (CAD-152): o banco não ordena nem filtra por ele; ordenamos em Python (listas pequenas)
+        # e a busca ``?q=`` usa o índice de tokens (parcial, sem acento) ou o e-mail.
+        from django.db.models import Q
+        from core.pii import filter_by_term
+        qs = self.filter_queryset(self.get_queryset())
+        term = (request.query_params.get('q') or '').strip()
+        if term:
+            by_name = filter_by_term(qs, 'user__name_idx', 'user.name', term)
+            qs = by_name | qs.filter(Q(user__email__icontains=term))
+        members = sorted(qs.distinct(), key=lambda m: ((m.user.first_name or '').casefold(),
+                                                       (m.user.last_name or '').casefold(), m.user.email))
+        return Response(self.get_serializer(members, many=True).data)
 
 
 class PermissionGroupListView(generics.ListAPIView):

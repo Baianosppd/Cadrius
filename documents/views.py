@@ -62,7 +62,15 @@ class DocumentListCreateView(generics.ListCreateAPIView):
             value = (self.request.query_params.get(param) or "").strip()
             if value:
                 filters[lookup] = value
-        return qs.filter(**filters)
+        qs = qs.filter(**filters)
+
+        # ?cliente=silv  — busca parcial pelo nome do cliente (cifrado em repouso; usa o índice de tokens, ver core/pii.py)
+        cliente = (self.request.query_params.get("cliente") or "").strip()
+        if cliente:
+            from core.pii import filter_by_term
+            matches = filter_by_term(ClientDocument.objects.all(), "nome_cliente_idx", "client.name", cliente)
+            qs = qs.filter(pk__in=matches.values("documento_id"))
+        return qs
 
     def list(self, request, *args, **kwargs):
         page = self.paginate_queryset(self.get_queryset())

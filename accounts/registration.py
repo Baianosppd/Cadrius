@@ -8,6 +8,7 @@ from rest_framework import serializers
 from billing.models import SubscriptionPlan
 
 from .models import Organization, OrganizationMembership
+from core.pii import blind_index
 from .validators import format_cnpj, format_cpf, is_valid_cnpj, is_valid_cpf, only_digits
 
 User = get_user_model()
@@ -97,7 +98,7 @@ class PersonDataSerializer(serializers.Serializer):
         if not is_valid_cpf(value):
             raise serializers.ValidationError('CPF inválido.')
         formatted = format_cpf(value)
-        if User.objects.filter(cpf__in=[formatted, only_digits(value)]).exists():
+        if User.objects.filter(cpf_bidx=blind_index('user.cpf', value)).exists():
             raise serializers.ValidationError('Este CPF já está cadastrado.')
         return formatted
 
@@ -214,7 +215,7 @@ class CompanyRegistrationSerializer(LegalAcceptanceMixin, serializers.Serializer
         if not is_valid_cnpj(value):
             raise serializers.ValidationError('CNPJ inválido.')
         formatted = format_cnpj(value)
-        if Organization.objects.filter(cnpj__in=[formatted, only_digits(value)]).exists():
+        if Organization.objects.filter(cnpj_bidx=blind_index('org.cnpj', value)).exists():
             raise serializers.ValidationError('Este CNPJ já está cadastrado.')
         return formatted
 

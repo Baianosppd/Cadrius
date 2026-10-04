@@ -76,6 +76,17 @@ def _encryption_key():
     return CheckResult(PARTIAL if not _prod() else FAIL, 'Sem ENCRYPTION_KEY: usando chave derivada (apenas dev).')
 
 
+@check('pii_encrypted', 'Dados pessoais cifrados em repouso')
+def _pii_encrypted():
+    from core.pii import plaintext_counts
+    counts = plaintext_counts()
+    leaking = {k: v for k, v in counts.items() if v}
+    if leaking:
+        sample = ', '.join(f'{k} ({v})' for k, v in list(leaking.items())[:3])
+        return CheckResult(FAIL, f'Há dados pessoais em texto puro no banco: {sample}. Rode `manage.py encrypt_pii`.')
+    return CheckResult(PASS, f'{len(counts)} colunas de dados pessoais/segredos conferidas no banco: 0 linhas em texto puro (Fernet).')
+
+
 @check('credentials_encrypted', 'Credenciais de terceiros cifradas no banco')
 def _credentials_encrypted():
     queries = [

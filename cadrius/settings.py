@@ -108,6 +108,11 @@ ENCRYPTION_KEY = env('ENCRYPTION_KEY', default=None)
 ENCRYPTION_ALLOW_DERIVED_KEY = DEBUG
 if not DEBUG and not ENCRYPTION_KEY:
     raise ImproperlyConfigured('ENCRYPTION_KEY não definida: credenciais de terceiros ficariam sem cifra.')
+# Chave dos índices de busca dos dados pessoais cifrados (CAD-152). SEPARADA da ENCRYPTION_KEY. Perdê-la não perde dados
+# (dá para reindexar com `manage.py encrypt_pii`), mas trocá-la sem reindexar quebra a busca por CPF/CNPJ/nome.
+BLIND_INDEX_KEY = env('BLIND_INDEX_KEY', default='')
+if not DEBUG and not BLIND_INDEX_KEY:
+    raise ImproperlyConfigured('BLIND_INDEX_KEY não definida (índices de busca dos dados pessoais cifrados).')
 
 # --- 4. APLICAÇÕES E MIDDLEWARES ---
 INSTALLED_APPS = [

@@ -95,6 +95,7 @@ jobs:
           DEBUG: "False"
           DJANGO_SECRET_KEY: ci-only-secret-key-with-more-than-fifty-characters-1234567890
           ENCRYPTION_KEY: Zm9yLWNpLW9ubHktbm90LWEtcmVhbC1rZXktMTIzNDU2Nzg=
+          BLIND_INDEX_KEY: ci-only-blind-index-key-not-for-production
           EVOLUTION_API_KEY: ci-only
         run: python manage.py check --deploy
       - name: Migrar e testar (com cobertura mínima de 75%)

@@ -188,3 +188,31 @@ Depois: `deploy.sh <ambiente>` (reinicia o back e refaz o build do front com `VI
 
 **Testar:** abra `https://app-teste.cadrius.ia.br` → "Continuar com Google". Erros voltam ao login com um código
 (`no_account`, `email_unverified`, `state_invalid`, `token_invalid`, …); os motivos ficam na trilha de auditoria (`auth.sso.login`, outcome `denied`).
+
+## 11. Dados pessoais cifrados em repouso — o que muda e como operar (CAD-152)
+
+**O que é cifrado (Fernet, no banco):** CPF, telefone, nº da OAB, nome e sobrenome do usuário; CNPJ, endereço, telefones e e-mail corporativo do escritório;
+**nome do cliente** nos documentos; credenciais de integrações e senhas de e-mail (já eram). **Fica em claro (decisão):** e-mail/login, razão social/nome do escritório, UF.
+
+**Busca continua funcionando:** CPF/CNPJ por **índice cego** (exato e único, em qualquer formato); **nome por índice de tokens** (parcial e sem acento:
+`?cliente=silv` em `/api/v1/documentos/`, `?q=` em `/api/v1/funcionarios/`, busca do admin). No banco só há hashes. Ver `core/pii.py`.
+
+**Chaves (guarde as duas; entram no backup diário de segredos):**
+| Chave | Para quê | Se perder |
+|---|---|---|
+| `ENCRYPTION_KEY` | decifrar os dados | **os dados cifrados ficam irrecuperáveis** — mantenha cópia em cofre fora do servidor |
+| `BLIND_INDEX_KEY` | buscar por CPF/CNPJ/nome | nada se perde: gere outra e rode `manage.py encrypt_pii` para reindexar |
+
+O `deploy.sh` gera a `BLIND_INDEX_KEY` sozinho em ambientes antigos que não a têm.
+
+**Publicar (1ª vez):** o deploy roda as migrações (trocam o tipo das colunas e cifram/indexam o que já existe). Depois:
+```bash
+cd /opt/cadrius/<env> && docker compose --project-name cadrius-<env> exec web python manage.py encrypt_pii --dry-run   # deve mostrar 0 linhas em texto puro
+```
+O Centro de Segurança passa a mostrar o controle **pii_encrypted** (conta linhas em texto puro direto no banco).
+
+**Rotacionar a `ENCRYPTION_KEY`:** 1) gere uma chave nova; 2) `ENCRYPTION_KEY="NOVA,ANTIGA"` no `.env` e redeploy; 3) `manage.py encrypt_pii` (recifra tudo com a nova);
+4) confira `encrypt_pii --dry-run` e os testes de login; 5) remova a antiga do `.env`. **Teste isto em staging antes da produção.**
+
+**Atenção:** `QuerySet.update(...)` e SQL direto **não** atualizam os índices — depois de qualquer carga em massa rode `encrypt_pii`.
+Ordenar por nome no banco não funciona (valor cifrado): a API ordena em Python. Se algum relatório precisar filtrar/ordenar por esses campos, peça uma consulta própria.

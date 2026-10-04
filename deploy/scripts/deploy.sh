@@ -10,6 +10,12 @@ ENV_NAME="${1:-}"; [[ "$ENV_NAME" =~ ^(prod|staging)$ ]] || die "Uso: $0 <prod|s
 SHA="${2:-}"
 ENV_DIR="$CADRIUS_ROOT/$ENV_NAME"
 [ -f "$ENV_DIR/.env" ] || die "Falta $ENV_DIR/.env (rode o bootstrap.sh)."
+# Autocorreção (CAD-152): a chave dos índices de busca dos dados pessoais cifrados precisa existir; ambientes antigos não a têm.
+if ! grep -qE '^BLIND_INDEX_KEY=.+' "$ENV_DIR/.env"; then
+  warn "BLIND_INDEX_KEY ausente — gerando em $ENV_DIR/.env (guarde: o backup diário de segredos já inclui este arquivo)"
+  grep -v '^BLIND_INDEX_KEY=' "$ENV_DIR/.env" >"$ENV_DIR/.env.tmp" || true
+  echo "BLIND_INDEX_KEY=$(rand_alnum 48)" >>"$ENV_DIR/.env.tmp"; cat "$ENV_DIR/.env.tmp" >"$ENV_DIR/.env"; rm -f "$ENV_DIR/.env.tmp"
+fi
 # Autocorreção: o healthcheck do contêiner chama 127.0.0.1; sem ele em ALLOWED_HOSTS o /readyz responde 400.
 if ! grep -qE '^ALLOWED_HOSTS=.*127\.0\.0\.1' "$ENV_DIR/.env"; then
   warn "ALLOWED_HOSTS sem 127.0.0.1 — corrigindo em $ENV_DIR/.env"
