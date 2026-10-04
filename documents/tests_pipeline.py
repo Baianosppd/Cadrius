@@ -190,35 +190,38 @@ class PipelineTests(PipelineBase):
         self.assertIn('não suportado', ex.message)
         self.ai_mock.assert_not_called()
 
-    def test_ia_sem_resultado_falha_sem_cobrar(self):
+    def test_ia_sem_resultado_cai_na_leitura_local_sem_cobrar(self):
         self.ai_mock.return_value = None
         doc = self.doc()
-        self.assertEqual(self.run_pipeline(doc), 'failed')
-        self.assertEqual(DocumentExtraction.objects.get(document=doc).status, 'failed')
+        self.assertEqual(self.run_pipeline(doc), 'review')
+        ex = DocumentExtraction.objects.get(document=doc)
+        self.assertEqual((ex.status, ex.provider), ('review', 'LOCAL'))
+        self.assertIn('não conseguiu', ex.message)
+        self.assertEqual(ex.fields['numero_processo'], '0001234-56.2024.8.26.0100')   # a leitura local achou o nº do processo
+        self.assertEqual(ex.fields['tipo_documento'], 'INTIMACAO')
         self.assertEqual(organization_credits_used(self.org), 0)
 
-    def test_sem_provedor_sem_credito_com_ia_pausada_ou_politica(self):
+    def test_sem_provedor_sem_credito_com_ia_pausada_ou_politica_ha_rascunho_local(self):
+        def local_draft(doc):
+            self.assertEqual(self.run_pipeline(doc), 'review')
+            ex = DocumentExtraction.objects.get(document=doc)
+            self.assertEqual((ex.status, ex.provider), ('review', 'LOCAL'))
+            self.assertIn('Leitura básica local', ex.message)
+            return ex
         with mock.patch.dict(os.environ, {'GROQ_API_KEY': ''}):
-            doc = self.doc()
-            self.assertEqual(self.run_pipeline(doc), 'skipped')
-            self.assertIn('provedor', DocumentExtraction.objects.get(document=doc).message)
+            self.assertIn('provedor', local_draft(self.doc()).message)
         self.org.plan.max_ai_extractions = 0
         self.org.plan.save()
-        doc2 = self.doc()
-        self.assertEqual(self.run_pipeline(doc2), 'skipped')
-        self.assertIn('créditos', DocumentExtraction.objects.get(document=doc2).message)
+        self.assertIn('créditos', local_draft(self.doc()).message)
         self.org.plan.max_ai_extractions = 50
         self.org.plan.save()
         self.org.subscription_status = 'canceled'
         self.org.save()
-        doc3 = self.doc()
-        self.run_pipeline(doc3)
-        self.assertIn('Assinatura pendente', DocumentExtraction.objects.get(document=doc3).message)
+        self.assertIn('Assinatura pendente', local_draft(self.doc()).message)
         self.org.subscription_status = 'active'
         self.org.save()
         set_global_switch(False, reason='teste')
-        doc4 = self.doc()
-        self.assertEqual(self.run_pipeline(doc4), 'ai_blocked')
+        self.assertIn('bloqueada', local_draft(self.doc()).message)
         set_global_switch(True)
         self.ai_mock.assert_not_called()
 

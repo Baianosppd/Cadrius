@@ -259,3 +259,22 @@ class DocumentDetailView(APIView):
         payload = document_response_payload(doc, cliente=link.nome_cliente if link else None)
         payload["tem_arquivo"] = bool(doc.arquivo)
         return Response(payload)
+
+
+class DocumentExtractionUndoView(APIView):
+    """POST /api/v1/documentos/{id}/extraction/undo-auto/ — desfaz (até 24 h) uma confirmação AUTOMÁTICA: apaga as tarefas, volta para revisão
+    e rebaixa a autonomia. É a rede de segurança do modo "auto"."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from .pipeline import undo_auto
+
+        if not _can_review(request.user):
+            return Response({"detail": "Seu papel não permite desfazer."}, status=status.HTTP_403_FORBIDDEN)
+        _, extraction = _extraction_for(request, pk)
+        try:
+            undo_auto(extraction, request.user)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+        return Response(_extraction_payload(extraction))

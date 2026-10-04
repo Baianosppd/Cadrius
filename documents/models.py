@@ -114,6 +114,9 @@ class DocumentExtraction(models.Model):
     confidence = models.PositiveSmallIntegerField(null=True, blank=True)
     # dados extraídos (podem conter nomes de partes): cifrados em repouso
     fields = EncryptedJSONField(default=dict, blank=True)
+    original_fields = EncryptedJSONField(default=dict, blank=True)   # leitura como a IA/local entregou (antes da revisão): base do aprendizado
+    excerpt = EncryptedTextField(blank=True, default="")             # início do texto já mascarado: vira exemplo na memória se aprovado
+    auto_task_ids = models.JSONField(default=list, blank=True)         # tarefas criadas automaticamente (para desfazer)
     message = models.CharField(max_length=255, blank=True, default="")
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     reviewed_at = models.DateTimeField(null=True, blank=True)

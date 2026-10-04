@@ -39,6 +39,7 @@ ACTIONS = frozenset({
     'billing.checkout', 'billing.payment_confirmed', 'billing.payment_failed', 'billing.subscription_canceled',
     'billing.credits_purchased', 'billing.admin_changed', 'billing.price_changed',
     'document.extracted', 'document.extraction_confirmed', 'document.blocked',
+    'ai.autonomy_changed', 'ai.rule_decided', 'memory.added', 'memory.deleted',
     'compliance.assessment_updated', 'org.closure',
 })
 

@@ -28,6 +28,7 @@ from documents.views import (
     DocumentDetailView,
     DocumentExtractionConfirmView,
     DocumentExtractionReprocessView,
+    DocumentExtractionUndoView,
     DocumentExtractionView,
     DocumentDownloadView,
     DocumentListCreateView,
@@ -92,6 +93,7 @@ urlpatterns = [
          name='documentos-extraction-reprocess'),
     path('api/v1/documentos/<int:pk>/extraction/confirm/', DocumentExtractionConfirmView.as_view(),
          name='documentos-extraction-confirm'),
+    path('api/v1/documentos/<int:pk>/extraction/undo-auto/', DocumentExtractionUndoView.as_view(), name='documentos-extraction-undo'),
     path(
         'api/v1/teams/permission-groups/',
         PermissionGroupListView.as_view(),
@@ -103,6 +105,7 @@ urlpatterns = [
     path('api/v1/sync-history/', SyncHistoryView.as_view(), name='sync-history'),
     path('api/v1/notifications/', include('notifications.urls')),
     path('api/v1/integrations/google-calendar/', include('gcal.urls')),
+    path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),

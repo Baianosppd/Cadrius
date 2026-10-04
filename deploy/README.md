@@ -260,3 +260,23 @@ avalie OCR pago (ele passa a ser suboperador: DPA).
 (o documento não é processado até o antivírus voltar); infectado = bloqueado e auditado (`document.blocked`).
 
 **Auditoria:** `document.extracted` (provedor, páginas/caracteres, OCR) e `document.extraction_confirmed` — sem o conteúdo.
+
+## 14. Motor Cadrius: a IA que aprende com o escritório (CAD-165)
+
+O diferencial do produto, **sem treinar modelo de terceiros**: o sistema **lembra, mede e propõe — o advogado decide**.
+
+| Peça | O que faz | Onde |
+|---|---|---|
+| **Leitura local** | Número do processo, tipo e prazos explícitos por regras, sem IA e sem custo. Primeira passada e **plano B** (sem crédito, política, provedor ou pausa de cobrança): o advogado sempre recebe um rascunho | `brain/local.py` |
+| **Memória do escritório** | Peças-modelo, anotações e leituras **aprovadas**, com busca por similaridade (embeddings locais, sem rede), **isolada por escritório** e cifrada | `brain/memory.py` |
+| **Few-shot** | Antes de chamar a IA, junta 2 exemplos aprovados parecidos (mascarados, tratados como texto não confiável) | `documents/pipeline.py` |
+| **Feedback** | Cada confirmação registra se a pessoa aprovou sem editar, editou ou rejeitou e **o que mudou** | `brain/feedback.py` |
+| **Regras do escritório** | Correção repetida (ex.: OUTRO→DECISAO ≥ 5 vezes) vira **proposta**; só vale depois de aprovada por dono/administrador; visível e desligável | `OfficeRule` |
+| **Matriz de autonomia** | Por tipo de ação: `off`/`review`/`auto`/`auto_undo`. **R4 (protocolar, prazo fatal, pagamento, exclusão) nunca é automático**; R3 fica em revisão | `brain/autonomy.py` |
+| **Promoção sugerida** | Se ≥ 30 decisões em 60 dias, ≥ 95 % aprovadas sem edição e nenhuma rejeitada/desfeita → **sugere** subir o nível; **só o dono** aprova | `AutonomyProposal` |
+| **Rede de segurança** | Confirmação automática é desfeita em até 24 h (apaga as tarefas, volta para revisão) e **rebaixa a autonomia na hora** | `…/extraction/undo-auto/` |
+
+**Agenda:** `brain_evaluate` roda diariamente (criado pelo `setup_security_schedules`): propõe regras e sugere promoções. Nada muda sozinho.
+**APIs** (`/api/v1/brain/`): `approvals/` (Central de aprovações), `rules/`, `autonomy/`, `memory/` e `memory/search/`.
+**Limites conhecidos:** os embeddings são lexicais (acham vocabulário parecido, não sinônimos) — para semântica troque por um modelo local via `BRAIN_EMBEDDER` ou use pgvector (`§10`);
+o aprendizado é por escritório (não há conhecimento compartilhado entre clientes, de propósito). LLM local de uso geral fica para quando houver máquina com GPU (`docs/MOTOR_IA_LOCAL.md`).
