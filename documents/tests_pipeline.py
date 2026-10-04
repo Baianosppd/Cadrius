@@ -339,6 +339,14 @@ class ApiTests(APITestCase):
         self.ex.save()
         self.assertEqual(self.client.post(self.base + 'reprocess/').status_code, 409)
 
+    def test_detalhe_do_documento_com_cliente_e_isolamento(self):
+        from documents.models import ClientDocument
+        ClientDocument.objects.create(nome_cliente='Maria Oliveira', documento=self.doc)
+        data = self.client.get(f'/api/v1/documentos/{self.doc.pk}/').data
+        self.assertEqual((data['nome'], data['cliente'], data['tem_arquivo']), ('Intimação', 'Maria Oliveira', True))
+        self.client.force_authenticate(make_user('x@example.com', make_org('Outro'), role='OWNER'))
+        self.assertEqual(self.client.get(f'/api/v1/documentos/{self.doc.pk}/').status_code, 404)
+
     def test_download_devolve_o_arquivo_decifrado(self):
         resp = self.client.get(f'/api/v1/documentos/{self.doc.pk}/download/')
         self.assertEqual(resp.status_code, 200)

@@ -236,3 +236,18 @@ class DocumentExtractionConfirmView(APIView):
         payload = _extraction_payload(extraction)
         payload["tasks_created"] = [{"id": t.pk, "titulo": t.titulo, "scheduled_at": t.scheduled_at} for t in tasks]
         return Response(payload)
+
+
+class DocumentDetailView(APIView):
+    """GET /api/v1/documentos/{id}/ — dados do documento (a leitura automática está em /extraction/)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        doc = _org_documents_qs(request.user).filter(pk=pk).first()
+        if doc is None:
+            raise Http404
+        link = ClientDocument.objects.filter(documento=doc).order_by("created_at", "id").first()
+        payload = document_response_payload(doc, cliente=link.nome_cliente if link else None)
+        payload["tem_arquivo"] = bool(doc.arquivo)
+        return Response(payload)

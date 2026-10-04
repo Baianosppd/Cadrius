@@ -25,6 +25,7 @@ from integrations.api import ConnectionDeleteView, ConnectionListCreateView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
     ClientDocumentCreateView,
+    DocumentDetailView,
     DocumentExtractionConfirmView,
     DocumentExtractionReprocessView,
     DocumentExtractionView,
@@ -85,6 +86,7 @@ urlpatterns = [
         DocumentDownloadView.as_view(),
         name='documentos-download',
     ),
+    path('api/v1/documentos/<int:pk>/', DocumentDetailView.as_view(), name='documentos-detail'),
     path('api/v1/documentos/<int:pk>/extraction/', DocumentExtractionView.as_view(), name='documentos-extraction'),
     path('api/v1/documentos/<int:pk>/extraction/reprocess/', DocumentExtractionReprocessView.as_view(),
          name='documentos-extraction-reprocess'),
