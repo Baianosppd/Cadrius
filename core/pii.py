@@ -156,7 +156,8 @@ def plaintext_counts():
         for model, fields in encrypted_fields():
             for f in fields:
                 table, col = q(model._meta.db_table), q(f.column)
-                cur.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} IS NOT NULL AND {col} <> '' AND {col} NOT LIKE %s",
+                # Identificadores vêm dos metadados dos models (nunca de entrada externa) e passam por quote_name; o valor é parametrizado.
+                cur.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} IS NOT NULL AND {col} <> '' AND {col} NOT LIKE %s",  # nosec B608
                             [ENC_PREFIX + '%'])
                 counts[f'{model._meta.db_table}.{f.column}'] = cur.fetchone()[0]
     return counts
