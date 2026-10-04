@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest import mock
 
+from django.contrib.auth.models import Group
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -28,6 +29,7 @@ class StaffOnlyTests(APITestCase):
         self.staff = make_user('s@cadrius.ia.br')
         self.staff.is_staff = True
         self.staff.save()
+        self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
 
     def test_so_a_equipe_acessa(self):
         for url in ('plans/', 'packs/', 'promotions/', 'notices/', 'credit-weights/', 'summary/', 'price-history/'):
@@ -45,6 +47,7 @@ class PlanAdminTests(APITestCase):
         self.staff = make_user('s@cadrius.ia.br')
         self.staff.is_staff = True
         self.staff.save()
+        self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
         self.client.force_authenticate(self.staff)
         self.pro = plan()
 
@@ -79,6 +82,7 @@ class PromotionRulesTests(APITestCase):
         self.staff = make_user('s@cadrius.ia.br')
         self.staff.is_staff = True
         self.staff.save()
+        self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
         self.client.force_authenticate(self.staff)
         self.pro, self.start = plan(), plan('START', '99', 300, 1)
         self.org = Organization.objects.create(name='Cliente', plan=self.pro)
@@ -189,6 +193,7 @@ class NoticeTests(APITestCase):
         self.staff = make_user('s@cadrius.ia.br')
         self.staff.is_staff = True
         self.staff.save()
+        self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
 
     def test_equipe_cria_e_cliente_ve_conforme_plano_estado_e_periodo(self):
         now = timezone.now()
@@ -215,6 +220,7 @@ class WeightsAndSummaryTests(APITestCase):
         self.staff = make_user('s@cadrius.ia.br')
         self.staff.is_staff = True
         self.staff.save()
+        self.staff.groups.add(Group.objects.get_or_create(name='Cadrius Financeiro')[0])   # área Financeiro (CAD-168)
         self.client.force_authenticate(self.staff)
 
     def test_pesos_padrao_editaveis_e_credits_for(self):

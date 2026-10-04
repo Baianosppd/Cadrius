@@ -1,6 +1,6 @@
 """API do financeiro da equipe Cadrius (CAD-160): planos/preços, pacotes, promoções, informes, pesos de crédito e resumo.
 
-Só ``is_staff``. Toda alteração é auditada (``billing.admin_changed``); mudança de preço de plano também vai ao histórico
+Só a área Financeiro da Gestão Cadrius (CAD-168). Toda alteração é auditada (``billing.admin_changed``); mudança de preço de plano também vai ao histórico
 (``PlanPriceHistory``). **Reajuste não é retroativo**: assinaturas existentes no Stripe mantêm o preço contratado; o novo preço vale
 para novas assinaturas.
 """
@@ -24,8 +24,11 @@ from billing.models import (BillingNotice, CreditLot, CreditPack, CreditWeight, 
 
 
 class IsStaff(permissions.BasePermission):
+    """Área Financeiro da Gestão Cadrius (CAD-168): equipe + (superusuário ou grupo "Cadrius Financeiro")."""
+
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
+        from backoffice.permissions import user_areas
+        return 'financeiro' in user_areas(request.user)
 
 
 # ----------------------------------------------------------------------------- serializers
@@ -185,38 +188,43 @@ class PriceHistoryView(APIView):
                           'changed_at': r.changed_at} for r in rows])
 
 
+def finance_summary() -> dict:
+    """Números do financeiro (também usados na Visão geral da Gestão Cadrius)."""
+    now = timezone.now()
+    by_status = {s: 0 for s in ('trialing', 'active', 'past_due', 'restricted', 'suspended', 'canceled')}
+    mrr, paying, trials_ending = 0, 0, 0
+    by_plan = {}
+    for org in Organization.objects.select_related('plan'):
+        st = ent.effective_status(org, now)
+        by_status[st] = by_status.get(st, 0) + 1
+        if st == ent.ACTIVE and org.stripe_subscription_id:
+            paying += 1
+            mrr += org.plan.price_brl
+            by_plan[org.plan.name] = by_plan.get(org.plan.name, 0) + 1
+        if st == ent.TRIALING and org.trial_ends_at and org.trial_ends_at <= now + timedelta(days=7):
+            trials_ending += 1
+    packs_30d = CreditLot.objects.filter(created_at__gte=now - timedelta(days=30)).aggregate(
+        total=Sum('amount_paid_cents'), credits=Sum('credits_total'))
+    return {
+        'organizacoes_por_estado': by_status,
+        'assinantes_pagantes': paying,
+        'mrr_tabela_brl': str(mrr),
+        'ticket_medio_brl': str(round(mrr / paying, 2)) if paying else '0',
+        'assinantes_por_plano': by_plan,
+        'trials_terminando_em_7_dias': trials_ending,
+        'pacotes_30d': {'receita_brl': str(round((packs_30d['total'] or 0) / 100, 2)),
+                        'creditos_vendidos': packs_30d['credits'] or 0},
+        'promocoes_ativas': Promotion.objects.filter(is_active=True).count(),
+        'usos_de_promocao': Promotion.objects.aggregate(t=Sum('redemptions_count'))['t'] or 0,
+    }
+
+
 class SummaryView(APIView):
     """Visão geral do financeiro. MRR = preço de TABELA das assinaturas ativas com Stripe (não desconta cupons nem reajustes)."""
     permission_classes = [IsStaff]
 
     def get(self, request):
-        now = timezone.now()
-        by_status = {s: 0 for s in ('trialing', 'active', 'past_due', 'restricted', 'suspended', 'canceled')}
-        mrr, paying, trials_ending = 0, 0, 0
-        by_plan = {}
-        for org in Organization.objects.select_related('plan'):
-            st = ent.effective_status(org, now)
-            by_status[st] = by_status.get(st, 0) + 1
-            if st == ent.ACTIVE and org.stripe_subscription_id:
-                paying += 1
-                mrr += org.plan.price_brl
-                by_plan[org.plan.name] = by_plan.get(org.plan.name, 0) + 1
-            if st == ent.TRIALING and org.trial_ends_at and org.trial_ends_at <= now + timedelta(days=7):
-                trials_ending += 1
-        packs_30d = CreditLot.objects.filter(created_at__gte=now - timedelta(days=30)).aggregate(
-            total=Sum('amount_paid_cents'), credits=Sum('credits_total'))
-        return Response({
-            'organizacoes_por_estado': by_status,
-            'assinantes_pagantes': paying,
-            'mrr_tabela_brl': str(mrr),
-            'ticket_medio_brl': str(round(mrr / paying, 2)) if paying else '0',
-            'assinantes_por_plano': by_plan,
-            'trials_terminando_em_7_dias': trials_ending,
-            'pacotes_30d': {'receita_brl': str(round((packs_30d['total'] or 0) / 100, 2)),
-                            'creditos_vendidos': packs_30d['credits'] or 0},
-            'promocoes_ativas': Promotion.objects.filter(is_active=True).count(),
-            'usos_de_promocao': Promotion.objects.aggregate(t=Sum('redemptions_count'))['t'] or 0,
-        })
+        return Response(finance_summary())
 
 
 router = DefaultRouter()
