@@ -370,7 +370,7 @@ Dependências críticas: e-mail (→ recuperação de senha, convites, alertas);
 | 2 | Provedor de e-mail | "Alternativas e cenários" | **Feito**: `deploy/EMAIL.md` §1. Recomendação: Brevo agora, SES depois. Falta escolher. |
 | 3 | Destino do backup externo | **Supabase** | `setup-offsite.sh` com atalho Supabase (CAD-151). Sem Object Lock: proteção pela cifra GPG. |
 | 4 | E-mail e busca por nome | "Não pode perder a busca; deixar o filtro aberto" | **Desenho** (CAD-152): e-mail em claro (login); CPF/telefone/OAB/endereço cifrados com índice cego; **nome com índice de tokens/trigramas (HMAC)** para busca parcial. Ver §2.3. |
-| 5 | Verificação do app Google | **Sim, iniciar já** | Passo a passo em `deploy/README.md` §9 (escopos não sensíveis do SSO) e §6.2 (Calendar: escopo sensível → pedir verificação com vídeo e política). **Ação do Jullio** (console do Google). |
+| 5 | Verificação do app Google | **Sim — mas cada cliente tem o seu app** (nada a verificar no Cadrius) | SSO: `deploy/README.md` §9 (escopos não sensíveis). Calendar: **app OAuth por escritório** (`deploy/README.md` §12) — evita a verificação do Google; implementado (CAD-162). |
 | 6 | Jusbrasil | "Somos nós; módulo extra; análise crítica" | **Feito**: `docs/MODULO_JUSBRASIL.md`. Recomendação: fontes gratuitas primeiro, BYOK depois, add-on por faixa. |
 | 7 | ERP depois do Astrea | **Projuris** | CAD-193 passa a ser o conector Projuris (**validar** API/parceria com o fornecedor). |
 | 8 | Provedores de IA / OCR | **3 IAs + motor local que aprende** | **Feito (desenho)**: `docs/MOTOR_IA_LOCAL.md`. OCR local (Tesseract) primeiro; pago só se a qualidade exigir. |
