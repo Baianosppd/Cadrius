@@ -168,7 +168,7 @@ make_env() { # prod|staging
   render_template "$ROOT/infra/deploy/app/env.backend.template" "$f" \
     "ENV=$e" "APP_HOST=$app" "API_HOST=$api" "DB_USER=$dbu" "DB_NAME=$dbn" "DB_PASSWORD_URLENC=$(urlenc "$dbpw")" \
     "DJANGO_ENV=$([ "$e" = prod ] && echo production || echo staging)" \
-    "DJANGO_SECRET_KEY=$(rand_django)" "ENCRYPTION_KEY=$(rand_fernet)" "REDIS_PASSWORD=$(rand_alnum 32)" "EVOLUTION_KEY=$(rand_alnum 40)"
+    "DJANGO_SECRET_KEY=$(rand_django)" "ENCRYPTION_KEY=$(rand_fernet)" "BLIND_INDEX_KEY=$(rand_alnum 48)" "REDIS_PASSWORD=$(rand_alnum 32)" "EVOLUTION_KEY=$(rand_alnum 40)"
   echo "DB_PASSWORD_RAW=$dbpw" >>"$f"   # usado só pelo provision-db.sh
   chmod 600 "$f"; chown deploy:deploy "$f"
   ok "$f criado"

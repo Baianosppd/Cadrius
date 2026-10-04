@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SubscriptionPlan, AIUsageLog, MemberCreditUsage
+from .models import SubscriptionPlan, AIUsageLog, MemberCreditUsage, CreditPack, CreditLot
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
@@ -22,7 +22,7 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
 class AIUsageLogAdmin(admin.ModelAdmin):
     list_display = ('organization', 'billing_cycle_month', 'extractions_count', 'limite_atingido')
     list_filter = ('billing_cycle_month',)
-    search_fields = ('organization__name', 'organization__cnpj')
+    search_fields = ('organization__name',)
     readonly_fields = ('organization', 'billing_cycle_month', 'extractions_count')
     
     @admin.display(boolean=True, description='Atingiu o Limite?')
@@ -40,3 +40,16 @@ class MemberCreditUsageAdmin(admin.ModelAdmin):
     list_filter = ('billing_cycle_month',)
     search_fields = ('membership__user__email', 'membership__organization__name')
     readonly_fields = ('membership', 'billing_cycle_month', 'credits_used')
+
+
+@admin.register(CreditPack)
+class CreditPackAdmin(admin.ModelAdmin):
+    list_display = ('name', 'credits', 'price_brl', 'is_active')
+    list_filter = ('is_active',)
+
+
+@admin.register(CreditLot)
+class CreditLotAdmin(admin.ModelAdmin):
+    list_display = ('organization', 'credits_total', 'credits_remaining', 'expires_at', 'created_at')
+    search_fields = ('organization__name', 'stripe_session_id')
+    readonly_fields = ('stripe_session_id',)

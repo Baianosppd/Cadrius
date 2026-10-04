@@ -446,7 +446,8 @@ class RegistrationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         self.assertIn('access', response.data)
-        org = Organization.objects.get(cnpj=self.VALID_CNPJ)
+        from core.pii import blind_index
+        org = Organization.objects.get(cnpj_bidx=blind_index("org.cnpj", self.VALID_CNPJ))
         self.assertEqual(org.account_type, 'EMPRESA')
         self.assertEqual(org.razao_social, 'Silva & Associados Ltda')
         self.assertEqual(org.name, 'Silva Advocacia')
@@ -637,6 +638,7 @@ class TeamCreditsTests(APITestCase):
             'creditos_disponiveis': 99,
             'creditos_distribuidos': 40,
             'creditos_nao_distribuidos': 60,
+            'creditos_avulsos': 0,
         })
 
 class UserProfileContextTests(APITestCase):

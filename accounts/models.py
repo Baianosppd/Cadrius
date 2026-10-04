@@ -2,8 +2,13 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from billing.models import SubscriptionPlan
+from core.pii import PIIIndexMixin
+from core.utils import EncryptedTextField
 
-class Organization(models.Model):
+class Organization(PIIIndexMixin, models.Model):
+    # Dados pessoais/de contato cifrados em repouso (CAD-152); CNPJ tem índice cego para unicidade e busca exata.
+    BLIND_INDEXES = {'cnpj': ('cnpj_bidx', 'org.cnpj', 'digits')}
+
     ACCOUNT_TYPE_CHOICES = (
         ('PESSOA_FISICA', 'Pessoa Física'),
         ('EMPRESA', 'Empresa'),
@@ -27,7 +32,8 @@ class Organization(models.Model):
     name = models.CharField(max_length=255, verbose_name="Nome Interno")
     nome_fantasia = models.CharField(max_length=255, null=True, blank=True)
     razao_social = models.CharField(max_length=255, null=True, blank=True)
-    cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True)
+    cnpj = EncryptedTextField(null=True, blank=True)
+    cnpj_bidx = models.CharField(max_length=64, unique=True, null=True, blank=True, editable=False)
     
     # Natureza Jurídica / Fiscal
     company_type = models.CharField(max_length=100, null=True, blank=True, verbose_name="Tipo de Sociedade")
@@ -41,21 +47,39 @@ class Organization(models.Model):
     )
     
     # Endereço
-    cep = models.CharField(max_length=9, null=True, blank=True)
-    street = models.CharField(max_length=255, null=True, blank=True, verbose_name="Logradouro")
-    number = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número")
-    neighborhood = models.CharField(max_length=100, null=True, blank=True, verbose_name="Bairro")
+    cep = EncryptedTextField(null=True, blank=True)
+    street = EncryptedTextField(null=True, blank=True, verbose_name="Logradouro")
+    number = EncryptedTextField(null=True, blank=True, verbose_name="Número")
+    neighborhood = EncryptedTextField(null=True, blank=True, verbose_name="Bairro")
     city = models.CharField(max_length=100, null=True, blank=True, verbose_name="Cidade")
     state_uf = models.CharField(max_length=2, null=True, blank=True, verbose_name="Estado (UF)")
     
     # Contatos
-    main_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Principal")
-    corporate_phone = models.CharField(max_length=20, null=True, blank=True, verbose_name="Telefone Corporativo")
-    corporate_email = models.EmailField(null=True, blank=True, verbose_name="E-mail Corporativo")
+    main_phone = EncryptedTextField(null=True, blank=True, verbose_name="Telefone Principal")
+    corporate_phone = EncryptedTextField(null=True, blank=True, verbose_name="Telefone Corporativo")
+    corporate_email = EncryptedTextField(null=True, blank=True, verbose_name="E-mail Corporativo")
 
     # SSO e Plano
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.RESTRICT, verbose_name="Plano Atual")
     next_billing_date = models.DateField(null=True, blank=True, verbose_name="Próxima Cobrança")
+
+    # Assinatura (CAD-119). O plano em ``plan`` é o plano ESCOLHIDO; o que vale na prática depende do estado
+    # (ver billing/entitlements.py): em trial/sem pagamento os limites são os do trial, não os do plano pago.
+    class SubscriptionStatus(models.TextChoices):
+        TRIALING = 'trialing', 'Em teste'
+        ACTIVE = 'active', 'Ativa'
+        PAST_DUE = 'past_due', 'Pagamento pendente'
+        RESTRICTED = 'restricted', 'Restrita'
+        SUSPENDED = 'suspended', 'Suspensa'
+        CANCELED = 'canceled', 'Cancelada'
+
+    # default ACTIVE: escritórios legados/semeados continuam com os limites do plano; o cadastro novo define TRIALING.
+    subscription_status = models.CharField(max_length=12, choices=SubscriptionStatus.choices, default='active')
+    trial_ends_at = models.DateTimeField(null=True, blank=True)
+    past_due_since = models.DateTimeField(null=True, blank=True)
+    current_period_end = models.DateTimeField(null=True, blank=True)
+    stripe_customer_id = models.CharField(max_length=64, blank=True, default='')
+    stripe_subscription_id = models.CharField(max_length=64, blank=True, default='', db_index=True)
     allowed_domain = models.CharField(max_length=255, unique=True, null=True, blank=True)
     
     is_active = models.BooleanField(default=True)
@@ -66,13 +90,22 @@ class Organization(models.Model):
         return self.nome_fantasia or self.razao_social or self.name
 
 
-class CustomUser(AbstractUser):
+class CustomUser(PIIIndexMixin, AbstractUser):
+    # Dados pessoais cifrados em repouso (CAD-152). E-mail/username ficam em claro: são o identificador de login.
+    # Busca: CPF por índice cego (exato, único); nome por índice de tokens (parcial). Ver core/pii.py.
+    BLIND_INDEXES = {'cpf': ('cpf_bidx', 'user.cpf', 'digits')}
+    TOKEN_INDEXES = {('first_name', 'last_name'): ('name_idx', 'user.name')}
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    phone = models.CharField(max_length=20, blank=True, null=True)
+    first_name = EncryptedTextField('first name', blank=True)
+    last_name = EncryptedTextField('last name', blank=True)
+    name_idx = models.TextField(blank=True, default='', editable=False)
+    phone = EncryptedTextField(blank=True, null=True)
     
     # Novos campos do Advogado / Indivíduo
-    cpf = models.CharField(max_length=14, unique=True, null=True, blank=True)
-    oab_number = models.CharField(max_length=20, null=True, blank=True, verbose_name="Número da OAB")
+    cpf = EncryptedTextField(null=True, blank=True)
+    cpf_bidx = models.CharField(max_length=64, unique=True, null=True, blank=True, editable=False)
+    oab_number = EncryptedTextField(null=True, blank=True, verbose_name="Número da OAB")
     oab_uf = models.CharField(max_length=2, null=True, blank=True, verbose_name="Estado da OAB (UF)")
     practice_area = models.CharField(max_length=100, null=True, blank=True, verbose_name="Área de Atuação Principal")
 
@@ -175,3 +208,20 @@ class UserMessageSendCount(models.Model):
     @property
     def messages_sent_total(self) -> int:
         return self.whatsapp_count + self.email_count
+
+
+class SocialIdentity(models.Model):
+    """Vínculo estável entre um usuário e a identidade no provedor de SSO (CAD-105).
+    O login seguinte usa (provedor, subject) — não depende do e-mail, que pode mudar ou ser falsificado."""
+
+    user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, related_name='social_identities')
+    provider = models.CharField(max_length=20)
+    subject = models.CharField(max_length=255)
+    email_at_link = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['provider', 'subject'], name='uniq_social_identity')]
+
+    def __str__(self):
+        return f'{self.provider}:{self.user_id}'

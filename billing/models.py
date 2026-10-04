@@ -52,3 +52,32 @@ class MemberCreditUsage(models.Model):
 
     def __str__(self):
         return f"{self.membership_id} {self.billing_cycle_month}: {self.credits_used}"
+
+
+class CreditPack(models.Model):
+    """Pacote de créditos avulsos à venda (CAD-119). Os créditos comprados valem 12 meses e são usados DEPOIS dos do plano."""
+
+    name = models.CharField(max_length=60)
+    credits = models.PositiveIntegerField()
+    price_brl = models.DecimalField(max_digits=10, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['price_brl']
+
+    def __str__(self):
+        return f'{self.name} ({self.credits} créditos, R$ {self.price_brl})'
+
+
+class CreditLot(models.Model):
+    """Lote de créditos comprados por um escritório. ``stripe_session_id`` único = compra idempotente (webhook reenviado não duplica)."""
+
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='credit_lots')
+    credits_total = models.PositiveIntegerField()
+    credits_remaining = models.PositiveIntegerField()
+    expires_at = models.DateTimeField()
+    stripe_session_id = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['expires_at', 'id']

@@ -2,6 +2,9 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from core.pii import PIIIndexMixin
+from core.utils import EncryptedTextField
+
 
 class Document(models.Model):
     """
@@ -62,12 +65,16 @@ class Document(models.Model):
         return self.nome
 
 
-class ClientDocument(models.Model):
+class ClientDocument(PIIIndexMixin, models.Model):
     """
     Vínculo opcional documento ↔ nome do cliente (ainda sem model Client).
     """
 
-    nome_cliente = models.CharField(max_length=255)
+    # Nome do cliente do escritório = dado pessoal de terceiro: cifrado; busca parcial por índice de tokens (core/pii.py).
+    TOKEN_INDEXES = {('nome_cliente',): ('nome_cliente_idx', 'client.name')}
+
+    nome_cliente = EncryptedTextField()
+    nome_cliente_idx = models.TextField(blank=True, default='', editable=False)
     documento = models.ForeignKey(
         Document,
         on_delete=models.CASCADE,
@@ -79,9 +86,6 @@ class ClientDocument(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Documento do cliente"
         verbose_name_plural = "Documentos do cliente"
-        indexes = [
-            models.Index(fields=["nome_cliente"]),
-        ]
 
     def __str__(self):
         return f"{self.nome_cliente} → {self.documento_id}"

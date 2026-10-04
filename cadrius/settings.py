@@ -108,6 +108,11 @@ ENCRYPTION_KEY = env('ENCRYPTION_KEY', default=None)
 ENCRYPTION_ALLOW_DERIVED_KEY = DEBUG
 if not DEBUG and not ENCRYPTION_KEY:
     raise ImproperlyConfigured('ENCRYPTION_KEY não definida: credenciais de terceiros ficariam sem cifra.')
+# Chave dos índices de busca dos dados pessoais cifrados (CAD-152). SEPARADA da ENCRYPTION_KEY. Perdê-la não perde dados
+# (dá para reindexar com `manage.py encrypt_pii`), mas trocá-la sem reindexar quebra a busca por CPF/CNPJ/nome.
+BLIND_INDEX_KEY = env('BLIND_INDEX_KEY', default='')
+if not DEBUG and not BLIND_INDEX_KEY:
+    raise ImproperlyConfigured('BLIND_INDEX_KEY não definida (índices de busca dos dados pessoais cifrados).')
 
 # --- 4. APLICAÇÕES E MIDDLEWARES ---
 INSTALLED_APPS = [
@@ -283,8 +288,42 @@ REST_FRAMEWORK = {
         'auth_login': '10/min',
         'auth_register': '5/hour',
         'auth_refresh': '30/min',
+        'auth_password_reset': '10/hour',
     },
 }
+
+# --- Assinatura / trial (CAD-119) — ver docs/ANALISE_PRECOS_PLANOS.md §6 ---
+TRIAL_DAYS = env.int('TRIAL_DAYS', default=14)
+TRIAL_CREDITS = env.int('TRIAL_CREDITS', default=30)       # créditos de IA durante o trial (independe do plano escolhido)
+TRIAL_MAX_USERS = env.int('TRIAL_MAX_USERS', default=3)
+GRACE_DAYS = env.int('GRACE_DAYS', default=7)              # cobrança falhou: tudo funciona até aqui
+RESTRICTED_DAYS = env.int('RESTRICTED_DAYS', default=14)   # depois: IA pausada (leitura/exportação liberadas)
+SUSPENDED_DAYS = env.int('SUSPENDED_DAYS', default=30)     # depois: suspensa; > 30 dias: cancelada
+CREDIT_PACK_VALIDITY_DAYS = 365
+
+# --- SSO (CAD-105): Google e Microsoft. Client id/secret vazios = login social desligado ---
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default='')
+GOOGLE_CLIENT_SECRET = env('GOOGLE_CLIENT_SECRET', default='')
+MICROSOFT_CLIENT_ID = env('MICROSOFT_CLIENT_ID', default='')
+MICROSOFT_CLIENT_SECRET = env('MICROSOFT_CLIENT_SECRET', default='')
+MICROSOFT_TENANT = env('MICROSOFT_TENANT', default='common')
+API_PUBLIC_URL = env('API_PUBLIC_URL', default='')  # ex.: https://api.cadrius.ia.br (base do redirect_uri do OAuth)
+
+# --- E-mail transacional (recuperação de senha, convites, avisos). CAD-115/CAD-155 ---
+# Sem EMAIL_HOST: em DEBUG imprime no console; em produção NÃO envia (backend 'dummy') para o link nunca ir parar nos logs.
+EMAIL_HOST = env('EMAIL_HOST', default='')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Cadrius <no-reply@cadrius.ia.br>')
+EMAIL_BACKEND = env('EMAIL_BACKEND', default=(
+    'django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST
+    else 'django.core.mail.backends.console.EmailBackend' if DEBUG
+    else 'django.core.mail.backends.dummy.EmailBackend'
+))
+PASSWORD_RESET_TIMEOUT = 60 * 60  # validade do link de recuperação (segundos)
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
