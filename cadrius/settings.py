@@ -283,6 +283,7 @@ REST_FRAMEWORK = {
         'auth_login': '10/min',
         'auth_register': '5/hour',
         'auth_refresh': '30/min',
+        'auth_password_reset': '10/hour',
     },
 }
 
@@ -293,6 +294,22 @@ MICROSOFT_CLIENT_ID = env('MICROSOFT_CLIENT_ID', default='')
 MICROSOFT_CLIENT_SECRET = env('MICROSOFT_CLIENT_SECRET', default='')
 MICROSOFT_TENANT = env('MICROSOFT_TENANT', default='common')
 API_PUBLIC_URL = env('API_PUBLIC_URL', default='')  # ex.: https://api.cadrius.ia.br (base do redirect_uri do OAuth)
+
+# --- E-mail transacional (recuperação de senha, convites, avisos). CAD-115/CAD-155 ---
+# Sem EMAIL_HOST: em DEBUG imprime no console; em produção NÃO envia (backend 'dummy') para o link nunca ir parar nos logs.
+EMAIL_HOST = env('EMAIL_HOST', default='')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Cadrius <no-reply@cadrius.ia.br>')
+EMAIL_BACKEND = env('EMAIL_BACKEND', default=(
+    'django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST
+    else 'django.core.mail.backends.console.EmailBackend' if DEBUG
+    else 'django.core.mail.backends.dummy.EmailBackend'
+))
+PASSWORD_RESET_TIMEOUT = 60 * 60  # validade do link de recuperação (segundos)
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
