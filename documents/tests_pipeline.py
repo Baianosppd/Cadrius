@@ -339,6 +339,17 @@ class ApiTests(APITestCase):
         self.ex.save()
         self.assertEqual(self.client.post(self.base + 'reprocess/').status_code, 409)
 
+    def test_busca_unica_por_nome_do_documento_ou_do_cliente(self):
+        from documents.models import ClientDocument
+        other = Document.objects.create(organization=self.org, uploaded_by=self.owner, nome='Procuração geral', tipo='procuracao',
+                                        status='pronto', arquivo=SimpleUploadedFile('p.txt', b'x' * 30))
+        self.addCleanup(lambda: other.arquivo.storage.delete(other.arquivo.name))
+        ClientDocument.objects.create(nome_cliente='Construtora Silva', documento=self.doc)
+        names = lambda q: sorted(r['nome'] for r in self.client.get('/api/v1/documentos/', {'q': q}).data['results'])  # noqa: E731
+        self.assertEqual(names('silv'), ['Intimação'])        # achou pelo cliente (cifrado)
+        self.assertEqual(names('procura'), ['Procuração geral'])   # achou pelo nome do documento
+        self.assertEqual(names('zzz'), [])
+
     def test_detalhe_do_documento_com_cliente_e_isolamento(self):
         from documents.models import ClientDocument
         ClientDocument.objects.create(nome_cliente='Maria Oliveira', documento=self.doc)

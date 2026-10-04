@@ -64,6 +64,14 @@ class DocumentListCreateView(generics.ListCreateAPIView):
                 filters[lookup] = value
         qs = qs.filter(**filters)
 
+        # ?q=silv — busca única: nome do documento OU nome do cliente (parcial, sem acento)
+        q = (self.request.query_params.get("q") or "").strip()
+        if q:
+            from django.db.models import Q
+            from core.pii import filter_by_term
+            matches = filter_by_term(ClientDocument.objects.all(), "nome_cliente_idx", "client.name", q)
+            qs = qs.filter(Q(nome__icontains=q) | Q(pk__in=matches.values("documento_id")))
+
         # ?cliente=silv  — busca parcial pelo nome do cliente (cifrado em repouso; usa o índice de tokens, ver core/pii.py)
         cliente = (self.request.query_params.get("cliente") or "").strip()
         if cliente:
