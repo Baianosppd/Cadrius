@@ -193,3 +193,20 @@ class UserMessageSendCount(models.Model):
     @property
     def messages_sent_total(self) -> int:
         return self.whatsapp_count + self.email_count
+
+
+class SocialIdentity(models.Model):
+    """Vínculo estável entre um usuário e a identidade no provedor de SSO (CAD-105).
+    O login seguinte usa (provedor, subject) — não depende do e-mail, que pode mudar ou ser falsificado."""
+
+    user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, related_name='social_identities')
+    provider = models.CharField(max_length=20)
+    subject = models.CharField(max_length=255)
+    email_at_link = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['provider', 'subject'], name='uniq_social_identity')]
+
+    def __str__(self):
+        return f'{self.provider}:{self.user_id}'

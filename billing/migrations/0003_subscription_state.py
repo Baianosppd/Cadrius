@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("accounts", "0009_subscription_state"),
+        ("accounts", "0010_subscription_state"),
         ("billing", "0002_member_credits"),
     ]
 

@@ -155,3 +155,36 @@ SMOKE_USER=owner@teste.cadrius.ia.br SMOKE_PASS='...' /opt/cadrius/infra/deploy/
 SMOKE_USER=voce@email.com SMOKE_PASS='...' /opt/cadrius/infra/deploy/scripts/smoke-test.sh prod
 ```
 Ordem recomendada: `switch-acme.sh real` **antes** do primeiro deploy de produção (assim `app.`/`api.` já nascem com certificado de verdade).
+
+## 9. Ativar o login social (Google e Microsoft) — CAD-105
+
+O back conduz o fluxo (`/api/v1/auth/google/` → provedor → `/api/v1/auth/google/callback/` → front). O SSO **só entra em contas
+que já existem** (e-mail verificado pelo provedor) ou cria **membro** quando o domínio do e-mail é de um escritório cadastrado
+(`allowed_domain`). Quem não tem conta precisa se cadastrar antes; o aceite dos termos continua obrigatório.
+
+**Google** — console.cloud.google.com → projeto "Cadrius":
+1. *APIs e serviços → Tela de permissão OAuth*: tipo **Externo**, nome, logo, domínio `cadrius.ia.br`, links da política de privacidade e dos termos.
+   Escopos: apenas `openid`, `email`, `profile` (não sensíveis: dispensam a verificação demorada do Google).
+2. *Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web*, **um por ambiente**:
+   - URI de redirecionamento autorizado: `https://api.cadrius.ia.br/api/v1/auth/google/callback/` (teste: `https://api-teste.cadrius.ia.br/...`).
+   - Origens JavaScript: não são necessárias (o fluxo é no servidor).
+3. Copie o *Client ID* e o *Client secret*.
+
+**Microsoft** — portal.azure.com → *Microsoft Entra ID → Registros de aplicativo → Novo*:
+1. Contas compatíveis: "Contas em qualquer diretório organizacional e contas pessoais da Microsoft".
+2. URI de redirecionamento (Web): `https://api.cadrius.ia.br/api/v1/auth/microsoft/callback/`.
+3. *Certificados e segredos → Novo segredo do cliente* (anote a validade — **renove antes de vencer**; máx. 24 meses).
+4. *Configuração de token → Adicionar declaração opcional → ID token → `xms_edov`* (e-mail com domínio verificado). **Sem ela o back não vincula por e-mail**
+   (a Microsoft não garante que o e-mail do token seja verificado).
+
+**No servidor** (`/opt/cadrius/<prod|staging>/backend.env` — nunca no git):
+```
+GOOGLE_CLIENT_ID=...        GOOGLE_CLIENT_SECRET=...
+MICROSOFT_CLIENT_ID=...     MICROSOFT_CLIENT_SECRET=...     MICROSOFT_TENANT=common
+API_PUBLIC_URL=https://api.cadrius.ia.br
+FRONT_SSO_ENABLED=true      # mostra os botões no front (rebuild do front)
+```
+Depois: `deploy.sh <ambiente>` (reinicia o back e refaz o build do front com `VITE_SSO_ENABLED=true`).
+
+**Testar:** abra `https://app-teste.cadrius.ia.br` → "Continuar com Google". Erros voltam ao login com um código
+(`no_account`, `email_unverified`, `state_invalid`, `token_invalid`, …); os motivos ficam na trilha de auditoria (`auth.sso.login`, outcome `denied`).
