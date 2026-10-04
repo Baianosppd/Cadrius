@@ -112,9 +112,10 @@ Crie os *environments* `staging` e `production` (em `production` marque **Requir
 ### Rotacionar a chave GPG (quando a privada vazou ou trimestralmente por política)
 ```bash
 # Na SUA máquina (nunca no servidor): gere o novo par; guarde a privada em cofre, 2 cópias, 2 pessoas
-bash deploy/backup/make-keypair.sh backup@cadrius.ia.br        # exporta cadrius-backup-pub.asc
+bash deploy/backup/make-keypair.sh      # gera cadrius-backup-public.asc (vai ao servidor) e cadrius-backup-PRIVADA.asc (fica com você)
+scp cadrius-backup-public.asc root@191.252.221.133:/root/
 # No servidor: importe só a PÚBLICA e troque o destinatário
-sudo gpg --import cadrius-backup-pub.asc && sudo gpg --list-keys --fingerprint
+sudo gpg --import /root/cadrius-backup-public.asc && sudo gpg --list-keys --fingerprint
 sudo sed -i 's/^BACKUP_GPG_RECIPIENT=.*/BACKUP_GPG_RECIPIENT=<FINGERPRINT_NOVO>/' /etc/cadrius/backup.env
 sudo deploy/backup/backup.sh all manual && sudo deploy/backup/verify-offsite.sh
 # Só depois de conferir que há backups com a chave nova (local e fora): apague os antigos cifrados com a chave exposta
