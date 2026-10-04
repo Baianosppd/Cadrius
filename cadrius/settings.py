@@ -344,6 +344,8 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
+    # Registra o último acesso no login por senha (Gestão Cadrius: "último acesso", usuários ativos 24 h/30 dias)
+    'UPDATE_LAST_LOGIN': True,
 }
 
 SWAGGER_SETTINGS = {

@@ -109,6 +109,9 @@ class OrganizationTests(Base):
         event = AuditEvent.objects.filter(action='backoffice.action').latest('seq')
         self.assertEqual(event.changes['action'], 'grant_credits')
         self.assertEqual(event.reason, REASON)
+        summary = self.as_(self.fin).get('/api/billing/admin/summary/').json()
+        self.assertEqual(summary['pacotes_30d']['creditos_vendidos'], 0)       # cortesia não conta como venda
+        self.assertEqual(summary['creditos_cortesia_30d'], 50)
         self.assertEqual(self.as_(self.fin).post(self.url('actions/'), {'action': 'grant_credits', 'credits': 999999,
                                                                        'reason': REASON}, format='json').status_code, 400)
 
@@ -181,6 +184,16 @@ class HealthAndSwitchTests(Base):
                                  format='json').json()['ligada'])
         self.assertFalse(GlobalAISwitch.get().ai_enabled)
         self.assertTrue(ti.post('/api/v1/backoffice/ai-switch/', {'enabled': True}, format='json').json()['ligada'])
+
+
+class LastLoginTests(Base):
+    def test_password_login_records_last_access(self):
+        self.owner.set_password('Senha-forte-123!')
+        self.owner.save()
+        res = self.client.post('/api/v1/auth/token/', {'username': self.owner.email, 'password': 'Senha-forte-123!'}, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.owner.refresh_from_db()
+        self.assertIsNotNone(self.owner.last_login)
 
 
 class CommandTests(Base):

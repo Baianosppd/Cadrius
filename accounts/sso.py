@@ -24,6 +24,7 @@ import jwt
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import update_last_login
 from django.core import signing
 from django.http import HttpResponse, HttpResponseRedirect
 from django.views import View
@@ -243,5 +244,6 @@ class SsoCallbackView(View):
             return _front_redirect({'error': exc.code})
 
         refresh = RefreshToken.for_user(user)
+        update_last_login(None, user)   # mesmo registro do login por senha (UPDATE_LAST_LOGIN)
         audit.log('auth.sso.login', actor=user, reason=provider, legal_basis='contrato')
         return _front_redirect({'access': str(refresh.access_token), 'refresh': str(refresh)})

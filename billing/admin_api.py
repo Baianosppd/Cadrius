@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.response import Response
@@ -203,8 +203,10 @@ def finance_summary() -> dict:
             by_plan[org.plan.name] = by_plan.get(org.plan.name, 0) + 1
         if st == ent.TRIALING and org.trial_ends_at and org.trial_ends_at <= now + timedelta(days=7):
             trials_ending += 1
-    packs_30d = CreditLot.objects.filter(created_at__gte=now - timedelta(days=30)).aggregate(
-        total=Sum('amount_paid_cents'), credits=Sum('credits_total'))
+    lots_30d = CreditLot.objects.filter(created_at__gte=now - timedelta(days=30))
+    courtesy = Q(stripe_session_id__startswith='manual:')   # cortesia da Gestão Cadrius (CAD-168): não é venda
+    packs_30d = lots_30d.exclude(courtesy).aggregate(total=Sum('amount_paid_cents'), credits=Sum('credits_total'))
+    courtesy_30d = lots_30d.filter(courtesy).aggregate(credits=Sum('credits_total'))['credits'] or 0
     return {
         'organizacoes_por_estado': by_status,
         'assinantes_pagantes': paying,
@@ -214,6 +216,7 @@ def finance_summary() -> dict:
         'trials_terminando_em_7_dias': trials_ending,
         'pacotes_30d': {'receita_brl': str(round((packs_30d['total'] or 0) / 100, 2)),
                         'creditos_vendidos': packs_30d['credits'] or 0},
+        'creditos_cortesia_30d': courtesy_30d,
         'promocoes_ativas': Promotion.objects.filter(is_active=True).count(),
         'usos_de_promocao': Promotion.objects.aggregate(t=Sum('redemptions_count'))['t'] or 0,
     }
