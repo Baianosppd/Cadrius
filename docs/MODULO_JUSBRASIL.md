@@ -23,7 +23,7 @@
 ## 3. Modelo de custo (hipotético — substituir pelos valores da proposta)
 
 Variáveis: `P` = custo por processo monitorado/mês, `N` = processos por cliente, `F` = mensalidade fixa do contrato, `C` = nº de clientes no módulo,
-taxas (cartão 4 %) e imposto (8 %), margem-alvo 65 %.
+taxas (cartão 4 %) e imposto (8 %), margem-alvo 60 % (denominador = 1 − 0,04 − 0,08 − 0,60 = 0,28).
 
 Preço mínimo do add-on por cliente = `(N·P + F/C) / (1 − taxas − imposto − margem)`
 
