@@ -5,7 +5,9 @@ from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django_q.tasks import async_task
+from django.db import transaction
+
+from core.queue import enqueue
 
 from accounts.permissions import IsOrgManager
 from accounts.tenancy import resolve_request_tenant
@@ -142,8 +144,10 @@ class ReviewExecutionView(APIView):
         log.reviewed_by, log.reviewed_at = request.user, timezone.now()
         if decision == 'approve':
             log.review_decision, log.status = 'approved', 'PENDING'
-            log.save(update_fields=['reviewed_by', 'reviewed_at', 'review_decision', 'status'])
-            async_task('workflows.tasks.process_workflow_execution', log.pk)
+            # Atômico: se o broker (Redis) cair, o 503 desfaz a aprovação e a revisão pode ser repetida.
+            with transaction.atomic():
+                log.save(update_fields=['reviewed_by', 'reviewed_at', 'review_decision', 'status'])
+                enqueue('workflows.tasks.process_workflow_execution', log.pk)
         else:
             log.review_decision, log.status = 'rejected', 'FAILED'
             log.error_message = 'Rejeitada pelo revisor humano.'
