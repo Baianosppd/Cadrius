@@ -8,6 +8,8 @@ JOBS = {
     'Privacidade: aplicar retenção (LGPD)': ('enforce_retention', Schedule.DAILY, None),
     'Conformidade: fotografia diária': ('snapshot_compliance', Schedule.DAILY, None),
     'Agenda: sincronizar Google Calendar': ('gcal_pull', Schedule.MINUTES, 15),
+    'Pesquisa: consultar andamentos de processos': ('research_poll', Schedule.HOURLY, None),
+    'Pesquisa: atualizar notícias': ('research_news', Schedule.HOURLY, None),
     'IA: aprender com as decisões (regras e autonomia)': ('brain_evaluate', Schedule.DAILY, None),
 }
 

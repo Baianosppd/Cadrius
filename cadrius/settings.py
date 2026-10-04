@@ -146,6 +146,7 @@ INSTALLED_APPS = [
     'integrations', 
     'extraction', # Módulo de Extração de Dados (NLP, OCR, etc)
     'gcal',  # Google Calendar por escritório (CAD-162)
+    'research',  # monitoramento de processos (DataJud) e notícias (CAD-166)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
@@ -503,3 +504,8 @@ SESSION_CACHE_ALIAS = "default"
 STRIPE_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+# Pesquisa jurídica (CAD-166). [VALIDAR] chave pública e URL do DataJud na documentação vigente do CNJ.
+DATAJUD_API_KEY = os.environ.get('DATAJUD_API_KEY', '')
+DATAJUD_BASE_URL = os.environ.get('DATAJUD_BASE_URL', 'https://api-publica.datajud.cnj.jus.br')
+# "Nome|URL" separados por vírgula (só a equipe define; usuário nunca informa URL).
+NEWS_FEEDS = [tuple(x.split('|', 1)) for x in os.environ.get('NEWS_FEEDS', '').split(',') if '|' in x]
