@@ -122,9 +122,10 @@ jobs:
       - name: Imagem não corre como root
         run: test "$(docker run --rm --entrypoint id cadrius-app:ci -u)" != "0"
       - name: Trivy (CVEs CRITICAL/HIGH com correção disponível)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: cadrius-app:ci
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
+        # Execução direta em contêiner (versão fixa): não depende de nenhuma action de terceiros.
+        # A imagem é exportada para um .tar e escaneada em modo somente-leitura (sem expor o docker.sock).
+        run: |
+          docker save cadrius-app:ci -o "$RUNNER_TEMP/cadrius-app.tar"
+          docker run --rm -v "$RUNNER_TEMP/cadrius-app.tar:/image.tar:ro" -v "$PWD/.trivyignore.yaml:/.trivyignore.yaml:ro" \
+            aquasec/trivy:0.75.0 image --input /image.tar --severity CRITICAL,HIGH --ignore-unfixed \
+            --ignorefile /.trivyignore.yaml --exit-code 1 --no-progress

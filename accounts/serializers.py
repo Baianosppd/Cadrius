@@ -33,14 +33,34 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """GET /api/v1/auth/user/ — somente leitura."""
 
     initials = serializers.SerializerMethodField()
+    organization = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
+    is_staff = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'initials',
             'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture',
+            'organization', 'role', 'is_staff',
         ]
         read_only_fields = fields
+
+    def _membership(self, obj):
+        from .team_roles import get_active_membership
+        return get_active_membership(obj)
+
+    def get_organization(self, obj):
+        membership = self._membership(obj)
+        if membership is None:
+            return None
+        org = membership.organization
+        return {'id': str(org.id), 'name': org.name, 'account_type': org.account_type}
+
+    def get_role(self, obj):
+        """Papel no escritório ativo (OWNER/ADMIN/MEMBER/VIEWER) — o front usa para mostrar/ocultar telas."""
+        membership = self._membership(obj)
+        return membership.role if membership else None
 
     def get_initials(self, obj):
         if obj.first_name and obj.last_name:

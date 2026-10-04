@@ -93,8 +93,8 @@ class CreateCheckoutSessionView(APIView):
                 mode='subscription',
                 # Guardamos o ID da Organização nos metadados para sabermos quem pagou depois!
                 client_reference_id=str(user_org.id), 
-                success_url=f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/dashboard?payment=success",
-                cancel_url=f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/planos?payment=cancelled",
+                success_url=f"{settings.FRONTEND_URL}/dashboard?payment=success",
+                cancel_url=f"{settings.FRONTEND_URL}/perfil?payment=cancelled",
             )
 
             audit_service.log('billing.checkout', organization=user_org, changes={'plan_id': plan.pk})

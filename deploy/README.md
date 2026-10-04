@@ -58,7 +58,7 @@ gera **todas** as senhas/chaves aleatórias (`/opt/cadrius/{prod,staging}/.env`,
 cria os bancos e papéis; agenda os backups; e faz o primeiro deploy de teste e de produção.
 
 Repositório privado? Se o `git clone` falhar, o script mostra como criar uma *deploy key* somente-leitura.
-Quando tudo estiver funcionando: refaça sem `--acme-staging` (apague antes `docker volume rm cadrius-infra_traefik_acme`, se o certificado de homologação já foi emitido) e **só então** use `--lock-ssh` (testando um 2º terminal antes de fechar o 1º).
+Quando tudo estiver funcionando: refaça sem `--acme-staging` (apague antes `docker volume rm cadrius_traefik_acme`, se o certificado de homologação já foi emitido) e **só então** use `--lock-ssh` (testando um 2º terminal antes de fechar o 1º).
 
 ## 2. Depois do bootstrap
 
@@ -131,3 +131,27 @@ docker compose -p cadrius-prod up -d
 * **Login Google/Microsoft não funciona** em teste: as rotas `/api/v1/auth/google|microsoft/` que o front chama não existem no back (CAD-105). E-mail/senha funciona.
 * `docker-socket-proxy` e MFA ainda pendentes (CAD-083/085/107).
 * Segredos do histórico do git antigo precisam ser rotacionados (CAD-100).
+
+## 7. Atualizar o servidor com o que está no git
+
+```bash
+sudo -i
+/opt/cadrius/infra/deploy/scripts/update-kit.sh main          # scripts, compose, timers de backup (branch do KIT)
+/opt/cadrius/infra/deploy/scripts/deploy.sh staging           # código: back em develop, front em Develop
+/opt/cadrius/infra/deploy/scripts/deploy.sh prod              # código: back e front em main
+# antes de mergear, dá para testar uma branch:  BACK_BRANCH=CAD-110 FRONT_BRANCH=CAD-113 .../deploy.sh staging
+```
+O deploy também corrige sozinho o `ALLOWED_HOSTS` de `.env` antigos (o healthcheck chama `127.0.0.1`).
+
+## 8. Certificados e teste de fumaça
+
+```bash
+sudo /opt/cadrius/infra/deploy/scripts/switch-acme.sh real       # troca homologação → Let's Encrypt de verdade (só o Traefik é recriado)
+sudo /opt/cadrius/infra/deploy/scripts/switch-acme.sh staging    # volta para homologação (testes sem gastar limites)
+
+# DNS, TLS, saúde, cabeçalhos, rotas públicas/protegidas, CORS, permissões e backups — não altera nada
+/opt/cadrius/infra/deploy/scripts/smoke-test.sh staging --insecure     # --insecure enquanto o certificado for de homologação
+SMOKE_USER=owner@teste.cadrius.ia.br SMOKE_PASS='...' /opt/cadrius/infra/deploy/scripts/smoke-test.sh staging
+SMOKE_USER=voce@email.com SMOKE_PASS='...' /opt/cadrius/infra/deploy/scripts/smoke-test.sh prod
+```
+Ordem recomendada: `switch-acme.sh real` **antes** do primeiro deploy de produção (assim `app.`/`api.` já nascem com certificado de verdade).

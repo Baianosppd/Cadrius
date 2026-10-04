@@ -2,7 +2,7 @@
 # Cria o superusuário (staff) para acessar /admin/ e /security-center/ — pede a senha sem ecoar.
 # Uso: create-admin.sh <prod|staging> <email>
 set -Eeuo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"; source "$HERE/../lib/common.sh"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; source "$HERE/../lib/common.sh"
 ENV_NAME="${1:?uso: $0 <prod|staging> <email>}"; EMAIL="${2:?uso: $0 <prod|staging> <email>}"
 read -r -s -p "Senha (≥ 12 caracteres): " PW; echo
 [ "${#PW}" -ge 12 ] || die "Senha curta."
