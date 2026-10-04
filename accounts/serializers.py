@@ -186,7 +186,8 @@ class MemberCreditLimitSerializer(serializers.Serializer):
 
         membership = self.context['membership']
         organization = membership.organization
-        plan_total = organization.plan.max_ai_extractions
+        from billing.entitlements import effective_monthly_credits
+        plan_total = effective_monthly_credits(organization)
         others = distributed_credits(organization, exclude_membership_id=membership.pk)
         if others + value > plan_total:
             raise serializers.ValidationError(
@@ -263,9 +264,10 @@ class TeamMemberInviteSerializer(serializers.Serializer):
     def create(self, validated_data):
         organization = self.context['inviter_membership'].organization
         active_count = organization.members.filter(is_active=True).count()
-        if active_count >= organization.plan.max_users:
+        from billing.entitlements import effective_max_users
+        if active_count >= effective_max_users(organization):
             raise serializers.ValidationError(
-                {'email': 'Limite de utilizadores do plano atingido.'},
+                {'email': 'Limite de utilizadores do plano atingido (ou assinatura pendente).'},
             )
 
         email = validated_data['email']

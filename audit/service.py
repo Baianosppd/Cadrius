@@ -36,7 +36,8 @@ ACTIONS = frozenset({
     # segurança
     'anomaly.detected', 'anomaly.reviewed', 'ratelimit.hit', 'permission.denied',
     'audit.viewed', 'audit.export', 'audit.chain_broken', 'audit.chain_verified',
-    'billing.checkout', 'billing.payment_confirmed',
+    'billing.checkout', 'billing.payment_confirmed', 'billing.payment_failed', 'billing.subscription_canceled',
+    'billing.credits_purchased',
     'compliance.assessment_updated', 'org.closure',
 })
 

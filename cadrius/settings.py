@@ -286,6 +286,15 @@ REST_FRAMEWORK = {
     },
 }
 
+# --- Assinatura / trial (CAD-119) — ver docs/ANALISE_PRECOS_PLANOS.md §6 ---
+TRIAL_DAYS = env.int('TRIAL_DAYS', default=14)
+TRIAL_CREDITS = env.int('TRIAL_CREDITS', default=30)       # créditos de IA durante o trial (independe do plano escolhido)
+TRIAL_MAX_USERS = env.int('TRIAL_MAX_USERS', default=3)
+GRACE_DAYS = env.int('GRACE_DAYS', default=7)              # cobrança falhou: tudo funciona até aqui
+RESTRICTED_DAYS = env.int('RESTRICTED_DAYS', default=14)   # depois: IA pausada (leitura/exportação liberadas)
+SUSPENDED_DAYS = env.int('SUSPENDED_DAYS', default=30)     # depois: suspensa; > 30 dias: cancelada
+CREDIT_PACK_VALIDITY_DAYS = 365
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),

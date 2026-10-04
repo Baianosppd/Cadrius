@@ -56,6 +56,24 @@ class Organization(models.Model):
     # SSO e Plano
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.RESTRICT, verbose_name="Plano Atual")
     next_billing_date = models.DateField(null=True, blank=True, verbose_name="Próxima Cobrança")
+
+    # Assinatura (CAD-119). O plano em ``plan`` é o plano ESCOLHIDO; o que vale na prática depende do estado
+    # (ver billing/entitlements.py): em trial/sem pagamento os limites são os do trial, não os do plano pago.
+    class SubscriptionStatus(models.TextChoices):
+        TRIALING = 'trialing', 'Em teste'
+        ACTIVE = 'active', 'Ativa'
+        PAST_DUE = 'past_due', 'Pagamento pendente'
+        RESTRICTED = 'restricted', 'Restrita'
+        SUSPENDED = 'suspended', 'Suspensa'
+        CANCELED = 'canceled', 'Cancelada'
+
+    # default ACTIVE: escritórios legados/semeados continuam com os limites do plano; o cadastro novo define TRIALING.
+    subscription_status = models.CharField(max_length=12, choices=SubscriptionStatus.choices, default='active')
+    trial_ends_at = models.DateTimeField(null=True, blank=True)
+    past_due_since = models.DateTimeField(null=True, blank=True)
+    current_period_end = models.DateTimeField(null=True, blank=True)
+    stripe_customer_id = models.CharField(max_length=64, blank=True, default='')
+    stripe_subscription_id = models.CharField(max_length=64, blank=True, default='', db_index=True)
     allowed_domain = models.CharField(max_length=255, unique=True, null=True, blank=True)
     
     is_active = models.BooleanField(default=True)

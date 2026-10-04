@@ -239,7 +239,8 @@ class TeamCreditsSummaryView(APIView):
             )
 
         organization = membership.organization
-        total = organization.plan.max_ai_extractions
+        from billing.entitlements import effective_monthly_credits, purchased_credits_balance
+        total = effective_monthly_credits(organization)
         usados = organization_credits_used(organization)
         distribuidos = distributed_credits(organization)
         return Response({
@@ -248,6 +249,7 @@ class TeamCreditsSummaryView(APIView):
             'creditos_disponiveis': max(total - usados, 0),
             'creditos_distribuidos': distribuidos,
             'creditos_nao_distribuidos': max(total - distribuidos, 0),
+            'creditos_avulsos': purchased_credits_balance(organization),
         })
 
 

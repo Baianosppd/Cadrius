@@ -637,6 +637,7 @@ class TeamCreditsTests(APITestCase):
             'creditos_disponiveis': 99,
             'creditos_distribuidos': 40,
             'creditos_nao_distribuidos': 60,
+            'creditos_avulsos': 0,
         })
 
 class UserProfileContextTests(APITestCase):

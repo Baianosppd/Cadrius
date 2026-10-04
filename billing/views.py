@@ -7,11 +7,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from accounts.models import Organization
 from audit import service as audit_service
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from billing.models import SubscriptionPlan
 from billing.serializers import SubscriptionPlanSerializer, current_plan_payload
+from billing.stripe_sync import apply_event
+from billing.models import CreditPack
+from billing.entitlements import ai_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +76,10 @@ class CreateCheckoutSessionView(APIView):
             
             # 2. Pega o plano que ele quer assinar (vem no JSON do Front-end)
             plan_id = request.data.get('plan_id')
-            plan = SubscriptionPlan.objects.get(id=plan_id)
+            plan = SubscriptionPlan.objects.get(id=plan_id, is_active=True)
+            if plan.price_brl <= 0:
+                return Response({'detail': 'Este plano é gratuito: não há pagamento a fazer.'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
             # 3. Cria a sessão de Checkout no Stripe
             checkout_session = stripe.checkout.Session.create(
@@ -92,7 +97,10 @@ class CreateCheckoutSessionView(APIView):
                 }],
                 mode='subscription',
                 # Guardamos o ID da Organização nos metadados para sabermos quem pagou depois!
-                client_reference_id=str(user_org.id), 
+                client_reference_id=str(user_org.id),
+                # O webhook só confia nestes metadados (gravados por nós), nunca em dados do navegador.
+                metadata={'kind': 'subscription', 'plan_id': str(plan.pk)},
+                subscription_data={'metadata': {'kind': 'subscription', 'plan_id': str(plan.pk)}},
                 success_url=f"{settings.FRONTEND_URL}/dashboard?payment=success",
                 cancel_url=f"{settings.FRONTEND_URL}/perfil?payment=cancelled",
             )
@@ -139,26 +147,59 @@ class StripeWebhookView(APIView):
         except stripe.SignatureVerificationError:
             return HttpResponse(status=400)
 
-        # 2. Lida com o evento de Pagamento Concluído
-        if event['type'] == 'checkout.session.completed':
-            session = event['data']['object']
-            org_id = session.get('client_reference_id')
-            
-            if org_id:
-                try:
-                    org = Organization.objects.get(id=org_id)
-                    org.is_active = True  # Liberta o acesso!
-                    org.save()
-                    audit_service.log('billing.payment_confirmed', actor_type='webhook', organization=org,
-                                      reason='checkout.session.completed')
-                    logger.info("Pagamento confirmado org_id=%s", org.id)
-                except (Organization.DoesNotExist, ValueError):
-                    logger.warning("Webhook Stripe com client_reference_id desconhecido.")
-
-        # 3. Lida com o evento de Assinatura Cancelada / Cartão Recusado
-        elif event['type'] == 'customer.subscription.deleted':
-            # A lógica real seria buscar o customer_id, mas para simplificar a arquitetura inicial:
-            logger.warning("🚨 Assinatura cancelada!")
-            pass
+        # 2. Aplica o evento ao estado da assinatura (billing/stripe_sync.py): pagamento, renovação, falha, cancelamento, créditos.
+        try:
+            outcome = apply_event(event)
+            logger.info("Stripe %s → %s", event['type'], outcome)
+        except Exception:
+            # 500 faz o Stripe reenviar (as operações são idempotentes)
+            logger.exception("Falha ao processar evento do Stripe")
+            return HttpResponse(status=500)
 
         return HttpResponse(status=200)
+
+
+class CreditPacksView(APIView):
+    """GET /api/billing/credit-packs/ — pacotes de créditos avulsos à venda."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        packs = CreditPack.objects.filter(is_active=True)
+        return Response([{'id': p.pk, 'name': p.name, 'credits': p.credits, 'price': str(p.price_brl)} for p in packs])
+
+
+class CreditPackCheckoutView(APIView):
+    """POST /api/billing/credit-packs/checkout/ {pack_id} — só dono/administrador; devolve a URL do Stripe (pagamento único)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        membership = get_active_membership(request.user)
+        if membership is None or membership.role not in MANAGE_TEAM_ROLES:
+            return Response({'detail': 'Apenas donos ou administradores podem comprar créditos.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        org = membership.organization
+        if not ai_enabled(org):
+            return Response({'detail': 'Regularize a assinatura antes de comprar créditos.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        pack = CreditPack.objects.filter(pk=request.data.get('pack_id'), is_active=True).first()
+        if pack is None:
+            return Response({'detail': 'Pacote inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{'price_data': {'currency': 'brl', 'unit_amount': int(pack.price_brl * 100),
+                                            'product_data': {'name': f'Cadrius — {pack.name}',
+                                                             'description': f'{pack.credits} créditos de IA (valem 12 meses).'}},
+                             'quantity': 1}],
+                mode='payment',
+                client_reference_id=str(org.id),
+                metadata={'kind': 'credit_pack', 'pack_id': str(pack.pk)},
+                success_url=f"{settings.FRONTEND_URL}/dashboard?credits=success",
+                cancel_url=f"{settings.FRONTEND_URL}/perfil?credits=cancelled",
+            )
+        except Exception:
+            logger.exception('Erro ao criar checkout de créditos')
+            return Response({'detail': 'Não foi possível iniciar o pagamento. Tente novamente.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        audit_service.log('billing.checkout', organization=org, changes={'credit_pack_id': pack.pk})
+        return Response({'checkout_url': session.url})

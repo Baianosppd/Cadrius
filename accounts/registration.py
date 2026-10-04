@@ -124,6 +124,13 @@ def _active_plan(plan_id):
     return plan
 
 
+def _start_trial(organization):
+    """CAD-119: o plano escolhido (pago ou não) só vale integralmente depois do pagamento; até lá, limites do trial."""
+    from billing.entitlements import start_trial
+    start_trial(organization)
+    organization.save(update_fields=['subscription_status', 'trial_ends_at'])
+
+
 def _create_user(person, **extra):
     first_name, last_name = _split_name(person['nome_completo'])
     return User.objects.create_user(
@@ -167,6 +174,7 @@ class IndividualRegistrationSerializer(LegalAcceptanceMixin, PersonDataSerialize
             name=validated_data['nome_completo'],
             plan=plan,
         )
+        _start_trial(organization)
         membership = OrganizationMembership.objects.create(
             user=user,
             organization=organization,
@@ -247,6 +255,7 @@ class CompanyRegistrationSerializer(LegalAcceptanceMixin, serializers.Serializer
             corporate_email=validated_data.get('email_corporativo') or None,
             plan=validated_data['plano_id'],
         )
+        _start_trial(organization)
         user = _create_user(manager)
         membership = OrganizationMembership.objects.create(
             user=user,
