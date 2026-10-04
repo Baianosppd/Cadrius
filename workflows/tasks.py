@@ -6,6 +6,7 @@ import time
 import traceback
 
 import requests
+from core.queue import QueueUnavailable, enqueue
 from django_q.tasks import async_task
 
 from billing.decorators import check_quota_limit
@@ -495,5 +496,12 @@ def execute_workflow_pipeline(workflow_id, payload, user_id=None, ai_origin=Fals
         ai_origin=ai_origin,
     )
     # Runner (CAD-001): fila pesada com o ID do log recém-criado.
-    async_task("workflows.tasks.process_workflow_execution", exec_log.id)
+    try:
+        enqueue("workflows.tasks.process_workflow_execution", exec_log.id)
+    except QueueUnavailable:
+        # Broker fora do ar: não deixa a execução "PENDING" para sempre; quem chamou recebe 503 e tenta de novo.
+        exec_log.status = "FAILED"
+        exec_log.error_message = "Fila de processamento indisponível; execução não iniciada."
+        exec_log.save(update_fields=["status", "error_message"])
+        raise
     return exec_log
