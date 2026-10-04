@@ -106,6 +106,7 @@ urlpatterns = [
     path('api/v1/notifications/', include('notifications.urls')),
     path('api/v1/integrations/google-calendar/', include('gcal.urls')),
     path('api/v1/research/', include('research.urls')),
+    path('api/v1/erp/', include('erp.urls')),
     path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),

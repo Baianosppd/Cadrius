@@ -147,6 +147,7 @@ INSTALLED_APPS = [
     'extraction', # Módulo de Extração de Dados (NLP, OCR, etc)
     'gcal',  # Google Calendar por escritório (CAD-162)
     'research',  # monitoramento de processos (DataJud) e notícias (CAD-166)
+    'erp',  # conector declarativo de ERP jurídico (CAD-167)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
