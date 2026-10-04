@@ -230,7 +230,8 @@ class BrainPipelineIntegrationTests(TestCase):
         low = dict(RESULT, confidence_score=60)
         with mock.patch('extraction.ai_wrapper.extract_fields_from_text', return_value=low):
             self.assertEqual(pipeline.process_document(self.doc().pk, self.owner.pk), 'review')
-        with mock.patch.dict(os.environ, {'GROQ_API_KEY': ''}):
+        no_keys = {'GROQ_API_KEY': '', 'GEMINI_API_KEY': '', 'OPENAI_API_KEY': ''}   # o CI define chaves falsas de todos
+        with mock.patch.dict(os.environ, no_keys):
             self.assertEqual(pipeline.process_document(self.doc().pk, self.owner.pk), 'review')   # local nunca é automático
 
     def test_desfazer_so_vale_para_confirmacao_automatica_dentro_de_24h(self):

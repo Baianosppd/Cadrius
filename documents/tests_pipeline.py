@@ -208,7 +208,7 @@ class PipelineTests(PipelineBase):
             self.assertEqual((ex.status, ex.provider), ('review', 'LOCAL'))
             self.assertIn('Leitura básica local', ex.message)
             return ex
-        with mock.patch.dict(os.environ, {'GROQ_API_KEY': ''}):
+        with mock.patch.dict(os.environ, {'GROQ_API_KEY': '', 'GEMINI_API_KEY': '', 'OPENAI_API_KEY': ''}):
             self.assertIn('provedor', local_draft(self.doc()).message)
         self.org.plan.max_ai_extractions = 0
         self.org.plan.save()
