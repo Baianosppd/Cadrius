@@ -74,7 +74,7 @@ Custo médio por crédito — mistura típica: R$ 0.0173 · mistura pesada: R$ 0
 | Operação | Créditos | Por quê |
 |---|---:|---|
 | Extração de documento (≤ 20 mil caracteres) | 1 | unidade base (hoje já é 1) |
-| Triagem/classificação, busca semântica | 0,2 | modelo pequeno/local |
+| Triagem/classificação, busca semântica | 0 (incluso; limitado pelo teto diário) | custo ~R$ 0,002, modelo pequeno/local; créditos hoje são inteiros |
 | Resumo de andamento ou publicação | 1 | |
 | Rascunho de automação por IA | 2 | |
 | Pesquisa jurisprudencial com resumo | 3 | entrada longa |
@@ -89,7 +89,7 @@ Regra: **o peso é configurável por operação** e revisado quando o preço do 
 |---|---|---|---|---|
 | Para quem | testar | advogado solo | escritório pequeno | escritório grande |
 | Preço/mês | R$ 0 (14 dias, sem cartão) | **R$ 99** | **R$ 299** | **R$ 799** (sob consulta acima de 20 usuários) |
-| Usuários | 1 | 1 | 5 | 20 |
+| Usuários | até 3 | 1 | 5 | 20 |
 | Créditos/mês | 30 (uso único) | 300 | 1.500 | 6.000 |
 | R$/crédito incluso | — | 0,33 | 0,20 | 0,13 |
 | Limite por membro (dono ajusta) | — | — | sim | sim |
@@ -122,7 +122,7 @@ Regra: **o peso é configurável por operação** e revisado quando o preço do 
 
 ## 6. Política de trial e inadimplência (recomendação)
 
-**Trial:** 14 dias, 30 créditos, sem cartão, 1 usuário; no fim vira "somente leitura" até assinar. Custo por trial ≈ R$ 1 (IA) + suporte; com 20 % de conversão o custo efetivo de aquisição por assinante é pequeno.
+**Trial:** 14 dias, 30 créditos, sem cartão, até 3 usuários; no fim vira "somente leitura" até assinar. Custo por trial ≈ R$ 1 (IA) + suporte; com 20 % de conversão o custo efetivo de aquisição por assinante é pequeno.
 
 **Cobrança que falha (Stripe Smart Retries, ~2 semanas):**
 | Dia | Estado | O que acontece |
@@ -158,3 +158,15 @@ Nunca apagar dados por inadimplência antes do prazo de retenção; sempre permi
 3. Política de inadimplência da §6 ok (7/14/30 dias)?
 4. Pesos de créditos por operação (§3).
 5. Módulos extras vendidos à parte: **Pesquisa (Jusbrasil e afins)** — ver `docs/MODULO_JUSBRASIL.md`.
+
+## 10. O que já está implementado (CAD-119, branch `CAD-119`)
+
+* **Cadastro inicia trial** (`TRIAL_DAYS=14`, `TRIAL_CREDITS=30`, `TRIAL_MAX_USERS=3`): o plano escolhido fica registrado, mas **os limites do plano só valem depois do pagamento**.
+* **Estado da assinatura** no escritório: `trialing → active → past_due → restricted → suspended → canceled`, calculado na hora a partir de `trial_ends_at` e `past_due_since`
+  (carência `GRACE_DAYS=7`, `RESTRICTED_DAYS=14`, `SUSPENDED_DAYS=30`). IA e automações pausam; leitura e exportação continuam.
+* **Webhook do Stripe** (`billing/stripe_sync.py`): só promove o plano com `payment_status=paid` **e** valor pago igual ao do plano; trata `invoice.payment_succeeded/failed` e
+  `customer.subscription.deleted`; compra de créditos **idempotente**.
+* **Créditos avulsos**: `CreditPack` (catálogo) + `CreditLot` (12 meses, usado depois do plano, o que vence primeiro sai primeiro). A cota por membro continua valendo.
+* **APIs**: `GET /api/billing/plans/current/` (agora com `assinatura`), `GET /api/billing/credit-packs/`, `POST /api/billing/credit-packs/checkout/`.
+* **Catálogo**: `python manage.py seed_plans` **só simula**; `--apply` cria o que falta; `--update` ajusta preços existentes. **Os valores da §4 precisam ser aprovados antes de rodar com `--apply` em produção.**
+* **Pendente (precisa de decisão/ação)**: pesos fracionários de crédito (hoje inteiros), plano anual, NFS-e, PIX para anual, e o front (banner de trial/pagamento pendente e compra de créditos).
