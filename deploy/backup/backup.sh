@@ -8,7 +8,7 @@
 #   a privada NUNCA fica no servidor) → sha256 → recent/ (+ daily/ weekly/ monthly/ via hardlink) → rclone para fora do VPS.
 #   O dump em texto claro vive só em /dev/shm (RAM) e é apagado ao final.
 set -Eeuo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"; source "$HERE/lib-backup.sh"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; source "$HERE/lib-backup.sh"
 
 TARGET="${1:-}"; LABEL="${2:-scheduled}"
 [[ "$TARGET" =~ ^(prod|staging|all)$ ]] || die "Uso: $0 <prod|staging|all> [scheduled|pre-deploy|manual]"

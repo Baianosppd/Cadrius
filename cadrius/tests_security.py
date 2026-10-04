@@ -1,3 +1,4 @@
+from django.core.cache import cache
 """Testes de regressão de segurança (blindagem pós-auditoria)."""
 from unittest import mock
 
@@ -111,6 +112,10 @@ class HeadersTests(TestCase):
 
 
 class AuthHardeningTests(APITestCase):
+    def setUp(self):
+        cache.clear()  # o limite de cadastro (5/h) acumula no Redis entre os testes
+        super().setUp()
+
     def test_registo_rejeita_senha_fraca(self):
         from billing.models import SubscriptionPlan
         plan = SubscriptionPlan.objects.create(name='Starter', tier='FREE', price_brl=0, max_users=1, max_ai_extractions=5)

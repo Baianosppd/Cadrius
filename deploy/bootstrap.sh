@@ -11,7 +11,7 @@
 # O que faz: SO + firewall + Docker, estrutura de pastas, segredos aleatórios, Postgres (produção + teste),
 # Traefik/HTTPS, Dozzle, backups automáticos (systemd) e primeiro deploy de teste/produção.
 set -Eeuo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"; source "$HERE/lib/common.sh"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"; source "$HERE/lib/common.sh"
 need_root
 
 DOMAIN="cadrius.ia.br"; ACME_EMAIL=""; BACK_REPO="https://github.com/Baianosppd/Cadrius.git"; FRONT_REPO=""
@@ -208,14 +208,14 @@ cp "$ROOT"/infra/deploy/backup/systemd/*.service "$ROOT"/infra/deploy/backup/sys
 systemctl daemon-reload
 systemctl enable --now cadrius-backup-prod.timer cadrius-backup-staging.timer cadrius-verify-restore.timer >/dev/null
 ok "timers: prod a cada 6 h, teste diário, teste de restauração semanal"
-ln -sf "$ROOT/infra/deploy/scripts/status.sh" /usr/local/bin/cadrius-status
+printf '#!/bin/sh\nexec %s/infra/deploy/scripts/status.sh "$@"\n' "$ROOT" >/usr/local/bin/cadrius-status && chmod +x /usr/local/bin/cadrius-status
 
 # ---------------------------------------------------------------- 10. DNS + deploy
 log "10/10 DNS e primeiro deploy"
 PUB_IP="$(curl -fsS -4 https://api.ipify.org 2>/dev/null || curl -fsS -4 https://ifconfig.me 2>/dev/null || echo '')"
 dns_ok=1
 for h in "$PROD_HOST_APP" "$PROD_HOST_API" "$STG_HOST_APP" "$STG_HOST_API" "logs.$DOMAIN"; do
-  ip="$(dig +short A "$h" @1.1.1.1 | tail -1)"
+  ip="$(dig +short +time=3 +tries=1 A "$h" 2>/dev/null | tail -1 || true)"
   if [ -n "$PUB_IP" ] && [ "$ip" = "$PUB_IP" ]; then ok "DNS $h → $ip"
   else warn "DNS $h → '${ip:-sem registro}' (esperado $PUB_IP)"; dns_ok=0; fi
 done

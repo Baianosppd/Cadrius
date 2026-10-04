@@ -43,6 +43,10 @@ class LegalDocumentTests(TestCase):
 
 
 class ConsentTests(APITestCase):
+    def setUp(self):
+        cache.clear()  # o limite de cadastro (5/h) acumula no Redis entre os testes
+        super().setUp()
+
     def test_cadastro_exige_aceite_da_versao_vigente_e_grava_prova(self):
         from billing.models import SubscriptionPlan
         plan = SubscriptionPlan.objects.create(name='Starter', tier='FREE', price_brl=0, max_users=1, max_ai_extractions=5)
