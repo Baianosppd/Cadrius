@@ -311,11 +311,15 @@ API_PUBLIC_URL = env('API_PUBLIC_URL', default='')  # ex.: https://api.cadrius.i
 
 # --- E-mail transacional (recuperação de senha, convites, avisos). CAD-115/CAD-155 ---
 # Sem EMAIL_HOST: em DEBUG imprime no console; em produção NÃO envia (backend 'dummy') para o link nunca ir parar nos logs.
-EMAIL_HOST = env('EMAIL_HOST', default='')
-EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+# Provedor por preset (gmail | brevo | ses | locaweb | custom): troca futura = mudar EMAIL_PROVIDER + credenciais no .env.
+from cadrius.email_presets import resolve as _email_preset  # noqa: E402
+EMAIL_PROVIDER = env('EMAIL_PROVIDER', default='')
+_preset = _email_preset(EMAIL_PROVIDER)
+EMAIL_HOST = env('EMAIL_HOST', default=_preset['host'])
+EMAIL_PORT = env.int('EMAIL_PORT', default=_preset['port'])
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=_preset['tls'])
 EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Cadrius <no-reply@cadrius.ia.br>')
 EMAIL_BACKEND = env('EMAIL_BACKEND', default=(

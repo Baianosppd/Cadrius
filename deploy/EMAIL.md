@@ -24,6 +24,29 @@ Preços e franquias mudam: confirme nos sites. Faixas abaixo são **ordem de gra
 
 Registre o provedor como **suboperador** (`privacy.Subprocessor`) e assine o DPA: ele recebe e-mail e nome dos usuários.
 
+## 1b. Provedor escolhido: **Gmail** (com a porta aberta para trocar depois)
+
+O código é neutro: o provedor é só configuração (`EMAIL_PROVIDER` + usuário/senha no `.env`). Presets prontos: `gmail`, `brevo`, `ses`, `locaweb`, `custom` (`cadrius/email_presets.py`).
+**Para trocar no futuro:** mude `EMAIL_PROVIDER` (e `EMAIL_HOST_USER/PASSWORD`, `DEFAULT_FROM_EMAIL`) e rode `deploy.sh`; teste com `manage.py send_test_email`.
+
+**Configurar o Gmail (passo a passo):**
+1. Use uma conta **dedicada** (ex.: `no-reply@cadrius.ia.br` num Google Workspace; evite a conta pessoal de alguém da equipe).
+2. Na conta: *Segurança → Verificação em duas etapas* (ligar) → *Senhas de app* → criar uma para "Cadrius" (16 caracteres).
+3. `.env` do servidor (nunca no git):
+   ```
+   EMAIL_PROVIDER=gmail
+   EMAIL_HOST_USER=no-reply@cadrius.ia.br
+   EMAIL_HOST_PASSWORD=<senha de app de 16 caracteres>
+   DEFAULT_FROM_EMAIL=Cadrius <no-reply@cadrius.ia.br>
+   ```
+4. `deploy.sh <ambiente>` e `manage.py send_test_email voce@seudominio.com`.
+
+**Limites e cuidados do Gmail (por isso a porta de saída está aberta):**
+* Cota diária: ~500 destinatários/dia em conta gratuita, ~2.000/dia no Workspace; estourou, o Google bloqueia por 24 h. Serve para o início (recuperação de senha, convites, avisos).
+* O Gmail só envia com o endereço da própria conta (ou alias "Enviar como"): `DEFAULT_FROM_EMAIL` tem que combinar com `EMAIL_HOST_USER`.
+* Entregabilidade: SPF/DKIM do Google valem para o domínio **só no Workspace** (adicione o DKIM do Workspace no DNS de `cadrius.ia.br`). Conta `@gmail.com` comum não alinha com o seu domínio.
+* Quando passar de ~300 e-mails/dia ou o spam aparecer: `EMAIL_PROVIDER=ses` (ou `brevo`) — nada mais muda.
+
 ## 2. DNS do domínio `cadrius.ia.br` (obrigatório para não cair em spam)
 Os valores exatos vêm do painel do provedor; o formato é este:
 | Tipo | Nome | Valor (exemplo) |
