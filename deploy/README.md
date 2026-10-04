@@ -94,13 +94,16 @@ Crie os *environments* `staging` e `production` (em `production` marque **Requir
 * **Retenção:** 3 dias (todos) · 14 diários · 60 dias de semanais · 400 dias de mensais (`/etc/cadrius/backup.env`).
 * **Cópia externa (obrigatória):** um backup só no VPS não protege contra perder o VPS. Guiado e com teste de escrita:
   ```bash
-  # 1) no provedor (Backblaze B2 / Wasabi / S3 São Paulo): bucket PRIVADO + versionamento + Object Lock, e uma chave SÓ DE ESCRITA
+  # 1) no provedor — DECIDIDO: Supabase Storage (bucket PRIVADO + chaves S3 em Storage → S3 Connection). Alternativas: Backblaze B2 / Wasabi / S3 (com Object Lock)
   sudo /opt/cadrius/infra/deploy/backup/setup-offsite.sh          # pede endpoint, bucket e chaves (sem eco) e grava RCLONE_REMOTE
   sudo /opt/cadrius/infra/deploy/backup/backup.sh prod manual
   sudo /opt/cadrius/infra/deploy/backup/verify-offsite.sh prod    # confere: existe no destino, tamanho e hash iguais, recente
   cadrius-status
   ```
-  * Chave **sem** permissão de apagar + Object Lock = ransomware no servidor não consegue destruir as cópias. Nesse caso use
+  * **Supabase:** crie um bucket **privado** `cadrius-backups` (Storage → New bucket), gere as *S3 access keys* (Storage → Settings → S3 Connection) e informe
+    o *project ref* e a região no script. O Supabase **não tem Object Lock** nem chave só de escrita: a proteção é a **cifra GPG** (o provedor só vê arquivo cifrado)
+    e a guarda da chave S3 (só em `/root/.config/rclone/rclone.conf`, `chmod 600`). Confira o **limite de tamanho de arquivo** do projeto (a mídia diária pode passar de 50 MB).
+  * Com B2/Wasabi/S3: chave **sem** permissão de apagar + Object Lock = ransomware no servidor não consegue destruir as cópias. Nesse caso use
     `OFFSITE_PRUNE=false` em `/etc/cadrius/backup.env` e deixe a retenção às regras de ciclo de vida do bucket.
   * O `verify-offsite.sh` roda **todo dia às 07:20** (timer) e alerta se a cópia sumiu, divergiu ou ficou velha; o resultado vira o controle
     `offsite_verified` do Centro de Segurança (e `restore_drill` para o teste semanal de restauração).

@@ -11,11 +11,24 @@ need_root
 command -v rclone >/dev/null || { log "instalando rclone"; curl -fsSL https://rclone.org/install.sh | bash; }
 
 REMOTE_NAME="${OFFSITE_REMOTE_NAME:-offsite}"
-read -r -p "Endpoint S3 (ex.: https://s3.us-west-004.backblazeb2.com; vazio = AWS): " ENDPOINT_IN
-ENDPOINT="${OFFSITE_ENDPOINT:-$ENDPOINT_IN}"
-read -r -p "Região (ex.: us-west-004 / sa-east-1) [vazio = padrão do provedor]: " REGION_IN
-REGION="${OFFSITE_REGION:-$REGION_IN}"
-read -r -p "Nome do bucket (já criado, PRIVADO, com versionamento/Object Lock): " BUCKET_IN
+# Atalho para o Supabase Storage (S3-compatível): OFFSITE_PROVIDER=supabase  (ou responda "supabase" abaixo)
+read -r -p "Provedor [supabase | outro S3 (b2/wasabi/aws…)] (ENTER = outro): " PROV_IN
+PROV="${OFFSITE_PROVIDER:-$PROV_IN}"
+if [ "${PROV,,}" = "supabase" ]; then
+  read -r -p "Project ref do Supabase (a parte antes de .supabase.co): " REF_IN
+  REF="${OFFSITE_SUPABASE_REF:-$REF_IN}"; [ -n "$REF" ] || die "Informe o project ref."
+  ENDPOINT="https://$REF.storage.supabase.co/storage/v1/s3"
+  read -r -p "Região do projeto (ex.: sa-east-1): " REGION_IN; REGION="${OFFSITE_REGION:-$REGION_IN}"
+  read -r -p "Nome do bucket PRIVADO (crie em Storage → New bucket, SEM acesso público): " BUCKET_IN
+  warn "Supabase Storage NÃO tem Object Lock: as cópias dependem da cifra GPG e da guarda da chave S3 (acesso total ao Storage). Mantenha OFFSITE_PRUNE=true e limite de tamanho por arquivo suficiente (Storage → Settings)."
+  OFFSITE_PROVIDER=Other
+else
+  read -r -p "Endpoint S3 (ex.: https://s3.us-west-004.backblazeb2.com; vazio = AWS): " ENDPOINT_IN
+  ENDPOINT="${OFFSITE_ENDPOINT:-$ENDPOINT_IN}"
+  read -r -p "Região (ex.: us-west-004 / sa-east-1) [vazio = padrão do provedor]: " REGION_IN
+  REGION="${OFFSITE_REGION:-$REGION_IN}"
+  read -r -p "Nome do bucket (já criado, PRIVADO, com versionamento/Object Lock): " BUCKET_IN
+fi
 BUCKET="${OFFSITE_BUCKET:-$BUCKET_IN}"; [ -n "$BUCKET" ] || die "Informe o bucket."
 read -r -p "Access key ID: " AK
 read -r -s -p "Secret access key (não aparece): " SK; echo
