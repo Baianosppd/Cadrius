@@ -362,20 +362,20 @@ Dependências críticas: e-mail (→ recuperação de senha, convites, alertas);
 
 ---
 
-## 13. Decisões que preciso do Jullio/diretoria
+## 13. Decisões (respondidas em 2026-10-04) e o que falta
 
-1. **Planos e preços** (CAD-119) e política de trial/inadimplência.
-2. **E-mail transacional:** SES, Brevo, Mailgun ou Locaweb?
-3. **Destino do backup offsite** e região (B2, Wasabi, S3 São Paulo, Locaweb).
-4. **E-mail como login:** manter em claro (A) ou cifrar com índice cego (B)? **Busca por nome de cliente:** aceitar perda de busca parcial ou manter nome em claro?
-5. **Iniciar a verificação do app Google** (Calendar) agora?
-6. **Contato comercial com o Jusbrasil** (quem conduz) e orçamento para fontes pagas.
-7. **ERP prioritário** dos primeiros escritórios (define o 1º conector além do Astrea).
-8. **Provedores de IA** permitidos e contrato de retenção zero; OCR local (Tesseract) ou serviço pago.
-9. **Pgvector:** autorizar troca de imagem do Postgres em staging → produção.
-10. **Piloto:** qual escritório/usuários validam as automações-âncora da §8.5?
-
----
+| # | Decisão | Resposta | Consequência / status |
+|---|---|---|---|
+| 1 | Planos, preços, trial, inadimplência | "Baseados no custo de IA + sistema, com créditos avulsos; dono ajusta limite por membro" | **Feito**: `docs/ANALISE_PRECOS_PLANOS.md` + `scripts/pricing_model.py` + CAD-119. Faltam valores finais aprovados. |
+| 2 | Provedor de e-mail | "Alternativas e cenários" | **Feito**: `deploy/EMAIL.md` §1. Recomendação: Brevo agora, SES depois. Falta escolher. |
+| 3 | Destino do backup externo | **Supabase** | `setup-offsite.sh` com atalho Supabase (CAD-151). Sem Object Lock: proteção pela cifra GPG. |
+| 4 | E-mail e busca por nome | "Não pode perder a busca; deixar o filtro aberto" | **Desenho** (CAD-152): e-mail em claro (login); CPF/telefone/OAB/endereço cifrados com índice cego; **nome com índice de tokens/trigramas (HMAC)** para busca parcial. Ver §2.3. |
+| 5 | Verificação do app Google | **Sim, iniciar já** | Passo a passo em `deploy/README.md` §9 (escopos não sensíveis do SSO) e §6.2 (Calendar: escopo sensível → pedir verificação com vídeo e política). **Ação do Jullio** (console do Google). |
+| 6 | Jusbrasil | "Somos nós; módulo extra; análise crítica" | **Feito**: `docs/MODULO_JUSBRASIL.md`. Recomendação: fontes gratuitas primeiro, BYOK depois, add-on por faixa. |
+| 7 | ERP depois do Astrea | **Projuris** | CAD-193 passa a ser o conector Projuris (**validar** API/parceria com o fornecedor). |
+| 8 | Provedores de IA / OCR | **3 IAs + motor local que aprende** | **Feito (desenho)**: `docs/MOTOR_IA_LOCAL.md`. OCR local (Tesseract) primeiro; pago só se a qualidade exigir. |
+| 9 | pgvector (staging primeiro) | **Sim** | **Feito (sem teste em servidor)**: `deploy/scripts/upgrade-postgres-pgvector.sh` (CAD-159). Ver nota: o Postgres é compartilhado. |
+| 10 | Escritório piloto | ainda decidindo | Bloqueia a validação das automações-âncora (§8.5). |
 
 ## 14. Riscos principais e mitigação
 
