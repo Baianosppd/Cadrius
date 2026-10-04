@@ -16,7 +16,8 @@ from django.utils import timezone
 from accounts.models import Organization
 from audit import service as audit
 from billing.entitlements import ACTIVE, CANCELED, PAST_DUE
-from billing.models import CreditLot, CreditPack, SubscriptionPlan
+from billing.models import CreditLot, CreditPack, Promotion, SubscriptionPlan
+from billing.promotions import discounted_price, record_redemption
 
 logger = logging.getLogger(__name__)
 
@@ -69,13 +70,17 @@ def _checkout_completed(session) -> str:
         _, created = CreditLot.objects.get_or_create(
             stripe_session_id=session['id'],
             defaults=dict(organization=org, credits_total=pack.credits, credits_remaining=pack.credits,
+                          amount_paid_cents=session.get('amount_total') or 0,
                           expires_at=timezone.now() + timedelta(days=validity)))
         if created:
             audit.log('billing.credits_purchased', actor_type='webhook', organization=org, changes={'credits': pack.credits})
         return 'credits_added' if created else 'duplicate'
 
     plan = SubscriptionPlan.objects.filter(pk=meta.get('plan_id'), is_active=True).first()
-    if plan is None or session.get('amount_total') != _cents(plan.price_brl):
+    promo = Promotion.objects.filter(pk=meta['promo_id']).first() if meta.get('promo_id') else None
+    # valor esperado da PRIMEIRA cobrança: preço do plano, com o desconto da promoção (se houver) — nada vindo do navegador
+    expected = (discounted_price(promo, plan.price_brl) if promo else plan.price_brl) if plan else None
+    if plan is None or session.get('amount_total') != _cents(expected):
         audit.log('billing.payment_confirmed', actor_type='webhook', organization=org, outcome='denied',
                   reason='assinatura: plano inválido ou valor pago não confere')
         return 'ignored:plan_mismatch'
@@ -86,8 +91,10 @@ def _checkout_completed(session) -> str:
     org.stripe_customer_id = session.get('customer') or org.stripe_customer_id
     org.stripe_subscription_id = session.get('subscription') or org.stripe_subscription_id
     org.save()
+    if promo:
+        record_redemption(promo, org, session.get('id', ''))
     audit.log('billing.payment_confirmed', actor_type='webhook', organization=org, reason='checkout.session.completed',
-              changes={'plan_id': plan.pk})
+              changes={'plan_id': plan.pk, 'promotion': promo.code if promo else None})
     return 'subscription_active'
 
 

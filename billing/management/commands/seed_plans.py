@@ -56,5 +56,9 @@ class Command(BaseCommand):
                     existing.save()
             else:
                 self.stdout.write(f"  = pacote {spec['name']} já existe")
+        if apply:
+            from billing.credit_weights import ensure_default_weights
+            ensure_default_weights()
+            self.stdout.write('  + pesos de crédito padrão garantidos')
         if not apply:
             self.stdout.write(self.style.WARNING('\nNada foi gravado.'))

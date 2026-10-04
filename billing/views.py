@@ -11,6 +11,7 @@ from audit import service as audit_service
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from billing.models import SubscriptionPlan
 from billing.serializers import SubscriptionPlanSerializer, current_plan_payload
+from billing.promotions import PromotionError, ensure_stripe_coupon, validate_promotion
 from billing.stripe_sync import apply_event
 from billing.models import CreditPack
 from billing.entitlements import ai_enabled
@@ -81,6 +82,17 @@ class CreateCheckoutSessionView(APIView):
                 return Response({'detail': 'Este plano é gratuito: não há pagamento a fazer.'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
+            # 2b. Cupom opcional: validado no servidor (período, plano, limite de usos, uma vez por escritório)
+            promo, session_extra, promo_meta = None, {}, {}
+            promo_code = (request.data.get('promo_code') or '').strip()
+            if promo_code:
+                try:
+                    promo, _final = validate_promotion(promo_code, plan, user_org)
+                except PromotionError as exc:
+                    return Response({'detail': str(exc), 'code': 'invalid_promotion'}, status=status.HTTP_400_BAD_REQUEST)
+                session_extra['discounts'] = [{'coupon': ensure_stripe_coupon(promo)}]
+                promo_meta = {'promo_id': str(promo.pk)}
+
             # 3. Cria a sessão de Checkout no Stripe
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
@@ -99,13 +111,15 @@ class CreateCheckoutSessionView(APIView):
                 # Guardamos o ID da Organização nos metadados para sabermos quem pagou depois!
                 client_reference_id=str(user_org.id),
                 # O webhook só confia nestes metadados (gravados por nós), nunca em dados do navegador.
-                metadata={'kind': 'subscription', 'plan_id': str(plan.pk)},
-                subscription_data={'metadata': {'kind': 'subscription', 'plan_id': str(plan.pk)}},
+                metadata={'kind': 'subscription', 'plan_id': str(plan.pk), **promo_meta},
+                subscription_data={'metadata': {'kind': 'subscription', 'plan_id': str(plan.pk), **promo_meta}},
+                **session_extra,
                 success_url=f"{settings.FRONTEND_URL}/dashboard?payment=success",
                 cancel_url=f"{settings.FRONTEND_URL}/perfil?payment=cancelled",
             )
 
-            audit_service.log('billing.checkout', organization=user_org, changes={'plan_id': plan.pk})
+            audit_service.log('billing.checkout', organization=user_org,
+                              changes={'plan_id': plan.pk, 'promotion': promo.code if promo else None})
             return Response({'checkout_url': checkout_session.url}, status=status.HTTP_200_OK)
 
         except SubscriptionPlan.DoesNotExist:
@@ -203,3 +217,48 @@ class CreditPackCheckoutView(APIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         audit_service.log('billing.checkout', organization=org, changes={'credit_pack_id': pack.pk})
         return Response({'checkout_url': session.url})
+
+
+class PromotionValidateView(APIView):
+    """POST /api/billing/promotions/validate/ {plan_id, code} — prévia do desconto (a cobrança real é recalculada no checkout)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        membership = get_active_membership(request.user)
+        if membership is None or membership.role not in MANAGE_TEAM_ROLES:
+            return Response({'detail': 'Apenas donos ou administradores.'}, status=status.HTTP_403_FORBIDDEN)
+        plan = SubscriptionPlan.objects.filter(pk=request.data.get('plan_id'), is_active=True).first()
+        if plan is None:
+            return Response({'detail': 'Plano inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            promo, final = validate_promotion(request.data.get('code'), plan, membership.organization)
+        except PromotionError as exc:
+            return Response({'valid': False, 'detail': str(exc)}, status=status.HTTP_200_OK)
+        return Response({'valid': True, 'name': promo.name, 'duration': promo.duration, 'duration_months': promo.duration_months,
+                         'original': str(plan.price_brl), 'discounted': str(final)})
+
+
+class BillingNoticesView(APIView):
+    """GET /api/billing/notices/ — informes do financeiro vigentes para o escritório (por plano e estado da assinatura)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Q
+        from django.utils import timezone
+        from billing.entitlements import effective_status
+        from billing.models import BillingNotice
+        membership = get_active_membership(request.user)
+        if membership is None:
+            return Response([])
+        org, now = membership.organization, timezone.now()
+        status_now = effective_status(org, now)
+        qs = BillingNotice.objects.filter(is_active=True).filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now)) \
+            .filter(Q(ends_at__isnull=True) | Q(ends_at__gte=now))
+        out = []
+        for n in qs:
+            if n.audience_tiers and org.plan.tier not in n.audience_tiers:
+                continue
+            if n.audience_statuses and status_now not in n.audience_statuses:
+                continue
+            out.append({'id': n.pk, 'title': n.title, 'body': n.body, 'severity': n.severity})
+        return Response(out)
