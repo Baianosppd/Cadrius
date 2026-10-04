@@ -286,6 +286,14 @@ REST_FRAMEWORK = {
     },
 }
 
+# --- SSO (CAD-105): Google e Microsoft. Client id/secret vazios = login social desligado ---
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default='')
+GOOGLE_CLIENT_SECRET = env('GOOGLE_CLIENT_SECRET', default='')
+MICROSOFT_CLIENT_ID = env('MICROSOFT_CLIENT_ID', default='')
+MICROSOFT_CLIENT_SECRET = env('MICROSOFT_CLIENT_SECRET', default='')
+MICROSOFT_TENANT = env('MICROSOFT_TENANT', default='common')
+API_PUBLIC_URL = env('API_PUBLIC_URL', default='')  # ex.: https://api.cadrius.ia.br (base do redirect_uri do OAuth)
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),

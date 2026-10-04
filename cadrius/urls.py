@@ -1,9 +1,10 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
 from rest_framework import routers
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # --- Views ---
+from accounts.sso import SsoCallbackView, SsoStartView
 from accounts.views import (
     RegisterUserView,
     RegisterCompanyView,
@@ -52,6 +53,8 @@ urlpatterns = [
     path('api/v1/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/auth/token/refresh/', ThrottledTokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/auth/logout/', LogoutView.as_view(), name='auth_logout'),
+    re_path(r'^api/v1/auth/(?P<provider>google|microsoft)/callback/$', SsoCallbackView.as_view(), name='sso_callback'),
+    re_path(r'^api/v1/auth/(?P<provider>google|microsoft)/$', SsoStartView.as_view(), name='sso_start'),
     path('api/v1/auth/register/', RegisterUserView.as_view(), name='user_register'),
     path('api/v1/auth/register/empresa/', RegisterCompanyView.as_view(), name='company_register'),
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
