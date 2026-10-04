@@ -4,6 +4,7 @@ from rest_framework import routers
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # --- Views ---
+from accounts.password_reset import PasswordResetConfirmView, PasswordResetRequestView
 from accounts.views import (
     RegisterUserView,
     RegisterCompanyView,
@@ -57,6 +58,8 @@ urlpatterns = [
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
     path('api/v1/auth/profile/', UpdateUserProfileView.as_view(), name='user_profile_update'),
     path('api/v1/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('api/v1/auth/password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),
+    path('api/v1/auth/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('api/v1/teams/members/', TeamMemberListCreateView.as_view(), name='team-members'),
     path(
         'api/v1/teams/members/<uuid:pk>/credits/',
