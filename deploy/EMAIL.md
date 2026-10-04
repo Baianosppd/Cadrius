@@ -3,12 +3,24 @@
 Usado por: recuperação de senha (CAD-115), convites de equipe, avisos de prazo e alertas. **Sem `EMAIL_HOST` configurado o back não envia nada**
 (em produção o backend é `dummy`, para que links de recuperação nunca caiam nos logs).
 
-## 1. Escolha o provedor [DECISÃO]
-| Opção | Quando usar | Observação |
-|---|---|---|
-| Amazon SES (região `sa-east-1`) | volume crescente, custo baixo | sai do *sandbox* mediante pedido; DKIM por CNAME |
-| Brevo / Mailgun / Postmark | começar rápido, painel simples | plano gratuito limitado |
-| SMTP da Locaweb | já contratado | confira limites de envio e reputação do IP compartilhado |
+## 1. Escolha o provedor [DECISÃO] — alternativas e cenários
+
+Preços e franquias mudam: confirme nos sites. Faixas abaixo são **ordem de grandeza** para dimensionar a decisão.
+
+| Provedor | Melhor cenário | Pontos fortes | Pontos de atenção |
+|---|---|---|---|
+| **Amazon SES** (`sa-east-1`) | volume médio/alto, custo mínimo, já usa AWS | o mais barato por e-mail (centavos de dólar por mil); DKIM por CNAME; região em São Paulo | começa em *sandbox* (pedido para sair); painel/relatórios básicos; reputação é sua responsabilidade; precisa de SNS p/ bounces |
+| **Brevo** (ex-Sendinblue) | começar rápido, equipe pequena, quer painel e templates | plano gratuito com limite diário; SMTP simples; painel de entregabilidade | limites diários no gratuito; suporte variável |
+| **Mailgun / SendGrid** | equipe técnica, precisa de API, webhooks de evento, logs | boa API e *webhooks* de bounce/spam; validação de e-mail | mais caro que SES; planos gratuitos limitados/mudando |
+| **Postmark** | só e-mail **transacional** crítico (recuperação de senha, alertas) | melhor entregabilidade/velocidade; separa transacional de marketing | mais caro por volume; sem foco em marketing |
+| **SMTP da Locaweb** (já contratado) | zero custo extra e pouco volume | nada novo a contratar | reputação de IP compartilhado; limites por hora/dia; menos visibilidade de bounces |
+| **Google Workspace / Microsoft 365 SMTP** | só alertas internos e volume mínimo | já existe | limites baixos e política de uso: **não** serve para e-mail aos clientes em volume |
+
+**Como escolher:**
+* **Até ~3 mil e-mails/mês e quer simplicidade → Brevo** (ou o SMTP da Locaweb se já está pago).
+* **Crescimento e custo → Amazon SES** (melhor custo; exige um pouco mais de configuração).
+* **E-mail que não pode cair em spam (recuperação de senha de advogado) → Postmark** ou SES com domínio bem aquecido e DMARC.
+* **Recomendação para o Cadrius agora:** **Brevo** para começar (rápido, gratuito no início) e **migrar para SES** quando passar do plano gratuito — a troca é só mudar `EMAIL_HOST/USER/PASSWORD` no `.env`, o código não muda.
 
 Registre o provedor como **suboperador** (`privacy.Subprocessor`) e assine o DPA: ele recebe e-mail e nome dos usuários.
 
