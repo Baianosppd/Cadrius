@@ -7,7 +7,6 @@ import traceback
 
 import requests
 from core.queue import QueueUnavailable, enqueue
-from django_q.tasks import async_task
 
 from billing.decorators import check_quota_limit
 from accounts.message_usage import record_automation_run, record_outbound_message_send
