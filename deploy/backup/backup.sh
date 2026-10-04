@@ -20,7 +20,7 @@ if [ "$TARGET" = "all" ]; then rc=0; for e in prod staging; do "$0" "$e" "$LABEL
 
 ENV_NAME="$TARGET"; DB="$(db_name "$ENV_NAME")"
 HC_VAR="HC_PING_URL_$(echo "$ENV_NAME" | tr a-z A-Z)"; HC_URL="${!HC_VAR:-}"
-OUT="$BACKUP_ROOT/$ENV_NAME"; mkdir -p "$OUT"/{recent,daily,weekly,monthly} "$BACKUP_ROOT/secrets"; chmod 700 "$BACKUP_ROOT"
+OUT="$BACKUP_ROOT/$ENV_NAME"; mkdir -p "$OUT"/{recent,daily,weekly,monthly} "$BACKUP_ROOT/secrets" "$BACKUP_ROOT/media/$ENV_NAME"; chmod 700 "$BACKUP_ROOT"
 exec 9>"/tmp/cadrius-backup-$ENV_NAME.lock"; flock -n 9 || die "Backup de $ENV_NAME já em andamento."
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"; TMP=""
@@ -62,6 +62,8 @@ if [ "$LABEL" = "scheduled" ] && ! ls "$OUT"/daily/*"$(date +%Y%m%d)"* >/dev/nul
   FILES=(); for f in "$CADRIUS_ROOT"/infra/.env "$CADRIUS_ROOT"/prod/.env "$CADRIUS_ROOT"/staging/.env "$BACKUP_ENV_FILE"; do [ -f "$f" ] && FILES+=("$f"); done
   tar -czf - "${FILES[@]}" 2>/dev/null | gpg --batch --yes --quiet --trust-model always -r "$BACKUP_GPG_RECIPIENT" -o "$SEC" -e
   find "$BACKUP_ROOT/secrets" -name 'secrets_*.gpg' -mtime +"$RETENTION_MONTHLY_DAYS" -delete
+  # documentos enviados pelos escritórios (volume media): 1x por dia, cifrados — sem isto o dump do banco aponta para arquivos que não existem mais
+  backup_media "$ENV_NAME" "$TS"
 fi
 
 # Retenção local
@@ -74,12 +76,16 @@ find "$OUT/monthly" -type f -mtime +"$RETENTION_MONTHLY_DAYS" -delete
 OFFSITE=false
 if [ -n "${RCLONE_REMOTE:-}" ] && command -v rclone >/dev/null 2>&1; then
   log "[$ENV_NAME] enviando para $RCLONE_REMOTE"
-  if rclone copy "$BACKUP_ROOT" "$RCLONE_REMOTE" --include "/{prod,staging,secrets}/**" --exclude ".tmp/**" \
+  if rclone copy "$BACKUP_ROOT" "$RCLONE_REMOTE" --include "/{prod,staging,secrets,media}/**" --exclude ".tmp/**" \
        --transfers 2 --retries 3 --low-level-retries 5 --quiet; then
     OFFSITE=true
-    for cat in recent:$RETENTION_RECENT_DAYS daily:$RETENTION_DAILY_DAYS weekly:$RETENTION_WEEKLY_DAYS monthly:$RETENTION_MONTHLY_DAYS; do
-      rclone delete "$RCLONE_REMOTE/$ENV_NAME/${cat%%:*}" --min-age "${cat##*:}d" --quiet 2>/dev/null || true
-    done
+    # Com chave de escrita SEM permissão de apagar + Object Lock/lifecycle no bucket (recomendado contra ransomware),
+    # defina OFFSITE_PRUNE=false: a retenção remota fica por conta das regras do bucket.
+    if [ "${OFFSITE_PRUNE:-true}" = "true" ]; then
+      for cat in recent:$RETENTION_RECENT_DAYS daily:$RETENTION_DAILY_DAYS weekly:$RETENTION_WEEKLY_DAYS monthly:$RETENTION_MONTHLY_DAYS; do
+        rclone delete "$RCLONE_REMOTE/$ENV_NAME/${cat%%:*}" --min-age "${cat##*:}d" --quiet 2>/dev/null || true
+      done
+    fi
   else
     alert "Backup $ENV_NAME gravado localmente, mas o ENVIO EXTERNO falhou (rclone)."
   fi

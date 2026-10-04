@@ -316,6 +316,38 @@ def _backup():
     return CheckResult(PARTIAL, 'Sem status de backup do servidor; agende backup_to_supabase ou use o kit deploy/backup.')
 
 
+def _status_age_hours(st):
+    from datetime import datetime, timezone as dt_tz
+    try:
+        when = datetime.strptime(st['at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt_tz.utc)
+        return (timezone.now() - when).total_seconds() / 3600
+    except (ValueError, KeyError):
+        return None
+
+
+@check('offsite_verified', 'Cópia externa dos backups conferida (existe no destino e confere)')
+def _offsite_verified():
+    st = _host_backup_status('offsite-check-prod')
+    if not st:
+        return CheckResult(PARTIAL if not _prod() else FAIL,
+                           'Sem conferência da cópia externa (verify-offsite.sh). Configure o RCLONE_REMOTE e o timer diário.')
+    age = _status_age_hours(st)
+    if st['status'] == 'ok' and age is not None and age <= 36:
+        return CheckResult(PASS, f'Cópia externa conferida há {age:.0f} h (arquivo presente no destino, tamanho e hash iguais).')
+    return CheckResult(FAIL, 'A conferência da cópia externa falhou ou está desatualizada (> 36 h): o backup pode não estar fora do servidor.')
+
+
+@check('restore_drill', 'Restauração testada recentemente')
+def _restore_drill():
+    st = _host_backup_status('restore-test-prod')
+    if not st:
+        return CheckResult(PARTIAL if not _prod() else FAIL, 'Nenhum teste de restauração registrado (verify-restore.sh semanal).')
+    age = _status_age_hours(st)
+    if st['status'] == 'ok' and age is not None and age <= 24 * 9:
+        return CheckResult(PASS, f'Restauração testada há {age / 24:.0f} dia(s): tabelas, contagens e trilha de auditoria conferem.')
+    return CheckResult(FAIL, 'O último teste de restauração falhou ou tem mais de 9 dias.')
+
+
 # --------------------------------------------------------------------------- privacidade (LGPD)
 @check('legal_docs', 'Documentos legais vigentes')
 def _legal_docs():
