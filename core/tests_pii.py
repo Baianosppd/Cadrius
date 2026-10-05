@@ -54,10 +54,14 @@ class AtRestTests(TestCase):
 
     def test_o_banco_so_tem_texto_cifrado(self):
         table = User._meta.db_table
-        for col, plain in (('cpf', '529'), ('phone', '91234'), ('oab_number', '123456'), ('first_name', 'Ana'), ('last_name', 'Souza')):
+        # Confere o valor completo: fragmentos curtos ("529", "Ana") podem aparecer por acaso no base64 do cifrado (teste instável)
+        for col, plain in (('cpf', CPF), ('phone', '(11) 91234-5678'), ('oab_number', '123456'), ('first_name', 'Ana'),
+                           ('last_name', 'Souza Lima')):
             value = raw(table, col, pk=self.user.pk)
             self.assertTrue(value.startswith(ENC_PREFIX), col)
-            self.assertNotIn(plain, value, col)
+            self.assertEqual(decrypt_data(value), plain, col)
+            if len(plain) >= 6:
+                self.assertNotIn(plain, value, col)
         otable = Organization._meta.db_table
         for col in ('cnpj', 'main_phone', 'street', 'number', 'cep', 'corporate_email'):
             self.assertTrue(raw(otable, col, pk=self.org.pk).startswith(ENC_PREFIX), col)
