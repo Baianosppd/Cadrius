@@ -190,3 +190,34 @@ class PlanPriceHistory(models.Model):
 
     class Meta:
         ordering = ['-changed_at']
+
+
+class Payment(models.Model):
+    """Recebimento confirmado pelo Stripe (CAD-170) — base do setor Fiscal (notas fiscais) e dos relatórios ao contador.
+
+    Idempotente por ``stripe_id``: assinatura = id da *invoice* (1ª cobrança e renovações), pacote de créditos = id da sessão de checkout.
+    """
+
+    class Kind(models.TextChoices):
+        SUBSCRIPTION = 'subscription', 'Assinatura'
+        CREDIT_PACK = 'credit_pack', 'Pacote de créditos'
+
+    class InvoiceStatus(models.TextChoices):
+        PENDING = 'pending', 'NF pendente'
+        ISSUED = 'issued', 'NF emitida'
+        NOT_REQUIRED = 'not_required', 'Sem NF'
+
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.PROTECT, related_name='payments')
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    description = models.CharField(max_length=200, blank=True, default='')
+    amount_cents = models.PositiveIntegerField()
+    paid_at = models.DateTimeField(db_index=True)
+    stripe_id = models.CharField(max_length=100, unique=True)
+    invoice_status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.PENDING, db_index=True)
+    invoice_number = models.CharField(max_length=60, blank=True, default='')
+    invoice_issued_at = models.DateField(null=True, blank=True)
+    invoice_note = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-paid_at', '-id']

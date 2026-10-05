@@ -10,6 +10,22 @@ ENV_NAME="${1:-}"; [[ "$ENV_NAME" =~ ^(prod|staging)$ ]] || die "Uso: $0 <prod|s
 SHA="${2:-}"
 ENV_DIR="$CADRIUS_ROOT/$ENV_NAME"
 [ -f "$ENV_DIR/.env" ] || die "Falta $ENV_DIR/.env (rode o bootstrap.sh)."
+
+# Autoatualização do kit (CAD-170): este script roda a partir de $CADRIUS_ROOT/infra, que só mudava com update-kit.sh manual —
+# um kit velho já derrubou deploys (ex.: não gerava a BLIND_INDEX_KEY). Antes de tudo, traz o kit da branch main e, se ele
+# mudou, reinicia com a versão nova. Desligar: KIT_AUTO_UPDATE=0. Falhar ao atualizar não bloqueia o deploy (só avisa).
+if [ "${CADRIUS_KIT_UPDATED:-0}" != 1 ] && [ "${KIT_AUTO_UPDATE:-1}" = 1 ] && [ -d "$CADRIUS_ROOT/infra/.git" ]; then
+  KIT_BEFORE="$(git -C "$CADRIUS_ROOT/infra" rev-parse HEAD 2>/dev/null || echo '')"
+  if flock -w 120 /tmp/cadrius-kit.lock "$CADRIUS_ROOT/infra/deploy/scripts/update-kit.sh" "${KIT_BRANCH:-main}" >/tmp/cadrius-kit-update.log 2>&1; then
+    KIT_AFTER="$(git -C "$CADRIUS_ROOT/infra" rev-parse HEAD 2>/dev/null || echo '')"
+    if [ "$KIT_BEFORE" != "$KIT_AFTER" ]; then
+      log "kit de deploy atualizado (${KIT_BEFORE:0:7} → ${KIT_AFTER:0:7}); reiniciando com a versão nova"
+      CADRIUS_KIT_UPDATED=1 exec "$CADRIUS_ROOT/infra/deploy/scripts/deploy.sh" "$@"
+    fi
+  else
+    warn "não foi possível atualizar o kit (detalhes em /tmp/cadrius-kit-update.log) — seguindo com a versão atual"
+  fi
+fi
 # Autocorreção (CAD-152): a chave dos índices de busca dos dados pessoais cifrados precisa existir; ambientes antigos não a têm.
 if ! grep -qE '^BLIND_INDEX_KEY=.+' "$ENV_DIR/.env"; then
   warn "BLIND_INDEX_KEY ausente — gerando em $ENV_DIR/.env (guarde: o backup diário de segredos já inclui este arquivo)"

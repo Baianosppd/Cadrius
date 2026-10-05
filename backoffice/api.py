@@ -12,8 +12,8 @@ from rest_framework.views import APIView
 
 from accounts.models import Organization
 from aigov.guard import set_global_switch
-from backoffice import services
-from backoffice.permissions import IsBackoffice, IsTI, user_areas
+from backoffice import fiscal, services, staff
+from backoffice.permissions import IsBackoffice, IsFiscal, IsTI, user_areas
 from billing import entitlements as ent
 from core.pii import filter_by_term
 
@@ -62,6 +62,9 @@ class OverviewView(APIView):
         if 'financeiro' in areas:
             from billing.admin_api import finance_summary
             data['financeiro'] = finance_summary()
+        if 'fiscal' in areas:
+            _, _, month = fiscal.payments_qs(None, None)
+            data['fiscal'] = fiscal.summary(month)
         return Response(data)
 
 
@@ -176,3 +179,99 @@ class AISwitchView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
         switch = set_global_switch(enabled, reason=reason, changed_by=str(request.user.pk))
         return Response({'ligada': switch.ai_enabled, 'motivo': switch.reason, 'alterado_em': switch.changed_at})
+
+
+# ----------------------------------------------------------------------------- equipe Cadrius (TI) — CAD-170
+class StaffListView(APIView):
+    """GET: equipe com áreas e MFA. POST {email, first_name, last_name, areas[], reason}: cria conta e envia o link de definir senha."""
+    permission_classes = [IsTI]
+
+    def get(self, request):
+        User = get_user_model()
+        qs = User.objects.filter(is_staff=True).order_by('-is_active', 'email')
+        return Response([staff.staff_row(u) for u in qs])
+
+    def post(self, request):
+        reason = _reason(request)
+        if reason is None:
+            return Response({'detail': 'Informe o motivo (mínimo 10 caracteres): fica na trilha de auditoria.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            row = staff.create_staff(request.user, email=request.data.get('email'), first_name=request.data.get('first_name'),
+                                     last_name=request.data.get('last_name'), areas=request.data.get('areas'), reason=reason)
+        except services.ActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(row, status=status.HTTP_201_CREATED)
+
+
+class StaffDetailView(APIView):
+    """PATCH {areas[], reason}: muda as áreas; lista vazia tira a pessoa da equipe (e encerra as sessões)."""
+    permission_classes = [IsTI]
+
+    def patch(self, request, pk):
+        user = get_user_model().objects.filter(pk=pk).first()
+        if user is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        reason = _reason(request)
+        if reason is None:
+            return Response({'detail': 'Informe o motivo (mínimo 10 caracteres): fica na trilha de auditoria.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            return Response(staff.update_staff(request.user, user, areas=request.data.get('areas'), reason=reason))
+        except services.ActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ----------------------------------------------------------------------------- setor Fiscal — CAD-170
+class FiscalPaymentsView(APIView):
+    """GET ?start=AAAA-MM-DD&end=AAAA-MM-DD&status=pending|issued|not_required — recebimentos do período e resumo."""
+    permission_classes = [IsFiscal]
+
+    def get(self, request):
+        try:
+            d0, d1, qs = fiscal.payments_qs(request.query_params.get('start'), request.query_params.get('end'),
+                                            request.query_params.get('status'))
+        except services.ActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        offset = max(int(request.query_params.get('offset') or 0), 0)
+        return Response({'inicio': d0, 'fim': d1, 'resumo': fiscal.summary(qs),
+                         'resultados': [fiscal.payment_row(p) for p in qs[offset:offset + PAGE]]})
+
+
+class FiscalExportView(APIView):
+    permission_classes = [IsFiscal]
+
+    def get(self, request):
+        from django.http import HttpResponse
+        try:
+            d0, d1, qs = fiscal.payments_qs(request.query_params.get('start'), request.query_params.get('end'),
+                                            request.query_params.get('status'))
+        except services.ActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        from audit import service as audit
+        audit.log('data.export', actor=request.user, reason='recebimentos para o contador (Fiscal)',
+                  changes={'inicio': str(d0), 'fim': str(d1), 'linhas': qs.count()}, data_categories=['financeiro', 'identificacao'],
+                  legal_basis='obrigacao_legal')
+        resp = HttpResponse('﻿' + fiscal.export_csv(qs), content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = f'attachment; filename="cadrius-recebimentos-{d0}-a-{d1}.csv"'
+        return resp
+
+
+class FiscalInvoiceView(APIView):
+    """POST {status: issued|not_required|pending, number, issued_at, note, reason} — registra a NF emitida (fase 1: emissão fora)."""
+    permission_classes = [IsFiscal]
+
+    def post(self, request, pk):
+        from billing.models import Payment
+        payment = Payment.objects.select_related('organization').filter(pk=pk).first()
+        if payment is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        reason = _reason(request, minimum=5) or ''
+        if not reason:
+            return Response({'detail': 'Informe o motivo/observação (mínimo 5 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            return Response(fiscal.register_invoice(request.user, payment, status=str(request.data.get('status', '')),
+                                                    number=request.data.get('number'), issued_at=request.data.get('issued_at'),
+                                                    note=request.data.get('note'), reason=reason))
+        except services.ActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)

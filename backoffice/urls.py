@@ -12,4 +12,9 @@ urlpatterns = [
     path('organizations/<uuid:pk>/actions/', api.OrganizationActionView.as_view(), name='bo-org-action'),
     path('users/', api.UserListView.as_view(), name='bo-users'),
     path('users/<uuid:pk>/actions/', api.UserActionView.as_view(), name='bo-user-action'),
+    path('staff/', api.StaffListView.as_view(), name='bo-staff'),
+    path('staff/<uuid:pk>/', api.StaffDetailView.as_view(), name='bo-staff-detail'),
+    path('fiscal/payments/', api.FiscalPaymentsView.as_view(), name='bo-fiscal-payments'),
+    path('fiscal/payments/export.csv', api.FiscalExportView.as_view(), name='bo-fiscal-export'),
+    path('fiscal/payments/<int:pk>/invoice/', api.FiscalInvoiceView.as_view(), name='bo-fiscal-invoice'),
 ]

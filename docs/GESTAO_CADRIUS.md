@@ -9,7 +9,7 @@ Conta ativa + `is_staff` + (superusuário **ou** grupo da área). Grupos criados
 
 ```bash
 # no servidor (container do back)
-python manage.py cadrius_staff pessoa@cadrius.ia.br --areas ti,financeiro   # define as áreas
+python manage.py cadrius_staff pessoa@cadrius.ia.br --areas ti,financeiro,fiscal   # define as áreas (ou pela tela Equipe Cadrius)
 python manage.py cadrius_staff pessoa@cadrius.ia.br --areas ""              # remove o acesso
 ```
 
@@ -21,6 +21,8 @@ python manage.py cadrius_staff pessoa@cadrius.ia.br --areas ""              # re
 | Usuários | ✓ | | busca por e-mail ou nome (cifrado), desbloquear login, enviar link de nova senha, encerrar sessões, desativar/reativar |
 | Sistema e operação | ✓ | | banco, Redis, fila Django-Q (tamanho, workers, falhas com dado pessoal mascarado), rotinas agendadas, o que está configurado (sem segredos), verificações, **kill switch global da IA** |
 | Segurança e conformidade | ✓ | | Centro de Segurança (antigo `/seguranca`) |
+| **Equipe Cadrius** (CAD-170) | ✓ | | criar contas da equipe (TI, Financeiro, Fiscal) — a pessoa recebe o link de definir senha e cadastra o MFA no 1º acesso; alterar áreas; sem área = sai da equipe (sessões encerradas). Não tira a própria TI; superusuário só pelo servidor |
+| **Fiscal** (CAD-170, área própria) | | | livro de recebimentos (assinaturas pela invoice do Stripe, pacotes pela sessão — sem duplicar), tomador (razão social + CNPJ, ou CPF do dono), registrar NF emitida/sem NF, exportar CSV para o contador. Fases 2–3 em `docs/PLANO_PROXIMA_FASE.md` §10 |
 
 Regras: ninguém desativa a própria conta; só superusuário altera outro superusuário; créditos de cortesia não contam como venda
 no resumo financeiro; o front esconde o que a área não pode, e o back recusa com 403 de qualquer forma.

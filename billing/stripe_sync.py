@@ -16,7 +16,7 @@ from django.utils import timezone
 from accounts.models import Organization
 from audit import service as audit
 from billing.entitlements import ACTIVE, CANCELED, PAST_DUE
-from billing.models import CreditLot, CreditPack, Promotion, SubscriptionPlan
+from billing.models import CreditLot, CreditPack, Payment, Promotion, SubscriptionPlan
 from billing.promotions import discounted_price, record_redemption
 
 logger = logging.getLogger(__name__)
@@ -74,6 +74,8 @@ def _checkout_completed(session) -> str:
                           expires_at=timezone.now() + timedelta(days=validity)))
         if created:
             audit.log('billing.credits_purchased', actor_type='webhook', organization=org, changes={'credits': pack.credits})
+            _record_payment(org, Payment.Kind.CREDIT_PACK, session['id'], session.get('amount_total') or 0,
+                            f'Pacote {pack.name} ({pack.credits} créditos)')
         return 'credits_added' if created else 'duplicate'
 
     plan = SubscriptionPlan.objects.filter(pk=meta.get('plan_id'), is_active=True).first()
@@ -98,10 +100,21 @@ def _checkout_completed(session) -> str:
     return 'subscription_active'
 
 
+def _record_payment(org, kind, stripe_id, amount_cents, description):
+    """Livro de recebimentos do Fiscal (CAD-170). Idempotente: o mesmo evento reenviado não duplica."""
+    if not stripe_id or not amount_cents:
+        return
+    Payment.objects.get_or_create(stripe_id=stripe_id, defaults=dict(
+        organization=org, kind=kind, amount_cents=amount_cents, paid_at=timezone.now(), description=description[:200]))
+
+
 def _payment_succeeded(invoice) -> str:
     org = _org_by_subscription(_invoice_subscription_id(invoice))
     if org is None:
         return 'ignored:unknown_subscription'
+    # A assinatura entra no livro pela invoice (1ª cobrança e renovações) — o checkout da assinatura não grava, para não duplicar.
+    _record_payment(org, Payment.Kind.SUBSCRIPTION, invoice.get('id', ''), invoice.get('amount_paid') or 0,
+                    f'Assinatura {org.plan.name}' if org.plan_id else 'Assinatura')
     org.subscription_status = ACTIVE
     org.past_due_since = None
     end = _period_end(invoice)
