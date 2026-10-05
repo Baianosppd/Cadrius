@@ -44,6 +44,19 @@ Hoje: gatilho externo (webhook/mensagem) → ações webhook, WhatsApp (Evolutio
 5. **Modelos prontos** ("intimação lida → prazo + aviso ao responsável", "andamento novo → WhatsApp ao cliente com resumo aprovado").
 6. Tudo passa pela matriz de autonomia: envio externo = R3 (aprovação, ou automático só com modelo pré-aprovado).
 
+**Entregue na fase C (CAD-172)** — app `automations` (`/api/v1/automations/`, tela Automações → abas Regras/Aprovações/Histórico):
+- Gatilhos: documento confirmado, andamento novo (DataJud), prazo chegando (N dias úteis antes), contato cadastrado à mão, agenda
+  (diária/semanal). Ações: criar tarefa (data em dias úteis ou antes do prazo), avisar a equipe, WhatsApp/e-mail ao contato, ERP.
+- Regra nasce desligada e só liga depois de **simulada** com a configuração exata (usa o evento real mais recente ou um exemplo).
+  Mudou a lógica de uma regra ligada → ela desliga até simular de novo.
+- Envio para fora espera **aprovação** (dono/admin/advogado) por padrão; ERP sempre. Consentimento do canal é conferido no plano e
+  de novo na hora do envio; aprovação expira em 7 dias; limite de 200 execuções/24 h por regra (passou → pausa e avisa).
+- A fila só carrega ids (dados pessoais lidos no worker); passos e títulos das execuções ficam cifrados; cada evento roda 1 vez por regra.
+- `automations_tick` (a cada 15 min, em `setup_security_schedules`): prazos chegando, agenda e expiração de aprovações.
+- Processo acompanhado ganhou **cliente** (contato do quadro) — é o destinatário de "andamento novo → WhatsApp ao cliente".
+- Ainda não: publicação nova (DJEN, fase D), tarefa concluída, atualizar campo, gerar documento de modelo, e-mail pelo Gmail do escritório
+  (hoje sai pelo remetente do Cadrius).
+
 ## 3. IA que aprende o escritório e recomenda automações (P1→P2)
 
 - **Sinais já coletados:** decisões na Central de Aprovações, correções de extração, regras aprendidas, autonomia por tipo de ação.
@@ -95,6 +108,12 @@ Os dados importados alimentam a IA (perfil do escritório) e viram variáveis na
 Feriados nacionais, estaduais e do tribunal + recesso (20/12–20/01) + suspensões; contagem em dias úteis (CPC art. 219); prazo
 sugerido mostra a conta feita. Fonte dos feriados por tribunal **[VALIDAR — calendários publicados pelos TJs]**.
 
+**Entregue na fase C (CAD-172)** — app `forense` (`/api/v1/forense/prazo/`, `/feriados/`; tela Agenda forense): CPC arts. 219, 220 e 224,
+DJe (Lei 11.419 art. 4º §3º: publicação = 1º dia útil após a disponibilização), feriados nacionais + móveis (Carnaval, Sexta-feira Santa,
+Corpus Christi) e Justiça Federal (Lei 5.010/66) calculados; municipais/estaduais/do tribunal cadastrados pelo escritório (pontuais ou
+anuais, para todos ou um tribunal). Mostra os dias pulados e o motivo; é sugestão, o advogado confere. **[VALIDAR]** Carnaval/Corpus
+Christi e o expediente da Quarta-feira de Cinzas variam por tribunal (hoje a quarta conta como útil).
+
 ## 9. Integrações: mais apps e "como pegar os dados" (P1)
 
 **Guia dentro do app** para cada integração: passo a passo numerado (onde clicar, qual permissão marcar, o que copiar), campos com
@@ -141,7 +160,7 @@ Catálogo proposto (por ordem):
 |---|---|---|
 | **A (agora)** | Kit de deploy automático ✔ · TI cria administradores ✔ · setor Fiscal fase 1 ✔ | operação da equipe |
 | **B** ✔ (CAD-171) | Quadro de contatos · Importação de dados (contatos/processos) · Suporte (chamados + acesso assistido) | base para automações e atendimento |
-| **C** | Automações com gatilhos/ações internos + simulação + modelos · agenda forense | "funcionar de verdade" |
+| **C** ✔ (CAD-172) | Automações com gatilhos/ações internos + simulação + modelos · agenda forense · cliente do processo | "funcionar de verdade" |
 | **D** | Caixa de publicações (DJEN) + triagem por IA · minutas sobre documentos | maior dor do advogado |
 | **E** | IA recomenda automações · guias de integração + novos apps (WhatsApp oficial, Drive, assinatura, cobrança) | diferencial + alcance |
 | **F** | Carteira/CRM completa, financeiro do escritório, portal do cliente, Fiscal fases 2–3 | centralização |

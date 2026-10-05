@@ -46,6 +46,9 @@ def check_case(case: MonitoredCase) -> dict:
     if created and not first:
         _notify(case, created)
         CaseMovement.objects.filter(case=case, digest__in=[m['digest'] for m in created]).update(notified=True)
+        from automations.engine import emit
+        digests = sorted(m['digest'] for m in created)
+        emit(case.organization, 'case_movement', {'case_id': case.pk, 'digests': digests}, f'case-{case.pk}-{digests[0][:16]}')
     if created:
         audit.log('research.movements_found', actor_type='system', organization=case.organization, target=case,
                   changes={'source': 'datajud', 'new_movements': len(created)}, data_categories=['dados_processuais'],

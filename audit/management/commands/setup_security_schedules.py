@@ -12,6 +12,7 @@ JOBS = {
     'Pesquisa: atualizar notícias': ('research_news', Schedule.HOURLY, None),
     'Privacidade: limpar importações abandonadas': ('purge_import_rows', Schedule.DAILY, None),
     'IA: aprender com as decisões (regras e autonomia)': ('brain_evaluate', Schedule.DAILY, None),
+    'Automações: prazos próximos e regras agendadas': ('automations_tick', Schedule.MINUTES, 15),
 }
 
 

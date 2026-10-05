@@ -369,6 +369,14 @@ def _learn(extraction, user, final_fields):
         logger.exception('Falha ao registrar o aprendizado do documento %s', extraction.document_id)
 
 
+def _emit_confirmed(extraction, user):
+    """Gatilho "documento confirmado" das regras de automação (CAD-172). Só ids vão para a fila."""
+    from automations.engine import emit
+
+    emit(extraction.document.organization, 'document_confirmed', {'extraction_id': extraction.pk, 'user_id': str(user.pk) if user else None},
+         f'extraction-{extraction.pk}')
+
+
 def confirm(extraction, user, edited_fields: dict) -> list:
     """Grava a versão revisada, registra o aprendizado e cria as tarefas dos prazos com data. Devolve as tarefas criadas."""
     from documents.models import DocumentExtraction
@@ -383,6 +391,7 @@ def confirm(extraction, user, edited_fields: dict) -> list:
     extraction.save()
     if not already_confirmed:
         _learn(extraction, user, fields)
+        _emit_confirmed(extraction, user)
     audit.log('document.extraction_confirmed', actor=user, organization=extraction.document.organization, target=extraction.document,
               changes={'tasks_created': len(created)}, data_categories=['dados_processuais'], legal_basis='contrato')
     return created
@@ -402,6 +411,7 @@ def auto_confirm(extraction, user):
     extraction.auto_task_ids = [t.pk for t in tasks]
     extraction.reviewed_at = timezone.now()
     extraction.save()
+    _emit_confirmed(extraction, user)
     audit.log('document.extraction_confirmed', actor_type='system', organization=org, target=extraction.document,
               reason='autonomia automática', changes={'tasks_created': len(tasks), 'auto': True}, data_categories=['dados_processuais'])
 
