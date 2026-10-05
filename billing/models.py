@@ -204,7 +204,10 @@ class Payment(models.Model):
 
     class InvoiceStatus(models.TextChoices):
         PENDING = 'pending', 'NF pendente'
+        PROCESSING = 'processing', 'NFS-e em processamento'
         ISSUED = 'issued', 'NF emitida'
+        ERROR = 'error', 'NFS-e com erro'
+        CANCELED = 'canceled', 'NF cancelada'
         NOT_REQUIRED = 'not_required', 'Sem NF'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.PROTECT, related_name='payments')
@@ -217,7 +220,48 @@ class Payment(models.Model):
     invoice_number = models.CharField(max_length=60, blank=True, default='')
     invoice_issued_at = models.DateField(null=True, blank=True)
     invoice_note = models.CharField(max_length=255, blank=True, default='')
+    # CAD-175 — fase 2 do Fiscal: emissão da NFS-e pelo emissor (Focus NFe), com conferência antes
+    nfse_ref = models.CharField(max_length=60, blank=True, default='', db_index=True)
+    nfse_url = models.URLField(max_length=500, blank=True, default='')
+    nfse_error = models.CharField(max_length=500, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-paid_at', '-id']
+
+
+class FiscalObligation(models.Model):
+    """Obrigação fiscal da Cadrius (empresa) — fase 3 do Fiscal (CAD-175). Datas e regras editáveis: [VALIDAR com o contador]."""
+
+    class Periodicity(models.TextChoices):
+        MONTHLY = 'mensal', 'Mensal'
+        ANNUAL = 'anual', 'Anual'
+
+    class Adjust(models.TextChoices):
+        BEFORE = 'antecipa', 'Antecipa para o dia útil anterior'
+        AFTER = 'posterga', 'Posterga para o próximo dia útil'
+        LAST_BUSINESS = 'ultimo_util', 'Último dia útil do mês'
+
+    code = models.SlugField(max_length=30, unique=True)
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True, default='')
+    periodicity = models.CharField(max_length=6, choices=Periodicity.choices, default=Periodicity.MONTHLY)
+    due_day = models.PositiveSmallIntegerField(default=20)          # dia do mês seguinte à competência (mensal) ou do mês (anual)
+    due_month = models.PositiveSmallIntegerField(default=3)         # só anual: mês do vencimento
+    adjust = models.CharField(max_length=12, choices=Adjust.choices, default=Adjust.BEFORE)
+    active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['due_day', 'code']
+
+
+class FiscalObligationDone(models.Model):
+    obligation = models.ForeignKey(FiscalObligation, on_delete=models.CASCADE, related_name='done')
+    competence = models.CharField(max_length=7)                     # AAAA-MM (mensal) ou AAAA (anual)
+    done_by = models.ForeignKey('accounts.CustomUser', null=True, on_delete=models.SET_NULL, related_name='+')
+    done_at = models.DateTimeField(auto_now_add=True)
+    note = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['obligation', 'competence'], name='uniq_obligation_competence')]

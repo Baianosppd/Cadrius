@@ -275,3 +275,89 @@ class FiscalInvoiceView(APIView):
                                                     note=request.data.get('note'), reason=reason))
         except services.ActionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ----------------------------------------------------------------------------- setor Fiscal — fases 2 e 3 (CAD-175)
+class FiscalNfseView(APIView):
+    """GET → conferência da nota (nada é enviado). POST {acao: emitir|atualizar|cancelar, reason/justificativa}."""
+    permission_classes = [IsFiscal]
+
+    def _payment(self, pk):
+        from billing.models import Payment
+        return Payment.objects.select_related('organization').filter(pk=pk).first()
+
+    def get(self, request, pk):
+        from backoffice import nfse
+        payment = self._payment(pk)
+        if payment is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({**nfse.preview(payment), 'pagamento': nfse.row(payment)})
+
+    def post(self, request, pk):
+        from backoffice import nfse
+        payment = self._payment(pk)
+        if payment is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        action = request.data.get('acao')
+        try:
+            if action == 'emitir':
+                reason = _reason(request, minimum=5)
+                if not reason:
+                    return Response({'detail': 'Confirme a conferência com uma observação (mínimo 5 caracteres).'},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                return Response(nfse.emit(request.user, payment, reason))
+            if action == 'atualizar':
+                return Response(nfse.refresh(payment))
+            if action == 'cancelar':
+                return Response(nfse.cancel(request.user, payment, str(request.data.get('justificativa', ''))))
+        except services.ActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': 'Ação inválida.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class FiscalObligationsView(APIView):
+    """GET → próximos vencimentos (60 dias) + cadastro. PATCH {id, dia, mes, ajuste, ativa, reason} edita uma obrigação."""
+    permission_classes = [IsFiscal]
+
+    def get(self, request):
+        from backoffice import nfse, obligations
+        from billing.models import FiscalObligation
+        return Response({'proximos': obligations.upcoming(), 'obrigacoes': [obligations.obligation_json(o) for o in FiscalObligation.objects.all()],
+                         'emissor_automatico': nfse.is_automatic(), 'ajustes': FiscalObligation.Adjust.choices})
+
+    def patch(self, request):
+        from backoffice import obligations
+        from billing.models import FiscalObligation
+        ob = FiscalObligation.objects.filter(pk=request.data.get('id')).first()
+        if ob is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        reason = _reason(request, minimum=5)
+        if not reason:
+            return Response({'detail': 'Informe o motivo da mudança (mínimo 5 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            return Response(obligations.update(request.user, ob, request.data, reason))
+        except (services.ActionError, ValueError) as exc:
+            return Response({'detail': str(exc) if isinstance(exc, services.ActionError) else 'Valor inválido.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+
+class FiscalObligationDoneView(APIView):
+    """POST {competencia, obs, desfazer} — marca (ou desmarca) a obrigação como cumprida naquela competência."""
+    permission_classes = [IsFiscal]
+
+    def post(self, request, pk):
+        import re
+
+        from backoffice import obligations
+        from billing.models import FiscalObligation
+        ob = FiscalObligation.objects.filter(pk=pk).first()
+        if ob is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        comp = str(request.data.get('competencia', ''))
+        if not re.fullmatch(r'\d{4}(-(0[1-9]|1[0-2]))?', comp) or (ob.periodicity == 'mensal') != ('-' in comp):
+            return Response({'detail': 'Competência AAAA-MM (mensal) ou AAAA (anual).'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            obligations.mark_done(request.user, ob, comp, request.data.get('obs', ''), undo=bool(request.data.get('desfazer')))
+        except services.ActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'proximos': obligations.upcoming()})

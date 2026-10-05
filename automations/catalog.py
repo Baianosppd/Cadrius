@@ -39,6 +39,13 @@ TRIGGERS = {
                  'prazo.data': 'Vencimento sugerido', 'prazo.dias': 'Prazo (dias úteis)', 'prazo.fatal': 'Prazo fatal? (sim/não)',
                  'resumo': 'Resumo', 'cliente.nome': 'Cliente do processo', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
         'destinatarios': ['cliente']},
+    T.RECEIVABLE_DUE: {
+        'label': 'Honorário vencendo ou vencido', 'help': 'Régua de cobrança: lançamentos em aberto que vencem daqui a N dias '
+                                                          'ou que venceram há N dias (verificado a cada 15 min).',
+        'vars': {'honorario.descricao': 'Descrição do lançamento', 'honorario.valor': 'Valor (R$)', 'honorario.vencimento': 'Vencimento',
+                 'honorario.link_pagamento': 'Link de pagamento (Asaas)', 'honorario.dias_atraso': 'Dias de atraso',
+                 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
+        'destinatarios': ['cliente'], 'config': {'quando': 'antes | vencido', 'dias': 'Dias (0 a 60)'}},
     T.SCHEDULE: {
         'label': 'Agenda', 'help': 'Todo dia (útil) ou toda semana, a partir da hora escolhida.',
         'vars': {'dia_semana': 'Dia da semana'},
@@ -113,6 +120,11 @@ def clean_trigger_config(trigger: str, config) -> dict:
         if freq == 'semanal':
             out['dia_semana'] = _int(config.get('dia_semana', 0), 'dia_semana', 0, 6)
         return out
+    if trigger == T.RECEIVABLE_DUE:
+        when = config.get('quando', 'antes')
+        if when not in ('antes', 'vencido'):
+            raise RuleError('Quando: antes (do vencimento) ou vencido.')
+        return {'quando': when, 'dias': _int(config.get('dias', 3), 'dias', 0, 60)}
     return {}
 
 

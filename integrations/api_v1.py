@@ -124,4 +124,8 @@ class ChargeView(_Base):
         audit.log('billing.charge_created', actor=request.user, organization=m.organization, target=contact,
                   changes={'provedor': 'asaas', 'valor': value, 'forma': forma}, data_categories=['identificacao', 'financeiro'],
                   legal_basis='execucao_contrato')
-        return Response(result, status=status.HTTP_201_CREATED)
+        from carteira.models import Receivable          # CAD-175: a cobrança entra no financeiro e recebe baixa pelo webhook
+        rec = Receivable.objects.create(organization=m.organization, contact=contact, description=str(d.get('descricao') or 'Honorários advocatícios')[:200],
+                                        amount_cents=int(round(value * 100)), due_date=due, asaas_id=str(result.get('id') or '')[:40],
+                                        payment_url=(result.get('link') or result.get('boleto') or '')[:500], created_by=request.user)
+        return Response({**result, 'lancamento_id': rec.pk}, status=status.HTTP_201_CREATED)

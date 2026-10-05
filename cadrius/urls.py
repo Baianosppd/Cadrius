@@ -126,6 +126,8 @@ urlpatterns = [
     path('api/v1/publications/', include('publications.urls')),
     path('api/v1/minutas/', include('minutas.urls')),
     path('api/v1/marketing/', include('marketing.urls')),
+    path('api/v1/carteira/', include('carteira.urls')),
+    path('api/v1/portal/', include('portal.urls')),
     path('api/v1/backoffice/', include(marketing_staff_urls)),
     path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),

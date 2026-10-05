@@ -21,6 +21,7 @@ class Rule(models.Model):
         CONTACT_CREATED = 'contact_created', 'Contato cadastrado'
         SCHEDULE = 'schedule', 'Agenda (diária/semanal)'
         PUBLICATION_NEW = 'publication_new', 'Publicação nova (DJEN)'
+        RECEIVABLE_DUE = 'receivable_due', 'Honorário vencendo ou vencido'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='automation_rules')
     name = models.CharField(max_length=120)

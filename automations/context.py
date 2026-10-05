@@ -127,12 +127,27 @@ def publication_new(org, refs):
     return ctx, f'Publicação {pub.tribunal} {pub.cnj}'.strip()
 
 
+def receivable_due(org, refs):
+    from carteira.models import Receivable
+    from carteira.services import brl, overdue_days
+
+    rec = Receivable.objects.filter(pk=refs.get('receivable_id'), organization=org).select_related('contact').first()
+    if rec is None:
+        return None
+    ctx = {**_base(org), 'honorario': {'id': rec.pk, 'descricao': rec.description, 'valor': brl(rec.amount_cents),
+                                       'vencimento': br(rec.due_date), 'link_pagamento': rec.payment_url,
+                                       'dias_atraso': str(overdue_days(rec))},
+           'cliente': _person(rec.contact), 'responsavel': {}}
+    return ctx, f'Honorário {rec.description}'
+
+
 def schedule(org, refs):
     return {**_base(org), 'responsavel': {}}, f'Agenda de {br(timezone.localdate())}'
 
 
 BUILDERS = {'document_confirmed': document_confirmed, 'case_movement': case_movement, 'deadline_soon': deadline_soon,
-            'contact_created': contact_created, 'schedule': schedule, 'publication_new': publication_new}
+            'contact_created': contact_created, 'schedule': schedule, 'publication_new': publication_new,
+            'receivable_due': receivable_due}
 
 
 def build(trigger, org, refs):
@@ -163,6 +178,10 @@ def sample_refs(trigger, org) -> dict | None:
         from publications.models import Publication
         p = Publication.objects.filter(organization=org).order_by('-created_at').first()
         return {'publication_id': p.pk} if p else None
+    if trigger == 'receivable_due':
+        from carteira.models import Receivable
+        r = Receivable.objects.filter(organization=org, status='aberto').order_by('due_date').first()
+        return {'receivable_id': r.pk} if r else None
     return {}
 
 
@@ -188,4 +207,7 @@ def example(trigger, org) -> tuple[dict, str]:
                             'processo': {'cnj': '0000000-00.2026.8.26.0000'},
                             'prazo': {'data': br(today), 'iso': today.isoformat(), 'dias': '15', 'fatal': 'sim'},
                             'resumo': 'Sentença de procedência (exemplo).', 'cliente': person},
+        'receivable_due': {**base, 'honorario': {'descricao': 'Parcela 2/5 — Honorários (exemplo)', 'valor': 'R$ 1.200,00',
+                                                 'vencimento': br(today), 'link_pagamento': 'https://www.asaas.com/i/exemplo',
+                                                 'dias_atraso': '3'}, 'cliente': person},
     }[trigger], 'Exemplo fictício'

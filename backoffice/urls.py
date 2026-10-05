@@ -17,4 +17,7 @@ urlpatterns = [
     path('fiscal/payments/', api.FiscalPaymentsView.as_view(), name='bo-fiscal-payments'),
     path('fiscal/payments/export.csv', api.FiscalExportView.as_view(), name='bo-fiscal-export'),
     path('fiscal/payments/<int:pk>/invoice/', api.FiscalInvoiceView.as_view(), name='bo-fiscal-invoice'),
+    path('fiscal/payments/<int:pk>/nfse/', api.FiscalNfseView.as_view(), name='bo-fiscal-nfse'),
+    path('fiscal/obligations/', api.FiscalObligationsView.as_view(), name='bo-fiscal-obligations'),
+    path('fiscal/obligations/<int:pk>/done/', api.FiscalObligationDoneView.as_view(), name='bo-fiscal-obligation-done'),
 ]
