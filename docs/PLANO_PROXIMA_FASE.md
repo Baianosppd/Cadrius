@@ -140,7 +140,7 @@ Catálogo proposto (por ordem):
 | Fase | Entrega | Por quê |
 |---|---|---|
 | **A (agora)** | Kit de deploy automático ✔ · TI cria administradores ✔ · setor Fiscal fase 1 ✔ | operação da equipe |
-| **B** | Quadro de contatos · Importação de dados (contatos/processos) · Suporte (chamados) | base para automações e atendimento |
+| **B** ✔ (CAD-171) | Quadro de contatos · Importação de dados (contatos/processos) · Suporte (chamados + acesso assistido) | base para automações e atendimento |
 | **C** | Automações com gatilhos/ações internos + simulação + modelos · agenda forense | "funcionar de verdade" |
 | **D** | Caixa de publicações (DJEN) + triagem por IA · minutas sobre documentos | maior dor do advogado |
 | **E** | IA recomenda automações · guias de integração + novos apps (WhatsApp oficial, Drive, assinatura, cobrança) | diferencial + alcance |

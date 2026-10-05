@@ -50,6 +50,9 @@ class ContactApiTests(APITestCase):
             self.assertEqual(self.c.get('/api/v1/contacts/', {'q': q}).json()['total'], 1, q)
         self.assertEqual(self.c.get('/api/v1/contacts/', {'q': 'pedro'}).json()['total'], 0)
         self.assertEqual(self.create().status_code, 409)                           # mesmo CPF no escritório
+        sem_doc = self.c.post('/api/v1/contacts/', {'name': 'Outra Maria', 'email': 'MARIA@x.com'}, format='json')
+        self.assertEqual(sem_doc.status_code, 409)                                 # mesmo e-mail = provável repetido
+        self.assertIn('e-mail', sem_doc.json()['detail'])
         self.assertTrue(AuditEvent.objects.filter(action='contact.created').exists())
 
     def test_isolamento_entre_escritorios_e_mesmo_cpf_em_outro(self):

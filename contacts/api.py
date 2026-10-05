@@ -43,6 +43,17 @@ def search(qs, term: str):
     return filter_by_term(qs, 'name_idx', 'contact.name', term)
 
 
+def duplicate_email(org, email, exclude_pk=None) -> bool:
+    """Mesmo e-mail no escritório = provável contato repetido (a importação também usa o e-mail para juntar)."""
+    if not email:
+        return False
+    qs = Contact.objects.filter(organization=org, email_bidx=blind_index('contact.email', email, 'text'))
+    return qs.exclude(pk=exclude_pk).exists() if exclude_pk else qs.exists()
+
+
+DUPLICATE_EMAIL = 'Já existe um contato com este e-mail. Abra o contato existente para atualizar.'
+
+
 def _apply_consent(contact, data, user):
     changed = [f for f in CONSENT_FIELDS if f in data and bool(data[f]) != getattr(contact, f)]
     for f in changed:
@@ -90,6 +101,8 @@ class ContactListView(_Base):
         values, errors = clean_contact(request.data)
         if errors:
             return Response({'detail': ' '.join(errors), 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+        if duplicate_email(m.organization, values['email']):
+            return Response({'detail': DUPLICATE_EMAIL}, status=status.HTTP_409_CONFLICT)
         contact = Contact(organization=m.organization, created_by=request.user, **values)
         _apply_consent(contact, request.data, request.user)
         try:
@@ -124,6 +137,8 @@ class ContactDetailView(_Base):
         values, errors = clean_contact(merged)
         if errors:
             return Response({'detail': ' '.join(errors), 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+        if duplicate_email(m.organization, values['email'], exclude_pk=c.pk):
+            return Response({'detail': DUPLICATE_EMAIL}, status=status.HTTP_409_CONFLICT)
         for k, v in values.items():
             setattr(c, k, v)
         consent = _apply_consent(c, request.data, request.user)
