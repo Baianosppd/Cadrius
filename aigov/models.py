@@ -62,6 +62,7 @@ class AIActionLog(models.Model):
         WORKFLOW_GENERATION = 'workflow_generation', 'Geração de workflow'
         TRIAGE = 'triage', 'Triagem de publicação'
         DRAFT = 'draft', 'Minuta'
+        MARKETING = 'marketing', 'Conteúdo de marketing'
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     organization_id = models.UUIDField(null=True, db_index=True)

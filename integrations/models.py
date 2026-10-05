@@ -22,6 +22,10 @@ class AppConnection(models.Model):
         ('TELEGRAM', 'Telegram'),
         ('ASTREA', 'Astrea (Sistema Jurídico)'),
         ('WEBHOOK', 'Webhook Customizado'),
+        ('SMTP', 'E-mail do escritório (SMTP)'),       # CAD-174
+        ('ZAPSIGN', 'ZapSign (assinatura eletrônica)'),
+        ('ASAAS', 'Asaas (boleto e Pix)'),
+        ('META', 'Facebook e Instagram (Meta)'),
     )
 
     user = models.ForeignKey(

@@ -163,6 +163,8 @@ class DraftDetailView(_Base):
         elif 'conteudo' in request.data and d.status == Draft.Status.REVIEWED:
             d.status, d.reviewed_by, d.reviewed_at = Draft.Status.DRAFT, None, None     # mudou o texto: volta a rascunho
         d.save()
+        if st == Draft.Status.REVIEWED:
+            services.learn(d, request.user)
         audit.log('draft.updated', actor=request.user, organization=m.organization, target=d, changes={'status': d.status})
         return Response(draft_json(d))
 

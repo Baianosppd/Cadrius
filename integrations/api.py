@@ -34,6 +34,10 @@ class ConnectionSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        from integrations.catalog import missing_required
+        missing = missing_required(attrs.get('app_name', getattr(self.instance, 'app_name', '')), attrs.get('credentials') or {})
+        if missing and self.instance is None:
+            raise serializers.ValidationError({'credentials': f'Preencha: {", ".join(missing)}.'})
         request = self.context['request']
         name = attrs.get('name')
         if name and AppConnection.objects.filter(user=request.user, name=name).exclude(

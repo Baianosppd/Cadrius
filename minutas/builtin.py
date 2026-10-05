@@ -7,7 +7,7 @@ VARS = {
     'cidade': 'Cidade', 'processo.cnj': 'Nº do processo', 'processo.tribunal': 'Tribunal', 'processo.orgao': 'Vara/órgão',
     'processo.classe': 'Classe', 'cliente.nome': 'Cliente', 'parte_contraria.nome': 'Parte contrária', 'ato': 'Ato (sentença, despacho…)',
     'prazo.dias': 'Prazo (dias úteis)', 'prazo.data': 'Vencimento', 'providencia': 'Providência', 'resumo': 'Resumo da fonte',
-    'documento.nome': 'Documento de origem', 'fonte.data': 'Data da fonte',
+    'documento.nome': 'Documento de origem', 'fonte.data': 'Data da fonte', 'assinatura': 'Assinatura padrão do escritório',
 }
 
 BUILTIN = {

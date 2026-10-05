@@ -23,6 +23,7 @@ from accounts.views import (
 )
 from accounts import mfa_api
 from support.urls import staff_urlpatterns as support_staff_urls
+from marketing.urls import staff_urlpatterns as marketing_staff_urls
 from integrations.api import ConnectionDeleteView, ConnectionListCreateView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
@@ -113,6 +114,7 @@ urlpatterns = [
     path('api/v1/sync-history/', SyncHistoryView.as_view(), name='sync-history'),
     path('api/v1/notifications/', include('notifications.urls')),
     path('api/v1/integrations/google-calendar/', include('gcal.urls')),
+    path('api/v1/integrations/', include('integrations.urls_v1')),
     path('api/v1/research/', include('research.urls')),
     path('api/v1/erp/', include('erp.urls')),
     path('api/v1/backoffice/', include('backoffice.urls')),
@@ -123,6 +125,8 @@ urlpatterns = [
     path('api/v1/forense/', include('forense.urls')),
     path('api/v1/publications/', include('publications.urls')),
     path('api/v1/minutas/', include('minutas.urls')),
+    path('api/v1/marketing/', include('marketing.urls')),
+    path('api/v1/backoffice/', include(marketing_staff_urls)),
     path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),
