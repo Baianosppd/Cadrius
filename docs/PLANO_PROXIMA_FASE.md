@@ -178,7 +178,7 @@ Catálogo proposto (por ordem):
 | **B** ✔ (CAD-171) | Quadro de contatos · Importação de dados (contatos/processos) · Suporte (chamados + acesso assistido) | base para automações e atendimento |
 | **C** ✔ (CAD-172) | Automações com gatilhos/ações internos + simulação + modelos · agenda forense · cliente do processo | "funcionar de verdade" |
 | **D** ✔ (CAD-173) | Caixa de publicações (DJEN) + triagem por IA · minutas sobre documentos | maior dor do advogado |
-| **E** | IA recomenda automações · guias de integração + novos apps (WhatsApp oficial, Drive, assinatura, cobrança) | diferencial + alcance |
+| **E** ✔ (CAD-174) | IA recomenda automações · perfil e vocabulário do escritório · catálogo de integrações com guia (SMTP, ZapSign, Asaas, Meta) · Marketing (escritório e Cadrius) com verificador OAB · login Produção/Teste · front padronizado e responsivo — ver [PESQUISA_FASE_E.md](PESQUISA_FASE_E.md) | diferencial + alcance |
 | **F** | Carteira/CRM completa, financeiro do escritório, portal do cliente, Fiscal fases 2–3 | centralização |
 
 ## Fontes da pesquisa

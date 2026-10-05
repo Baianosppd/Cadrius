@@ -210,7 +210,9 @@ def perform(org, rule, run, step, index) -> dict:
             else:
                 footer = (f'\n\n—\nVocê recebe esta mensagem porque autorizou o contato de {org}. '
                           'Para não receber mais, responda a este e-mail pedindo a remoção.')
-                send_mail(d['assunto'], d['mensagem'] + footer, settings.DEFAULT_FROM_EMAIL, [contact.email], fail_silently=False)
+                from integrations.services import send_office_email
+                if not send_office_email(org, d['assunto'], d['mensagem'] + footer, [contact.email]):   # SMTP do escritório (CAD-174)
+                    send_mail(d['assunto'], d['mensagem'] + footer, settings.DEFAULT_FROM_EMAIL, [contact.email], fail_silently=False)
             audit.log('message.sent', actor_type='system', organization=org, target=contact,
                       changes={'canal': channel, 'regra': rule.pk, 'execucao': run.pk},
                       data_categories=['contato'], legal_basis='consentimento')

@@ -6,6 +6,7 @@ DEFAULT_WEIGHTS = {
     'automation_draft': ('Rascunho de automação por IA', 2),
     'research_summary': ('Pesquisa jurisprudencial com resumo', 3),
     'draft_petition': ('Minuta de peça', 15),
+    'marketing_content': ('Conteúdo de marketing com IA', 2),
     'ocr_page': ('OCR de página escaneada (local)', 0),
 }
 

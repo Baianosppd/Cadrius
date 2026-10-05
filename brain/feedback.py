@@ -6,6 +6,7 @@ from collections import Counter
 from django.utils import timezone
 
 from audit import service as audit
+from brain import style
 from brain.models import AIFeedback, OfficeRule
 
 RULE_FIELDS = ('tipo_documento',)        # campos de valor "pequeno" em que uma correção repetida vira regra
@@ -30,6 +31,8 @@ def diff_fields(original: dict, final: dict) -> list:
 
 def record_review(organization, user, action_kind, subject, original: dict, final: dict, confidence=None) -> AIFeedback:
     changes = diff_fields(original or {}, final or {})
+    if action_kind in style.KINDS and isinstance((original or {}).get('texto'), str) and isinstance((final or {}).get('texto'), str):
+        changes += style.term_changes(original['texto'], final['texto'])      # vocabulário do escritório (CAD-174)
     return AIFeedback.objects.create(
         organization=organization, user=user, action_kind=action_kind, subject=subject,
         decision=AIFeedback.Decision.EDITED if changes else AIFeedback.Decision.APPROVED, changes=changes, confidence=confidence)

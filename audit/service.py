@@ -49,6 +49,9 @@ ACTIONS = frozenset({
     'automation.rule_disabled', 'automation.run_approved', 'automation.run_rejected',
     'publication.captured', 'publication.reviewed', 'publication.watch_added', 'publication.watch_removed',
     'draft.created', 'draft.updated', 'draft.deleted', 'draft.exported', 'draft.template_saved',
+    'automation.suggestion_decided', 'brain.profile_updated', 'connection.tested', 'signature.requested', 'billing.charge_created',
+    'marketing.content_created', 'marketing.content_updated', 'marketing.content_deleted', 'marketing.content_published',
+    'marketing.campaign_saved',
 })
 
 

@@ -212,3 +212,132 @@ class MemorySearchView(APIView):
             return Response([])
         found = memory.similar(org, q, kind=request.query_params.get('kind') or None, k=5)
         return Response([{'id': i.pk, 'kind': i.kind, 'title': i.title, 'preview': i.text[:240], 'score': score} for score, i in found])
+
+
+# ----------------------------------------------------------------------------- CAD-174: sugestões, perfil e aprendizado
+def suggestion_payload(s):
+    return {'id': s.pk, 'chave': s.key, 'titulo': s.title, 'motivo': s.reason, 'evidencia': s.evidence, 'status': s.status,
+            'tipo': 'modelo' if (s.payload or {}).get('template') else 'regra', 'modelo': (s.payload or {}).get('template', ''),
+            'regra_id': s.rule_id, 'criada_em': s.created_at, 'decidida_em': s.decided_at}
+
+
+class SuggestionsView(APIView):
+    """GET → abertas + últimas decididas. POST (dono/admin) → analisar agora."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from brain.models import AutomationSuggestion
+        org, _ = _ctx(request)
+        if org is None:
+            return _no_org()
+        qs = AutomationSuggestion.objects.filter(organization=org)
+        return Response({'abertas': [suggestion_payload(s) for s in qs.filter(status='open')],
+                         'recentes': [suggestion_payload(s) for s in qs.exclude(status='open')[:10]]})
+
+    def post(self, request):
+        from brain import suggestions
+        org, m = _ctx(request)
+        if org is None:
+            return _no_org()
+        if m.role not in MANAGE_TEAM_ROLES:
+            return _forbidden()
+        created = suggestions.refresh(org, notify=False)
+        return Response({'novas': len(created), **self.get(request).data})
+
+
+class SuggestionDecideView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    decision = 'accept'
+
+    def post(self, request, pk):
+        from brain import suggestions
+        from brain.models import AutomationSuggestion
+        org, m = _ctx(request)
+        if org is None:
+            return _no_org()
+        if m.role not in MANAGE_TEAM_ROLES:
+            return _forbidden()
+        s = AutomationSuggestion.objects.filter(organization=org, pk=pk).first()
+        if s is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        try:
+            if self.decision == 'accept':
+                rule = suggestions.accept(s, request.user)
+                return Response({**suggestion_payload(s), 'regra_id': rule.pk})
+            suggestions.dismiss(s, request.user)
+        except suggestions.SuggestionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_409_CONFLICT)
+        return Response(suggestion_payload(s))
+
+
+def profile_payload(p):
+    from brain.profile import AREAS
+    return {'areas': p.areas, 'publico': p.audience, 'cidade': p.city, 'tom': p.tone, 'assinatura': p.signature, 'redes': p.social,
+            'calculado': p.auto_stats, 'opcoes_areas': [{'id': k, 'label': v} for k, v in AREAS.items()],
+            'opcoes_tom': [{'id': k, 'label': v} for k, v in p.Tone.choices], 'atualizado_em': p.updated_at}
+
+
+class ProfileView(APIView):
+    """GET → perfil (recalcula a parte automática se tiver mais de 1 dia). PUT (dono/admin) → edita."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from brain import profile
+        org, _ = _ctx(request)
+        if org is None:
+            return _no_org()
+        p = profile.get(org)
+        stamp = (p.auto_stats or {}).get('calculado_em', '')
+        from datetime import timedelta
+
+        from django.utils import timezone
+        from django.utils.dateparse import parse_datetime
+        when = parse_datetime(stamp) if stamp else None
+        if when is None or timezone.now() - when > timedelta(days=1) or request.query_params.get('recalcular') == '1':
+            p = profile.refresh_stats(org)
+        return Response(profile_payload(p))
+
+    def put(self, request):
+        from brain import profile
+        from brain.models import OfficeProfile
+        org, m = _ctx(request)
+        if org is None:
+            return _no_org()
+        if m.role not in MANAGE_TEAM_ROLES:
+            return _forbidden()
+        p = profile.get(org)
+        d = request.data
+        if 'areas' in d:
+            areas = d.get('areas') if isinstance(d.get('areas'), list) else []
+            unknown = [a for a in areas if a not in profile.AREAS]
+            if unknown:
+                return Response({'detail': f'Área desconhecida: {", ".join(map(str, unknown))}.'}, status=status.HTTP_400_BAD_REQUEST)
+            p.areas = list(dict.fromkeys(areas))[:8]
+        if 'tom' in d:
+            if d['tom'] not in OfficeProfile.Tone.values:
+                return Response({'detail': 'Tom inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+            p.tone = d['tom']
+        for key, field, limit in (('publico', 'audience', 200), ('cidade', 'city', 80), ('assinatura', 'signature', 1000)):
+            if key in d:
+                setattr(p, field, str(d.get(key) or '').strip()[:limit])
+        if 'redes' in d and isinstance(d['redes'], dict):
+            p.social = {k: str(v).strip()[:200] for k, v in d['redes'].items() if k in ('instagram', 'linkedin', 'site', 'facebook', 'youtube')}
+        p.save()
+        audit.log('brain.profile_updated', actor=request.user, organization=org, target=p, changes={'campos': sorted(d.keys())})
+        return Response(profile_payload(p))
+
+
+class InsightsView(APIView):
+    """Quanto a IA está acertando e aprendendo neste escritório."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from brain import profile
+        org, _ = _ctx(request)
+        if org is None:
+            return _no_org()
+        try:
+            days = max(7, min(365, int(request.query_params.get('dias', 90))))
+        except ValueError:
+            days = 90
+        return Response(profile.insights(org, days))

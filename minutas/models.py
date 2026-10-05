@@ -31,6 +31,7 @@ class Draft(models.Model):
     source_type = models.CharField(max_length=12, blank=True, default='')   # documento | publicacao | ''
     source_id = models.PositiveIntegerField(null=True, blank=True)
     content = EncryptedTextField(blank=True, default='')
+    generated_content = EncryptedTextField(blank=True, default='')   # o que o Cadrius entregou (mede quanto a pessoa editou)
     citations = EncryptedJSONField(default=list, blank=True)        # [{trecho, origem, conferido}]
     pending = models.PositiveSmallIntegerField(default=0)           # quantos [COMPLETAR] ainda há no texto
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)

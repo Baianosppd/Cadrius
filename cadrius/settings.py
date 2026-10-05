@@ -156,6 +156,7 @@ INSTALLED_APPS = [
     'automations',  # regras de automação internas do escritório (CAD-172)
     'publications',  # caixa de publicações do DJEN com triagem (CAD-173)
     'minutas',  # minutas (rascunhos) sobre documentos e publicações (CAD-173)
+    'marketing',  # conteúdo, calendário e campanhas — escritório e Cadrius (CAD-174)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
@@ -527,3 +528,10 @@ DATAJUD_API_KEY = os.environ.get('DATAJUD_API_KEY', '')
 DATAJUD_BASE_URL = os.environ.get('DATAJUD_BASE_URL', 'https://api-publica.datajud.cnj.jus.br')
 # "Nome|URL" separados por vírgula (só a equipe define; usuário nunca informa URL).
 NEWS_FEEDS = [tuple(x.split('|', 1)) for x in os.environ.get('NEWS_FEEDS', '').split(',') if '|' in x]
+
+
+# Meta Graph API (publicação no Facebook/Instagram — CAD-174). Página/Instagram da própria Cadrius (área Marketing da Gestão).
+META_GRAPH_VERSION = env('META_GRAPH_VERSION', default='v21.0')
+CADRIUS_META_PAGE_ID = env('CADRIUS_META_PAGE_ID', default='')
+CADRIUS_META_PAGE_TOKEN = env('CADRIUS_META_PAGE_TOKEN', default='')
+CADRIUS_META_IG_USER_ID = env('CADRIUS_META_IG_USER_ID', default='')

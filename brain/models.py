@@ -15,6 +15,8 @@ class MemoryItem(models.Model):
         TEMPLATE = 'template', 'Modelo de peça'
         NOTE = 'note', 'Anotação do escritório'
         DECISION = 'decision', 'Decisão/entendimento'
+        DRAFT_EXAMPLE = 'draft_example', 'Minuta revisada'
+        MARKETING_EXAMPLE = 'marketing_example', 'Conteúdo de marketing aprovado'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='memory_items')
     kind = models.CharField(max_length=24, choices=Kind.choices)
@@ -79,6 +81,8 @@ class OfficeRule(models.Model):
         constraints = [models.UniqueConstraint(fields=['organization', 'kind', 'field', 'from_value', 'to_value'], name='uniq_office_rule')]
 
     def describe(self):
+        if self.kind == 'term':
+            return f'Nos textos gerados pela IA (minutas e marketing), escrever "{self.to_value}" em vez de "{self.from_value}".'
         return f'Quando a leitura trouxer {self.field} = "{self.from_value}", trocar por "{self.to_value}".'
 
 
@@ -116,3 +120,50 @@ class AutonomyProposal(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class AutomationSuggestion(models.Model):
+    """Fase E (CAD-174): a IA nota um padrão no escritório e sugere uma regra pronta. A pessoa aceita (vira regra DESLIGADA,
+    que ela simula e liga), ou dispensa (não volta a sugerir por 60 dias; vira sinal negativo)."""
+
+    class Status(models.TextChoices):
+        OPEN = 'open', 'Aberta'
+        ACCEPTED = 'accepted', 'Aceita'
+        DISMISSED = 'dismissed', 'Dispensada'
+
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='automation_suggestions')
+    key = models.CharField(max_length=80)                    # detector + variante (ex.: "template:prazo_lembrete")
+    title = models.CharField(max_length=160)
+    reason = EncryptedTextField()                            # por que sugerimos (pode citar título de tarefa do escritório)
+    evidence = models.PositiveIntegerField(default=0)
+    payload = EncryptedJSONField(default=dict, blank=True)   # {"template": "..."} ou {"rule": {...}}
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN, db_index=True)
+    rule = models.ForeignKey('automations.Rule', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        constraints = [models.UniqueConstraint(fields=['organization', 'key'], name='uniq_suggestion_per_org')]
+
+
+class OfficeProfile(models.Model):
+    """Perfil do escritório (CAD-174): o que a IA usa para falar "do jeito do escritório" em minutas, marketing e triagem.
+    Parte é editada pelo escritório (áreas, tom, assinatura, público) e parte é calculada dos dados (``auto_stats``)."""
+
+    class Tone(models.TextChoices):
+        FORMAL = 'formal', 'Formal'
+        PROXIMO = 'proximo', 'Próximo e acolhedor'
+        DIDATICO = 'didatico', 'Didático'
+
+    organization = models.OneToOneField('accounts.Organization', on_delete=models.CASCADE, related_name='office_profile')
+    areas = models.JSONField(default=list, blank=True)          # ["trabalhista", "previdenciario"]
+    audience = models.CharField(max_length=200, blank=True, default='')   # público que o escritório atende
+    city = models.CharField(max_length=80, blank=True, default='')
+    tone = models.CharField(max_length=10, choices=Tone.choices, default=Tone.FORMAL)
+    signature = models.TextField(blank=True, default='')        # assinatura padrão das minutas
+    social = models.JSONField(default=dict, blank=True)         # {"instagram": "@...", "site": "https://..."}
+    auto_stats = models.JSONField(default=dict, blank=True)     # calculado: tribunais, tipos de documento, volumes
+    updated_at = models.DateTimeField(auto_now=True)

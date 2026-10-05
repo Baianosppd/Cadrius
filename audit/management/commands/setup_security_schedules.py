@@ -14,6 +14,7 @@ JOBS = {
     'IA: aprender com as decisões (regras e autonomia)': ('brain_evaluate', Schedule.DAILY, None),
     'Automações: prazos próximos e regras agendadas': ('automations_tick', Schedule.MINUTES, 15),
     'Publicações: capturar comunicações do DJEN': ('publications_poll', Schedule.MINUTES, 180),
+    'Marketing: publicar conteúdos agendados': ('marketing_publish', Schedule.MINUTES, 15),
 }
 
 

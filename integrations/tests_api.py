@@ -15,7 +15,7 @@ class ConnectionApiTests(APITestCase):
     def test_cria_sem_vazar_credenciais(self):
         self.client.force_authenticate(self.owner)
         resp = self.client.post('/api/v1/connections/', {
-            'name': 'Telegram do suporte', 'app_name': 'TELEGRAM', 'credentials': {'token': 'segredo-123'},
+            'name': 'Telegram do suporte', 'app_name': 'TELEGRAM', 'credentials': {'telegram_bot_token': 'segredo-123', 'telegram_chat_id': '42'},
         }, format='json')
         self.assertEqual(resp.status_code, 201, resp.data)
         self.assertNotIn('credentials', resp.data)
