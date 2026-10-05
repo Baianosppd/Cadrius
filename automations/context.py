@@ -107,12 +107,32 @@ def contact_created(org, refs):
     return ctx, f'Contato {contact.name}'
 
 
+def publication_new(org, refs):
+    from publications.models import Publication
+
+    pub = Publication.objects.filter(pk=refs.get('publication_id'), organization=org).select_related(
+        'case__client', 'case__responsavel', 'watch__responsavel').first()
+    if pub is None:
+        return None
+    t = pub.triage or {}
+    resp = pub.watch.responsavel if pub.watch_id and pub.watch.responsavel_id else (pub.case.responsavel if pub.case_id else None)
+    prazo = {'dias': str(t.get('prazo_dias') or ''), 'fatal': 'sim' if t.get('fatal') else 'não'}
+    if pub.vencimento:
+        prazo.update(data=br(pub.vencimento), iso=pub.vencimento.isoformat())
+    ctx = {**_base(org), 'publicacao': {'id': pub.pk, 'ato': t.get('ato', ''), 'tipo': pub.tipo, 'tribunal': pub.tribunal,
+                                        'orgao': pub.orgao, 'providencia': t.get('providencia', '')},
+           'processo': {'cnj': pub.cnj}, 'prazo': prazo, 'resumo': t.get('resumo', ''),
+           'cliente': _person(pub.case.client if pub.case_id else None),
+           'responsavel': _user(resp if _is_member(org, resp) else None)}
+    return ctx, f'Publicação {pub.tribunal} {pub.cnj}'.strip()
+
+
 def schedule(org, refs):
     return {**_base(org), 'responsavel': {}}, f'Agenda de {br(timezone.localdate())}'
 
 
 BUILDERS = {'document_confirmed': document_confirmed, 'case_movement': case_movement, 'deadline_soon': deadline_soon,
-            'contact_created': contact_created, 'schedule': schedule}
+            'contact_created': contact_created, 'schedule': schedule, 'publication_new': publication_new}
 
 
 def build(trigger, org, refs):
@@ -139,6 +159,10 @@ def sample_refs(trigger, org) -> dict | None:
         from contacts.models import Contact
         c = Contact.objects.filter(organization=org).order_by('-created_at').first()
         return {'contact_id': c.pk} if c else None
+    if trigger == 'publication_new':
+        from publications.models import Publication
+        p = Publication.objects.filter(organization=org).order_by('-created_at').first()
+        return {'publication_id': p.pk} if p else None
     return {}
 
 
@@ -159,4 +183,9 @@ def example(trigger, org) -> tuple[dict, str]:
                           'dias_uteis_restantes': '3'},
         'contact_created': {**base, 'contato': person},
         'schedule': base,
+        'publication_new': {**base, 'publicacao': {'ato': 'Sentença', 'tipo': 'Intimação', 'tribunal': 'TJSP', 'orgao': '1ª Vara Cível',
+                                                   'providencia': 'Avaliar recurso.'},
+                            'processo': {'cnj': '0000000-00.2026.8.26.0000'},
+                            'prazo': {'data': br(today), 'iso': today.isoformat(), 'dias': '15', 'fatal': 'sim'},
+                            'resumo': 'Sentença de procedência (exemplo).', 'cliente': person},
     }[trigger], 'Exemplo fictício'

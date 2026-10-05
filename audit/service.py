@@ -47,6 +47,8 @@ ACTIONS = frozenset({
     'research.case_added', 'research.case_removed', 'research.movements_found',
     'automation.rule_created', 'automation.rule_updated', 'automation.rule_deleted', 'automation.rule_enabled',
     'automation.rule_disabled', 'automation.run_approved', 'automation.run_rejected',
+    'publication.captured', 'publication.reviewed', 'publication.watch_added', 'publication.watch_removed',
+    'draft.created', 'draft.updated', 'draft.deleted', 'draft.exported', 'draft.template_saved',
 })
 
 

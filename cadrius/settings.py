@@ -154,6 +154,8 @@ INSTALLED_APPS = [
     'support',  # suporte com a equipe Cadrius (CAD-171)
     'forense',  # calendário forense e prazos em dias úteis (CAD-172)
     'automations',  # regras de automação internas do escritório (CAD-172)
+    'publications',  # caixa de publicações do DJEN com triagem (CAD-173)
+    'minutas',  # minutas (rascunhos) sobre documentos e publicações (CAD-173)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
