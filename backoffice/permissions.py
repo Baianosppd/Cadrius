@@ -1,13 +1,14 @@
 """Áreas da equipe Cadrius (CAD-168). Acesso = conta ativa + ``is_staff`` + (superusuário OU grupo da área).
 
-Grupos: "Cadrius TI" (saúde do sistema, usuários, segurança) e "Cadrius Financeiro" (preços, promoções, créditos, assinaturas).
+Grupos: "Cadrius TI" (saúde do sistema, usuários, segurança, contas da equipe), "Cadrius Financeiro" (preços, promoções, créditos,
+assinaturas) e "Cadrius Fiscal" (recebimentos e notas fiscais, CAD-170).
 Atribuir: ``manage.py cadrius_staff email@... --areas ti,financeiro``.
 """
 from rest_framework import permissions
 
 from accounts import mfa
 
-AREA_GROUPS = {'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro'}
+AREA_GROUPS = {'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro', 'fiscal': 'Cadrius Fiscal'}
 
 
 def user_areas(user) -> list[str]:
@@ -40,3 +41,4 @@ class HasArea(permissions.BasePermission):
 IsBackoffice = HasArea.of()            # qualquer área
 IsTI = HasArea.of('ti')
 IsFinanceiro = HasArea.of('financeiro')
+IsFiscal = HasArea.of('fiscal')

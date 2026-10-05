@@ -24,7 +24,7 @@ def staff(email, *areas, superuser=False):
     user.is_staff, user.is_superuser = True, superuser
     user.save()
     for area in areas:
-        user.groups.add(Group.objects.get_or_create(name={'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro'}[area])[0])
+        user.groups.add(Group.objects.get_or_create(name={'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro', 'fiscal': 'Cadrius Fiscal'}[area])[0])
     return user
 
 
@@ -45,7 +45,7 @@ class Base(APITestCase):
 class PermissionTests(Base):
     def test_areas(self):
         self.assertEqual(user_areas(self.ti), ['ti'])
-        self.assertEqual(user_areas(staff('root@cadrius.ia.br', superuser=True)), ['financeiro', 'ti'])
+        self.assertEqual(user_areas(staff('root@cadrius.ia.br', superuser=True)), ['financeiro', 'fiscal', 'ti'])
         self.assertEqual(user_areas(staff('semgrupo@cadrius.ia.br')), [])   # is_staff sem área não entra
         self.assertEqual(user_areas(self.owner), [])
 
@@ -215,8 +215,9 @@ class SeedValidationUsersTests(Base):
         from accounts.models import Organization
         from billing import entitlements as ent
         users = get_user_model().objects.filter(email__endswith='@teste.cadrius.ia.br')
-        self.assertEqual(users.count(), 14)
-        self.assertEqual(user_areas(users.get(email='gestao.completa@teste.cadrius.ia.br')), ['financeiro', 'ti'])
+        self.assertEqual(users.count(), 15)
+        self.assertEqual(user_areas(users.get(email='gestao.completa@teste.cadrius.ia.br')), ['financeiro', 'fiscal', 'ti'])
+        self.assertEqual(user_areas(users.get(email='gestao.fiscal@teste.cadrius.ia.br')), ['fiscal'])
         self.assertEqual(user_areas(users.get(email='gestao.semarea@teste.cadrius.ia.br')), [])
         states = {o.name: ent.effective_status(o) for o in Organization.objects.filter(name__startswith='[TESTE]')}
         self.assertEqual(states, {'[TESTE] Ativo': 'active', '[TESTE] Em teste': 'trialing', '[TESTE] Teste vencido': 'restricted',
@@ -228,7 +229,7 @@ class SeedValidationUsersTests(Base):
         self.assertTrue(users.get(email='dono@teste.cadrius.ia.br').check_password(password))
         out2 = StringIO()
         call_command('seed_validation_users', stdout=out2)                       # idempotente
-        self.assertEqual(users.count(), 14)
+        self.assertEqual(users.count(), 15)
         self.assertIn('já existia', out2.getvalue())
         call_command('seed_validation_users', remove=True, stdout=StringIO())
         self.assertEqual(users.count(), 0)
@@ -239,3 +240,109 @@ class SeedValidationUsersTests(Base):
         from django.core.management.base import CommandError
         with self.settings(DJANGO_ENV='production'), self.assertRaises(CommandError):
             call_command('seed_validation_users', stdout=StringIO())
+
+
+class StaffManagementTests(Base):
+    """CAD-170: a TI cria e ajusta as contas da equipe (TI, Financeiro, Fiscal)."""
+
+    def test_ti_cria_conta_sem_senha_e_envia_link(self):
+        ti = self.as_(self.ti)
+        body = {'email': 'Nova@Cadrius.ia.br', 'first_name': 'Nova', 'last_name': 'Pessoa', 'areas': ['fiscal'], 'reason': 'Contratação do fiscal'}
+        with mock.patch('accounts.password_reset.send_reset_email') as send:
+            res = ti.post('/api/v1/backoffice/staff/', body, format='json')
+        self.assertEqual(res.status_code, 201, res.content)
+        self.assertEqual(res.json()['areas'], ['fiscal'])
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.get(email='nova@cadrius.ia.br')
+        self.assertTrue(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertFalse(user.has_usable_password())
+        send.assert_called_once()
+        self.assertTrue(AuditEvent.objects.filter(action='backoffice.action', changes__action='staff_created').exists())
+        self.assertEqual(ti.post('/api/v1/backoffice/staff/', body, format='json').status_code, 400)          # e-mail repetido
+
+    def test_validacoes_e_so_ti(self):
+        ti = self.as_(self.ti)
+        for bad in ({'email': 'x', 'areas': ['ti']}, {'email': 'a@b.com', 'areas': []}, {'email': 'a@b.com', 'areas': ['admin']},
+                    {'email': 'a@b.com', 'areas': 'ti'}):
+            self.assertEqual(ti.post('/api/v1/backoffice/staff/', {**bad, 'reason': REASON}, format='json').status_code, 400, bad)
+        self.assertEqual(ti.post('/api/v1/backoffice/staff/', {'email': 'a@b.com', 'areas': ['ti']}, format='json').status_code, 400)  # sem motivo
+        self.assertEqual(self.as_(self.fin).get('/api/v1/backoffice/staff/').status_code, 403)
+        emails = [r['email'] for r in ti.get('/api/v1/backoffice/staff/').json()]
+        self.assertIn('fin@cadrius.ia.br', emails)
+        self.assertNotIn('dono@alfa.com', emails)
+
+    def test_mudar_areas_e_tirar_da_equipe(self):
+        ti = self.as_(self.ti)
+        url = f'/api/v1/backoffice/staff/{self.fin.pk}/'
+        self.assertEqual(ti.patch(url, {'areas': ['financeiro', 'fiscal'], 'reason': REASON}, format='json').json()['areas'],
+                         ['financeiro', 'fiscal'])
+        RefreshToken.for_user(self.fin)
+        res = ti.patch(url, {'areas': [], 'reason': 'Saiu da empresa hoje'}, format='json').json()
+        self.assertEqual((res['areas'], res['sessoes_encerradas']), ([], 1))
+        self.fin.refresh_from_db()
+        self.assertFalse(self.fin.is_staff)
+
+    def test_protecoes(self):
+        ti = self.as_(self.ti)
+        self.assertEqual(ti.patch(f'/api/v1/backoffice/staff/{self.ti.pk}/', {'areas': ['financeiro'], 'reason': REASON},
+                                  format='json').status_code, 400)                                           # não tira a própria TI
+        root = staff('root@cadrius.ia.br', superuser=True)
+        self.assertEqual(ti.patch(f'/api/v1/backoffice/staff/{root.pk}/', {'areas': ['ti'], 'reason': REASON},
+                                  format='json').status_code, 400)                                           # superusuário
+
+
+class FiscalTests(Base):
+    """CAD-170: livro de recebimentos alimentado pelo Stripe, NF registrada pelo Fiscal e exportação ao contador."""
+
+    def setUp(self):
+        super().setUp()
+        self.fiscal_user = staff('fiscal@cadrius.ia.br', 'fiscal')
+        from billing.models import CreditPack
+        self.pack = CreditPack.objects.create(name='200', credits=200, price_brl='99.00', is_active=True)
+        self.org.stripe_subscription_id = 'sub_9'
+        self.org.razao_social = 'Alfa Advogados Ltda'
+        self.org.cnpj = '11.222.333/0001-81'
+        self.org.save()
+
+    def events(self):
+        from billing.stripe_sync import apply_event
+        invoice = {'type': 'invoice.paid', 'data': {'object': {'id': 'in_1', 'subscription': 'sub_9', 'amount_paid': 29900}}}
+        apply_event(invoice)
+        apply_event({**invoice, 'type': 'invoice.payment_succeeded'})          # mesmo pagamento, 2º evento: não duplica
+        pack = {'type': 'checkout.session.completed', 'data': {'object': {
+            'id': 'cs_pack', 'client_reference_id': str(self.org.pk), 'payment_status': 'paid', 'amount_total': 9900,
+            'metadata': {'kind': 'credit_pack', 'pack_id': str(self.pack.pk)}}}}
+        apply_event(pack)
+        apply_event(pack)
+
+    def test_livro_de_recebimentos_sem_duplicar(self):
+        from billing.models import Payment
+        self.events()
+        self.assertEqual(Payment.objects.count(), 2)
+        self.assertEqual(sorted(Payment.objects.values_list('amount_cents', flat=True)), [9900, 29900])
+
+    def test_api_resumo_permissao_e_nf(self):
+        self.events()
+        self.assertEqual(self.as_(self.fin).get('/api/v1/backoffice/fiscal/payments/').status_code, 403)
+        fiscal = self.as_(self.fiscal_user)
+        data = fiscal.get('/api/v1/backoffice/fiscal/payments/').json()
+        self.assertEqual((data['resumo']['total_brl'], data['resumo']['nf_pendentes']), ('398.00', 2))
+        row = next(r for r in data['resultados'] if r['tipo'] == 'subscription')
+        self.assertEqual(row['tomador'], {'nome': 'Alfa Advogados Ltda', 'documento': '11.222.333/0001-81'})
+        url = f"/api/v1/backoffice/fiscal/payments/{row['id']}/invoice/"
+        self.assertEqual(fiscal.post(url, {'status': 'issued', 'reason': 'NF emitida'}, format='json').status_code, 400)  # sem número
+        ok = fiscal.post(url, {'status': 'issued', 'number': '2026/00017', 'issued_at': '2026-10-05', 'reason': 'NF emitida'}, format='json')
+        self.assertEqual(ok.json()['nf_numero'], '2026/00017')
+        self.assertEqual(fiscal.get('/api/v1/backoffice/fiscal/payments/?status=pending').json()['resumo']['quantidade'], 1)
+        self.assertEqual(fiscal.get('/api/v1/backoffice/fiscal/payments/?start=2026-13-01').status_code, 400)
+        self.assertIn('fiscal', fiscal.get('/api/v1/backoffice/overview/').json())
+
+    def test_exporta_csv_para_o_contador(self):
+        self.events()
+        res = self.as_(self.fiscal_user).get('/api/v1/backoffice/fiscal/payments/export.csv')
+        self.assertEqual(res.status_code, 200)
+        text = res.content.decode('utf-8-sig')
+        self.assertIn('Tomador;CPF/CNPJ', text)
+        self.assertIn('299,00', text)
+        self.assertTrue(AuditEvent.objects.filter(action='data.export').exists())

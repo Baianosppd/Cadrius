@@ -32,7 +32,8 @@ PREFIX = '[TESTE] '
 STAFF = {
     'gestao.ti': ('TI', ['ti'], None, None),
     'gestao.financeiro': ('Financeiro', ['financeiro'], None, None),
-    'gestao.completa': ('Gestão completa', ['ti', 'financeiro'], None, None),
+    'gestao.fiscal': ('Fiscal', ['fiscal'], None, None),
+    'gestao.completa': ('Gestão completa', ['ti', 'financeiro', 'fiscal'], None, None),
     'gestao.semarea': ('Equipe sem área', [], None, None),
 }
 # escritório → (estado, dias: trial restante ou dias em atraso, plano preferido)
