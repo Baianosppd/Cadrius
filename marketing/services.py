@@ -123,6 +123,11 @@ def generate(*, scope, org, user, channel, theme, brief='', use_ai=True, campaig
         data = skeleton(channel, theme, scope)
     tags = [t.strip().lstrip('#').replace(' ', '')[:40] for t in data.get('hashtags') or [] if str(t).strip()][:8]
     body = data['texto'].strip()
+    if scope == 'escritorio':
+        from brain import style
+        body, swapped = style.apply_terms(org, body)
+        if swapped:
+            notice = (notice + f' Vocabulário do escritório aplicado ({swapped} troca(s)).').strip()
     piece = ContentPiece.objects.create(
         scope=scope, organization=org if scope == 'escritorio' else None, campaign=campaign, channel=channel, theme=theme[:200],
         title=(data.get('titulo') or theme)[:200], body=body, generated_body=body, hashtags=tags,

@@ -72,9 +72,11 @@ def refresh_stats(org) -> OfficeProfile:
 
 def prompt_context(org) -> str:
     """Trecho para os prompts. Só dados do perfil (nada de clientes/processos)."""
+    from brain import style
+    vocab = style.prompt_context(org)
     p = OfficeProfile.objects.filter(organization=org).first()
     if p is None:
-        return ''
+        return vocab
     parts = []
     if p.areas:
         parts.append('Áreas de atuação: ' + ', '.join(AREAS.get(a, a) for a in p.areas) + '.')
@@ -86,7 +88,7 @@ def prompt_context(org) -> str:
     trib = [t['nome'] for t in (p.auto_stats or {}).get('tribunais', [])[:4]]
     if trib:
         parts.append('Tribunais mais frequentes: ' + ', '.join(trib) + '.')
-    return '\n\nPerfil do escritório (use para ajustar o estilo; não invente fatos): ' + ' '.join(parts)
+    return '\n\nPerfil do escritório (use para ajustar o estilo; não invente fatos): ' + ' '.join(parts) + vocab
 
 
 def insights(org, days=90) -> dict:

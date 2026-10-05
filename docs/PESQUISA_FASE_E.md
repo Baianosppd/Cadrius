@@ -64,6 +64,19 @@ conversão e cancelamentos por semana) + **playbook** de aquisição: conteúdo 
 subseções da OAB/ESA, teste grátis com onboarding, programa de indicação em créditos de IA, vídeos curtos "antes e depois" e
 Perfil no Google. Publicação na página da Cadrius via variáveis `CADRIUS_META_PAGE_ID/TOKEN/IG_USER_ID` no `.env`.
 
+## 6. IA que aprende por escritório (o que entrou nesta fase)
+
+Tudo isolado por escritório, cifrado em repouso e **sem treinar modelo de terceiros**: aprender = lembrar o que a equipe aprovou e
+propor regras que um advogado aprova.
+
+| Sinal | O que o Cadrius aprende | Onde aparece |
+|---|---|---|
+| Tarefas/eventos repetidos | Automações sugeridas (ex.: "toda segunda a mesma tarefa" → regra semanal) | Automação → Regras → Sugestões da IA |
+| Processos, documentos, publicações | Perfil do escritório (áreas, tribunais, tipos de peça) usado nos prompts | IA → Perfil |
+| Minuta revisada / post aprovado | Exemplo de estilo (few-shot) e medida de quanto a pessoa editou | IA → Aprendizado |
+| **Trocas de termos repetidas** | **Vocabulário do escritório**: a mesma troca ("o requerente" → "a parte autora") em 3 textos vira proposta; aprovada, entra no prompt e é aplicada no texto gerado. Nomes próprios, números e pontuação nunca viram regra | IA → Regras / Central de aprovações |
+| Correções na leitura de documentos | Regras de correção de campo (já existia, CAD-165) | IA → Regras |
+
 ## Fontes
 - [Provimento 205/2021 (texto)](https://www.conjur.com.br/dl/pr/provimento-2052021.pdf) · [OAB SP — novo provimento](https://www.oabsp.org.br/noticia/21-07-16-1620-aprovado-novo-provimento-sobre-publicidade-na-advocacia) · [Marketing jurídico 2026 — Previdenciarista](https://previdenciarista.com/blog/marketing-juridico-guia-completo-e-atualizado/)
 - [Instagram — publicação de conteúdo (Meta)](https://developers.facebook.com/documentation/instagram-platform/content-publishing) · [Limites da API do Instagram 2026](https://instantdm.com/blog/instagram-api-rate-limits-explained-2026-developer-guide) · [Guia Instagram API 2026](https://www.getphyllo.com/post/instagram-api-guide) · [Agendar posts no Facebook por API](https://zernio.com/blog/schedule-a-facebook-post) · [LinkedIn: automação e restrições](https://linkedapi.io/guides/how-to-automate-linkedin-posts.md)

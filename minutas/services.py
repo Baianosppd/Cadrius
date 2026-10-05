@@ -227,6 +227,10 @@ def generate(org, user, *, template_key, source_type='', source_id=None, use_ai=
             citations, dropped = verify_citations(raw, source_text, label)
             notice = ('Gerada com IA: confira todo o texto. '
                       + (f'{dropped} trecho(s) citado(s) pela IA não existiam na fonte e foram removidos.' if dropped else ''))
+    from brain import style
+    content, swapped = style.apply_terms(org, content)
+    if swapped:
+        notice = (notice + f' Vocabulário do escritório aplicado ({swapped} troca(s)).').strip()
     ref = values.get('processo.cnj') or label or today.strftime('%d/%m/%Y')
     return Draft.objects.create(organization=org, template_key=template_key, title=(title or f'{name} — {ref}')[:200],
                                 source_type=source_type or '', source_id=source_id if source_type else None, content=content,

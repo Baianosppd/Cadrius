@@ -81,6 +81,8 @@ class OfficeRule(models.Model):
         constraints = [models.UniqueConstraint(fields=['organization', 'kind', 'field', 'from_value', 'to_value'], name='uniq_office_rule')]
 
     def describe(self):
+        if self.kind == 'term':
+            return f'Nos textos gerados pela IA (minutas e marketing), escrever "{self.to_value}" em vez de "{self.from_value}".'
         return f'Quando a leitura trouxer {self.field} = "{self.from_value}", trocar por "{self.to_value}".'
 
 

@@ -125,3 +125,58 @@ class ProfileTests(APITestCase):
         with mock.patch('brain.memory.similar', return_value=[(0.9, MemoryItem.objects.get(kind='draft_example'))]):
             from minutas.services import _prompt
             self.assertIn('Exemplo de minuta já revisada', _prompt(self.org, 'base'))
+
+
+class VocabularyTests(APITestCase):
+    """Vocabulário do escritório: trocas repetidas de termos viram regra proposta; aprovada, vale no prompt e no texto."""
+
+    def setUp(self):
+        cache.clear()
+        self.org = make_org()
+        self.owner = make_user('dono@x.com', self.org, role='OWNER')
+        self.c = APIClient()
+        self.c.force_authenticate(self.owner)
+
+    def test_detecta_trocas_e_ignora_nomes_numeros_e_pontuacao(self):
+        from brain import style
+        out = style.term_changes('O requerente João Silva pagou R$ 500 ao cliente.',
+                                 'O autor José Souza pagou R$ 700 ao constituinte!')
+        pairs = {(c['from'], c['to']) for c in out}
+        self.assertIn(('cliente', 'constituinte'), pairs)
+        self.assertNotIn(('joão silva', 'josé souza'), pairs)
+        self.assertFalse(any(c['from'].isdigit() or c['to'].isdigit() for c in out))
+        self.assertEqual(style.term_changes('Vossa Senhoria decidirá', 'Vossa Excelência decidirá')[0]['to'], 'excelência')
+        self.assertEqual(style.term_changes('', 'x'), [])
+
+    def test_aprende_propoe_aprova_e_aplica(self):
+        from brain import style
+        from brain.models import OfficeRule
+        from minutas.models import DraftTemplate
+        t = DraftTemplate.objects.create(organization=self.org, name='Peça', body='Requer o requerente a citação do réu.')
+        for i in range(3):
+            d = self.c.post('/api/v1/minutas/', {'modelo': f'org:{t.pk}'}, format='json').json()
+            novo = d['conteudo'].replace('o requerente', 'a parte autora')
+            self.c.patch(f'/api/v1/minutas/{d["id"]}/', {'conteudo': novo, 'status': 'revisada'}, format='json')
+        self.assertEqual(style.mine_terms(self.org, min_evidence=4), [])          # 3 textos < 4 exigidos
+        created = style.mine_terms(self.org)
+        self.assertEqual([(r.from_value, r.to_value, r.evidence) for r in created], [('o requerente', 'a parte autora', 3)])
+        rule = created[0]
+        self.assertIn('em vez de "o requerente"', rule.describe())
+        d = self.c.post('/api/v1/minutas/', {'modelo': f'org:{t.pk}'}, format='json').json()
+        self.assertIn('o requerente', d['conteudo'])                               # proposta ainda não vale
+        res = self.c.get('/api/v1/brain/approvals/').json()
+        self.assertIn(rule.pk, [r['id'] for r in res['rules_proposed']])
+        self.assertEqual(self.c.post(f'/api/v1/brain/rules/{rule.pk}/decide/', {'decision': 'approve'}, format='json').status_code, 200)
+        d = self.c.post('/api/v1/minutas/', {'modelo': f'org:{t.pk}'}, format='json').json()
+        self.assertEqual(d['conteudo'], 'Requer a parte autora a citação do réu.')
+        self.assertIn('Vocabulário do escritório aplicado (1 troca(s))', d['aviso'])
+        self.assertIn('escreva "a parte autora" em vez de "o requerente"', profile.prompt_context(self.org))
+        self.assertEqual(style.apply_terms(self.org, 'O REQUERENTE e O requerente')[0], 'A PARTE AUTORA e A parte autora')
+        piece = self.c.post('/api/v1/marketing/conteudos/', {'canal': 'blog', 'tema': 'Quando o requerente perde o prazo', 'usar_ia': False},
+                            format='json').json()
+        self.assertNotIn('o requerente', piece['texto'].lower())
+        other = make_org('Outro')
+        self.assertEqual(style.apply_terms(other, 'o requerente')[0], 'o requerente')      # isolado por escritório
+        rule.refresh_from_db()
+        self.assertEqual(rule.status, OfficeRule.Status.ACTIVE)
+        self.assertFalse(OfficeRule.objects.filter(organization=self.org, kind='field_correction').exists())
