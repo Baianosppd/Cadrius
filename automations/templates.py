@@ -61,6 +61,30 @@ TEMPLATES = {
                                                                                               '({{publicacao.tribunal}}): vence {{prazo.data}}.'}},
         ],
     },
+    'regua_lembrete': {
+        'name': 'Régua de cobrança: lembrete 3 dias antes do vencimento',
+        'description': 'Três dias antes do vencimento, manda ao cliente um e-mail cordial com o valor e o link de pagamento '
+                       '(só com consentimento por e-mail; passa por aprovação).',
+        'trigger': 'receivable_due', 'trigger_config': {'quando': 'antes', 'dias': 3},
+        'conditions': [],
+        'actions': [{'type': 'send_email', 'params': {
+            'destinatario': 'cliente', 'assunto': 'Lembrete: honorários vencem em {{honorario.vencimento}}',
+            'mensagem': 'Olá, {{cliente.primeiro_nome}}!\n\nLembramos que "{{honorario.descricao}}", no valor de {{honorario.valor}}, '
+                        'vence em {{honorario.vencimento}}.\n{{honorario.link_pagamento}}\n\nSe já pagou, desconsidere.\n\n'
+                        '{{escritorio.nome}}'}}],
+    },
+    'regua_vencido': {
+        'name': 'Régua de cobrança: honorário vencido há 5 dias',
+        'description': 'Cinco dias após o vencimento sem pagamento, avisa a equipe e cria a tarefa de contato com o cliente.',
+        'trigger': 'receivable_due', 'trigger_config': {'quando': 'vencido', 'dias': 5},
+        'conditions': [],
+        'actions': [
+            {'type': 'notify', 'params': {'titulo': 'Honorário vencido', 'mensagem': '{{cliente.nome}}: {{honorario.descricao}} '
+                                                                                     '({{honorario.valor}}) venceu em {{honorario.vencimento}}.'}},
+            {'type': 'create_task', 'params': {'titulo': 'Falar com {{cliente.nome}} sobre honorário vencido',
+                                               'descricao': '{{honorario.descricao}} — {{honorario.valor}}, vencido há {{honorario.dias_atraso}} dias.',
+                                               'prioridade': 'media', 'quando': 'dias_uteis', 'dias': 0}}],
+    },
     'semanal_revisao': {
         'name': 'Revisão semanal da carteira',
         'description': 'Toda segunda às 8h, cria a tarefa de revisar prazos e processos da semana.',

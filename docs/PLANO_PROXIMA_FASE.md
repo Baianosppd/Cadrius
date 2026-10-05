@@ -179,7 +179,7 @@ Catálogo proposto (por ordem):
 | **C** ✔ (CAD-172) | Automações com gatilhos/ações internos + simulação + modelos · agenda forense · cliente do processo | "funcionar de verdade" |
 | **D** ✔ (CAD-173) | Caixa de publicações (DJEN) + triagem por IA · minutas sobre documentos | maior dor do advogado |
 | **E** ✔ (CAD-174) | IA recomenda automações · perfil e vocabulário do escritório · catálogo de integrações com guia (SMTP, ZapSign, Asaas, Meta) · Marketing (escritório e Cadrius) com verificador OAB · login Produção/Teste · front padronizado e responsivo — ver [PESQUISA_FASE_E.md](PESQUISA_FASE_E.md) | diferencial + alcance |
-| **F** | Carteira/CRM completa, financeiro do escritório, portal do cliente, Fiscal fases 2–3 | centralização |
+| **F** ✔ (CAD-175) | Funil de captação e contratos de honorários · finanças do escritório com cobrança Asaas, baixa automática e régua de cobrança · portal do cliente por link seguro · Fiscal fases 2–3 (NFS-e com conferência e obrigações) — ver [PESQUISA_FASE_F.md](PESQUISA_FASE_F.md) | centralização |
 
 ## Fontes da pesquisa
 - [Sistema para Escritório de Advocacia 2026: CPJ, Astrea, Projuris + IA com LGPD](https://ialocus.com.br/blog/post-sistema-advocacia-lgpd-cpj-astrea-projuris-2026.html)

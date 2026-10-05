@@ -425,9 +425,10 @@ def tick(now=None) -> dict:
     now = now or timezone.now()
     local = timezone.localtime(now)
     today = local.date()
-    out = {'deadline': 0, 'schedule': 0, 'expired': 0}
+    out = {'deadline': 0, 'schedule': 0, 'expired': 0, 'receivable': 0}
     rules = Rule.objects.filter(enabled=True, organization__is_active=True,
-                                trigger__in=[Rule.Trigger.DEADLINE_SOON, Rule.Trigger.SCHEDULE]).select_related('organization')
+                                trigger__in=[Rule.Trigger.DEADLINE_SOON, Rule.Trigger.SCHEDULE, Rule.Trigger.RECEIVABLE_DUE]
+                                ).select_related('organization')
     for rule in rules:
         org = rule.organization
         cal = Calendar(org)
@@ -439,6 +440,16 @@ def tick(now=None) -> dict:
             for t in tasks:
                 if execute(rule.pk, {'task_id': t.pk, 'dias': n}, f'task-{t.pk}-d{n}', now=now):
                     out['deadline'] += 1
+        elif rule.trigger == Rule.Trigger.RECEIVABLE_DUE:
+            from carteira.models import Receivable
+            cfg = rule.trigger_config
+            when, n = cfg.get('quando', 'antes'), int(cfg.get('dias', 3))
+            if local.hour < 8:                       # régua de cobrança só a partir das 8h
+                continue
+            target = today + timedelta(days=n) if when == 'antes' else today - timedelta(days=n)
+            for rec in Receivable.objects.filter(organization=org, status=Receivable.Status.OPEN, due_date=target).only('pk'):
+                if execute(rule.pk, {'receivable_id': rec.pk}, f'rec-{rec.pk}-{when}{n}', now=now):
+                    out['receivable'] += 1
         else:
             cfg = rule.trigger_config
             if local.hour < int(cfg.get('hora', 8)):

@@ -157,6 +157,8 @@ INSTALLED_APPS = [
     'publications',  # caixa de publicações do DJEN com triagem (CAD-173)
     'minutas',  # minutas (rascunhos) sobre documentos e publicações (CAD-173)
     'marketing',  # conteúdo, calendário e campanhas — escritório e Cadrius (CAD-174)
+    'carteira',  # funil, contratos de honorários e financeiro do escritório (CAD-175)
+    'portal',  # portal do cliente por link seguro (CAD-175)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
@@ -535,3 +537,20 @@ META_GRAPH_VERSION = env('META_GRAPH_VERSION', default='v21.0')
 CADRIUS_META_PAGE_ID = env('CADRIUS_META_PAGE_ID', default='')
 CADRIUS_META_PAGE_TOKEN = env('CADRIUS_META_PAGE_TOKEN', default='')
 CADRIUS_META_IG_USER_ID = env('CADRIUS_META_IG_USER_ID', default='')
+
+# Fiscal da Cadrius — fase 2 (NFS-e pelo emissor) e fase 3 (obrigações), CAD-175. Sem token, o registro manual (fase 1) continua.
+# [VALIDAR com o contador] item de serviço, alíquota, regime e o caminho do endpoint no emissor. Nunca versionar o token.
+FISCAL_NFSE_PROVIDER = env('FISCAL_NFSE_PROVIDER', default='manual')            # manual | focusnfe
+FOCUSNFE_TOKEN = env('FOCUSNFE_TOKEN', default='')
+FOCUSNFE_BASE = env('FOCUSNFE_BASE', default='https://homologacao.focusnfe.com.br')
+FOCUSNFE_NFSE_PATH = env('FOCUSNFE_NFSE_PATH', default='nfse')                    # nfse (municipal) | nfsen (padrão nacional)
+CADRIUS_FISCAL_CNPJ = env('CADRIUS_FISCAL_CNPJ', default='')
+CADRIUS_FISCAL_IM = env('CADRIUS_FISCAL_IM', default='')
+CADRIUS_FISCAL_COD_MUNICIPIO = env('CADRIUS_FISCAL_COD_MUNICIPIO', default='')
+CADRIUS_FISCAL_ITEM_SERVICO = env('CADRIUS_FISCAL_ITEM_SERVICO', default='')
+CADRIUS_FISCAL_COD_TRIBUTARIO = env('CADRIUS_FISCAL_COD_TRIBUTARIO', default='')
+CADRIUS_FISCAL_ALIQUOTA_ISS = env('CADRIUS_FISCAL_ALIQUOTA_ISS', default='0')
+CADRIUS_FISCAL_REGIME = env('CADRIUS_FISCAL_REGIME', default='simples')
+FISCAL_CBS_PCT = env('FISCAL_CBS_PCT', default='0.9')                             # reforma tributária: alíquota-teste 2026
+FISCAL_IBS_PCT = env('FISCAL_IBS_PCT', default='0.1')
+FISCAL_RETENCOES_PJ = env.json('FISCAL_RETENCOES_PJ', default={})                 # ex.: {"IRRF": 1.5} — só tomador PJ
