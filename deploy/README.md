@@ -167,6 +167,12 @@ sudo -i
 ```
 O deploy também corrige sozinho o `ALLOWED_HOSTS` de `.env` antigos (o healthcheck chama `127.0.0.1`).
 
+**O kit se atualiza sozinho (CAD-170):** todo `deploy.sh` começa trazendo o kit da branch `main` (`update-kit.sh`) e, se ele mudou,
+reinicia com a versão nova — o deploy pelo GitHub Actions nunca mais roda scripts velhos (foi o que impediu a `BLIND_INDEX_KEY` de ser
+criada). Opções: `KIT_BRANCH=<branch>` (testar um kit de outra branch) e `KIT_AUTO_UPDATE=0` (desligar). Se a atualização falhar,
+o deploy segue com o kit atual e avisa (detalhes em `/tmp/cadrius-kit-update.log`). **Uma única vez** depois deste merge, rode o
+`update-kit.sh main` à mão para o servidor receber esta própria melhoria.
+
 ## 8. Certificados e teste de fumaça
 
 ```bash
