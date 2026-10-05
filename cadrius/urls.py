@@ -121,6 +121,8 @@ urlpatterns = [
     path('api/v1/imports/', include('imports.urls')),
     path('api/v1/support/', include('support.urls')),
     path('api/v1/forense/', include('forense.urls')),
+    path('api/v1/publications/', include('publications.urls')),
+    path('api/v1/minutas/', include('minutas.urls')),
     path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),

@@ -89,6 +89,22 @@ Já existe: leitura (OCR opcional), extração com IA ou local, revisão humana,
 
 - **Caixa de publicações** via **DJEN** (comunicações processuais por OAB/nome do advogado) **[VALIDAR API e termos de uso do CNJ]**;
   triagem por IA (tipo, prazo provável, processo vinculado) → advogado confirma → prazo + tarefa.
+**Entregue na fase D (CAD-173)** — app `publications` (`/api/v1/publications/`, tela Publicações) e app `minutas`
+(`/api/v1/minutas/`, tela Minutas):
+- OABs do escritório acompanhadas no DJEN (API pública Comunica do CNJ, `publications_poll` a cada 3 h; 1ª consulta busca 7 dias,
+  as seguintes 3 dias; o id da comunicação evita duplicar). **[VALIDAR]** formato das datas e nomes dos campos no Swagger oficial
+  antes de produção; termos de uso/limite de requisições (`x-ratelimit-*`).
+- Triagem: leitura local (ato, "prazo de N (N) dias", audiência; sem prazo escrito, o prazo legal típico do CPC com confiança baixa) +
+  IA quando a política permitir (texto mascarado, `aigov` kind `triage`, 0 crédito). Vencimento sugerido em dias úteis pela agenda
+  forense a partir da publicação (DJe). Teor e partes cifrados.
+- Advogado confirma (ajusta prazo/vencimento, acompanha o processo) → tarefa "Prazo: …" na agenda + aprendizado (`AIFeedback`);
+  descartar/reabrir; processo acompanhado é vinculado pelo nº CNJ (cliente aparece na caixa).
+- Gatilho de automação **Publicação nova** (+ modelo "prazo fatal → preparar a peça 2 dias úteis antes").
+- Minutas: 4 modelos do Cadrius (comunicado ao cliente, juntada, ciência/cumprimento, notificação extrajudicial) + modelos do
+  escritório; variáveis da publicação/documento; o que falta vira `[COMPLETAR: …]` (não marca como revisada enquanto houver);
+  IA opcional (15 créditos, texto mascarado) só fica com citações que existem literalmente na fonte; exporta .docx.
+- Ainda não: Domicílio Judicial Eletrônico, busca de processos por parte/OAB fora do DJEN, protocolo de peças.
+
 - **Domicílio Judicial Eletrônico** (citações de PJ) — API REST com credencial do escritório **[VALIDAR]**.
 - **Busca de processos em aberto:** DataJud aceita busca por número; busca por parte/OAB não é garantida na API pública
   **[VALIDAR]** → combinar: importar a lista do escritório (planilha/ERP), DJEN por OAB e cadastro pelo nº CNJ.
@@ -161,7 +177,7 @@ Catálogo proposto (por ordem):
 | **A (agora)** | Kit de deploy automático ✔ · TI cria administradores ✔ · setor Fiscal fase 1 ✔ | operação da equipe |
 | **B** ✔ (CAD-171) | Quadro de contatos · Importação de dados (contatos/processos) · Suporte (chamados + acesso assistido) | base para automações e atendimento |
 | **C** ✔ (CAD-172) | Automações com gatilhos/ações internos + simulação + modelos · agenda forense · cliente do processo | "funcionar de verdade" |
-| **D** | Caixa de publicações (DJEN) + triagem por IA · minutas sobre documentos | maior dor do advogado |
+| **D** ✔ (CAD-173) | Caixa de publicações (DJEN) + triagem por IA · minutas sobre documentos | maior dor do advogado |
 | **E** | IA recomenda automações · guias de integração + novos apps (WhatsApp oficial, Drive, assinatura, cobrança) | diferencial + alcance |
 | **F** | Carteira/CRM completa, financeiro do escritório, portal do cliente, Fiscal fases 2–3 | centralização |
 

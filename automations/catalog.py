@@ -32,6 +32,13 @@ TRIGGERS = {
         'vars': {'contato.nome': 'Nome', 'contato.primeiro_nome': 'Primeiro nome', 'contato.tipo': 'Tipo (Cliente, Perito…)',
                  'contato.tags': 'Etiquetas'},
         'destinatarios': ['contato']},
+    T.PUBLICATION_NEW: {
+        'label': 'Publicação nova (DJEN)', 'help': 'Quando a caixa de publicações captura uma comunicação nova (já triada; ainda não confirmada).',
+        'vars': {'publicacao.ato': 'Ato (triagem)', 'publicacao.tipo': 'Tipo de comunicação', 'publicacao.tribunal': 'Tribunal',
+                 'publicacao.orgao': 'Órgão', 'publicacao.providencia': 'Providência sugerida', 'processo.cnj': 'Nº do processo',
+                 'prazo.data': 'Vencimento sugerido', 'prazo.dias': 'Prazo (dias úteis)', 'prazo.fatal': 'Prazo fatal? (sim/não)',
+                 'resumo': 'Resumo', 'cliente.nome': 'Cliente do processo', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
+        'destinatarios': ['cliente']},
     T.SCHEDULE: {
         'label': 'Agenda', 'help': 'Todo dia (útil) ou toda semana, a partir da hora escolhida.',
         'vars': {'dia_semana': 'Dia da semana'},
@@ -153,7 +160,7 @@ def clean_actions(trigger: str, actions) -> list:
             quando = p.get('quando', 'dias_uteis')
             if quando not in ('prazo', 'dias_uteis'):
                 raise RuleError('Tarefa: "quando" deve ser prazo ou dias_uteis.')
-            if quando == 'prazo' and trigger not in (T.DOCUMENT_CONFIRMED, T.DEADLINE_SOON):
+            if quando == 'prazo' and trigger not in (T.DOCUMENT_CONFIRMED, T.DEADLINE_SOON, T.PUBLICATION_NEW):
                 raise RuleError('Este gatilho não traz data de prazo: use "dias_uteis".')
             prioridade = p.get('prioridade', 'media')
             if prioridade not in ('alta', 'media', 'baixa'):

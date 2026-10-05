@@ -20,6 +20,7 @@ class Rule(models.Model):
         DEADLINE_SOON = 'deadline_soon', 'Prazo chegando'
         CONTACT_CREATED = 'contact_created', 'Contato cadastrado'
         SCHEDULE = 'schedule', 'Agenda (diária/semanal)'
+        PUBLICATION_NEW = 'publication_new', 'Publicação nova (DJEN)'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='automation_rules')
     name = models.CharField(max_length=120)

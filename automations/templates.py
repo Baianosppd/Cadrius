@@ -47,6 +47,20 @@ TEMPLATES = {
             'mensagem': 'Olá, {{contato.primeiro_nome}}!\n\nObrigado pela confiança. A partir de agora acompanharemos seu caso '
                         'e avisaremos sobre as novidades.\n\n{{escritorio.nome}}'}}],
     },
+    'publicacao_prazo_fatal': {
+        'name': 'Publicação com prazo fatal: preparar a peça 2 dias úteis antes',
+        'description': 'Quando chega publicação com prazo fatal, cria a tarefa de preparar a peça 2 dias úteis antes do vencimento '
+                       'sugerido e avisa a equipe (a confirmação da publicação continua na caixa).',
+        'trigger': 'publication_new', 'trigger_config': {},
+        'conditions': [{'field': 'prazo.fatal', 'op': 'eq', 'value': 'sim'}],
+        'actions': [
+            {'type': 'create_task', 'params': {'titulo': 'Preparar: {{publicacao.ato}} — {{processo.cnj}}',
+                                               'descricao': '{{publicacao.providencia}} Vencimento sugerido: {{prazo.data}}.',
+                                               'prioridade': 'alta', 'quando': 'prazo', 'antecedencia': 2}},
+            {'type': 'notify', 'params': {'titulo': 'Publicação com prazo fatal', 'mensagem': '{{publicacao.ato}} em {{processo.cnj}} '
+                                                                                              '({{publicacao.tribunal}}): vence {{prazo.data}}.'}},
+        ],
+    },
     'semanal_revisao': {
         'name': 'Revisão semanal da carteira',
         'description': 'Toda segunda às 8h, cria a tarefa de revisar prazos e processos da semana.',

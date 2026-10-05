@@ -60,6 +60,8 @@ class AIActionLog(models.Model):
     class Kind(models.TextChoices):
         EXTRACTION = 'extraction', 'Extração de dados'
         WORKFLOW_GENERATION = 'workflow_generation', 'Geração de workflow'
+        TRIAGE = 'triage', 'Triagem de publicação'
+        DRAFT = 'draft', 'Minuta'
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     organization_id = models.UUIDField(null=True, db_index=True)
