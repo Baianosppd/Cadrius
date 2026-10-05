@@ -149,6 +149,9 @@ INSTALLED_APPS = [
     'research',  # monitoramento de processos (DataJud) e notícias (CAD-166)
     'erp',  # conector declarativo de ERP jurídico (CAD-167)
     'backoffice',  # Gestão Cadrius: TI e Financeiro (CAD-168)
+    'contacts',  # quadro de contatos (CAD-171)
+    'imports',  # importação de planilhas (CAD-171)
+    'support',  # suporte com a equipe Cadrius (CAD-171)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
@@ -305,6 +308,9 @@ REST_FRAMEWORK = {
 
 # --- Verificação em duas etapas (CAD-169): equipe Cadrius sempre; donos/admins de escritório quando ligado ---
 MFA_REQUIRED_FOR_MANAGERS = env.bool('MFA_REQUIRED_FOR_MANAGERS', default=False)
+
+# Suporte (CAD-171): e-mail da equipe avisado a cada chamado novo (só o aviso; o conteúdo fica cifrado no sistema)
+SUPPORT_NOTIFY_EMAIL = env('SUPPORT_NOTIFY_EMAIL', default='')
 
 # --- Assinatura / trial (CAD-119) — ver docs/ANALISE_PRECOS_PLANOS.md §6 ---
 TRIAL_DAYS = env.int('TRIAL_DAYS', default=14)

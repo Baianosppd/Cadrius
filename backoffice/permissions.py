@@ -8,7 +8,7 @@ from rest_framework import permissions
 
 from accounts import mfa
 
-AREA_GROUPS = {'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro', 'fiscal': 'Cadrius Fiscal'}
+AREA_GROUPS = {'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro', 'fiscal': 'Cadrius Fiscal', 'suporte': 'Cadrius Suporte'}
 
 
 def user_areas(user) -> list[str]:

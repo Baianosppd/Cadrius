@@ -22,6 +22,7 @@ from accounts.views import (
     LogoutView,
 )
 from accounts import mfa_api
+from support.urls import staff_urlpatterns as support_staff_urls
 from integrations.api import ConnectionDeleteView, ConnectionListCreateView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
@@ -115,6 +116,10 @@ urlpatterns = [
     path('api/v1/research/', include('research.urls')),
     path('api/v1/erp/', include('erp.urls')),
     path('api/v1/backoffice/', include('backoffice.urls')),
+    path('api/v1/backoffice/', include(support_staff_urls)),
+    path('api/v1/contacts/', include('contacts.urls')),
+    path('api/v1/imports/', include('imports.urls')),
+    path('api/v1/support/', include('support.urls')),
     path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),
