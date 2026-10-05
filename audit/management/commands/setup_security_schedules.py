@@ -10,6 +10,7 @@ JOBS = {
     'Agenda: sincronizar Google Calendar': ('gcal_pull', Schedule.MINUTES, 15),
     'Pesquisa: consultar andamentos de processos': ('research_poll', Schedule.HOURLY, None),
     'Pesquisa: atualizar notícias': ('research_news', Schedule.HOURLY, None),
+    'Privacidade: limpar importações abandonadas': ('purge_import_rows', Schedule.DAILY, None),
     'IA: aprender com as decisões (regras e autonomia)': ('brain_evaluate', Schedule.DAILY, None),
 }
 

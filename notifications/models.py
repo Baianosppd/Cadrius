@@ -11,6 +11,7 @@ class Notification(models.Model):
         PRAZO = "prazo", "Prazo"
         AUTOMACAO = "automacao", "Automação"
         ERRO = "erro", "Erro"
+        SUPORTE = "suporte", "Suporte"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

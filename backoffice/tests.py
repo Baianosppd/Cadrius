@@ -24,7 +24,7 @@ def staff(email, *areas, superuser=False):
     user.is_staff, user.is_superuser = True, superuser
     user.save()
     for area in areas:
-        user.groups.add(Group.objects.get_or_create(name={'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro', 'fiscal': 'Cadrius Fiscal'}[area])[0])
+        user.groups.add(Group.objects.get_or_create(name={'ti': 'Cadrius TI', 'financeiro': 'Cadrius Financeiro', 'fiscal': 'Cadrius Fiscal', 'suporte': 'Cadrius Suporte'}[area])[0])
     return user
 
 
@@ -45,7 +45,7 @@ class Base(APITestCase):
 class PermissionTests(Base):
     def test_areas(self):
         self.assertEqual(user_areas(self.ti), ['ti'])
-        self.assertEqual(user_areas(staff('root@cadrius.ia.br', superuser=True)), ['financeiro', 'fiscal', 'ti'])
+        self.assertEqual(user_areas(staff('root@cadrius.ia.br', superuser=True)), ['financeiro', 'fiscal', 'suporte', 'ti'])
         self.assertEqual(user_areas(staff('semgrupo@cadrius.ia.br')), [])   # is_staff sem área não entra
         self.assertEqual(user_areas(self.owner), [])
 

@@ -42,7 +42,9 @@ ACTIONS = frozenset({
     'document.extracted', 'document.extraction_confirmed', 'document.blocked',
     'ai.autonomy_changed', 'ai.rule_decided', 'memory.added', 'memory.deleted',
     'compliance.assessment_updated', 'org.closure',
-    'backoffice.action', 'research.case_added', 'research.case_removed', 'research.movements_found',
+    'backoffice.action', 'contact.created', 'contact.updated', 'contact.deleted', 'data.import',
+    'support.ticket_opened', 'support.staff_reply', 'support.access_granted', 'support.access_revoked',
+    'research.case_added', 'research.case_removed', 'research.movements_found',
 })
 
 
