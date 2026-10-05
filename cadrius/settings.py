@@ -152,6 +152,8 @@ INSTALLED_APPS = [
     'contacts',  # quadro de contatos (CAD-171)
     'imports',  # importação de planilhas (CAD-171)
     'support',  # suporte com a equipe Cadrius (CAD-171)
+    'forense',  # calendário forense e prazos em dias úteis (CAD-172)
+    'automations',  # regras de automação internas do escritório (CAD-172)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação

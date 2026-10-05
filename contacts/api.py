@@ -112,6 +112,8 @@ class ContactListView(_Base):
             return Response({'detail': 'Já existe um contato com este CPF/CNPJ.'}, status=status.HTTP_409_CONFLICT)
         audit.log('contact.created', actor=request.user, organization=m.organization, target=contact,
                   changes={'kind': contact.kind}, data_categories=['identificacao', 'contato'], legal_basis='execucao_contrato')
+        from automations.engine import emit
+        emit(m.organization, 'contact_created', {'contact_id': contact.pk, 'user_id': str(request.user.pk)}, f'contact-{contact.pk}')
         return Response(contact_json(contact), status=status.HTTP_201_CREATED)
 
 

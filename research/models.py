@@ -15,6 +15,7 @@ class MonitoredCase(PIIIndexMixin, models.Model):
     tribunal = models.CharField(max_length=12)                   # alias do DataJud (tjsp, trf1...)
     label = EncryptedTextField(blank=True, default='')            # apelido interno (pode conter nome de cliente)
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    client = models.ForeignKey('contacts.Contact', null=True, blank=True, on_delete=models.SET_NULL, related_name='cases')  # CAD-172
     is_active = models.BooleanField(default=True)
     last_checked_at = models.DateTimeField(null=True, blank=True)
     last_movement_at = models.DateTimeField(null=True, blank=True)

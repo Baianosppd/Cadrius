@@ -120,10 +120,12 @@ urlpatterns = [
     path('api/v1/contacts/', include('contacts.urls')),
     path('api/v1/imports/', include('imports.urls')),
     path('api/v1/support/', include('support.urls')),
+    path('api/v1/forense/', include('forense.urls')),
     path('api/v1/brain/', include('brain.urls')),
     path('api/v1/connections/', ConnectionListCreateView.as_view(), name='connections'),
     path('api/v1/connections/<int:pk>/', ConnectionDeleteView.as_view(), name='connection-detail'),
     path('api/v1/automations/stats/', AutomationStatsView.as_view(), name='automation_stats'),
+    path('api/v1/automations/', include('automations.urls')),
     path('api/workflows/', include('workflows.urls')),
 
     

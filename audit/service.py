@@ -45,6 +45,8 @@ ACTIONS = frozenset({
     'backoffice.action', 'contact.created', 'contact.updated', 'contact.deleted', 'data.import',
     'support.ticket_opened', 'support.staff_reply', 'support.access_granted', 'support.access_revoked',
     'research.case_added', 'research.case_removed', 'research.movements_found',
+    'automation.rule_created', 'automation.rule_updated', 'automation.rule_deleted', 'automation.rule_enabled',
+    'automation.rule_disabled', 'automation.run_approved', 'automation.run_rejected',
 })
 
 
