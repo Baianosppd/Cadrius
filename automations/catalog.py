@@ -224,7 +224,8 @@ def clean_actions(trigger: str, actions) -> list:
             quando = p.get('quando', 'dias_uteis')
             if quando not in ('prazo', 'dias_uteis'):
                 raise RuleError('Tarefa: "quando" deve ser prazo ou dias_uteis.')
-            if quando == 'prazo' and trigger not in (T.DOCUMENT_CONFIRMED, T.DEADLINE_SOON, T.PUBLICATION_NEW):
+            if quando == 'prazo' and trigger not in (T.DOCUMENT_CONFIRMED, T.DEADLINE_SOON, T.PUBLICATION_NEW, T.CALENDAR_EVENT,
+                                                     T.EMAIL_RECEIVED, T.TASK_OVERDUE):
                 raise RuleError('Este gatilho não traz data de prazo: use "dias_uteis".')
             prioridade = p.get('prioridade', 'media')
             if prioridade not in ('alta', 'media', 'baixa'):

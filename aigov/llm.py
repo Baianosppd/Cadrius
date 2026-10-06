@@ -120,12 +120,30 @@ def order(profile: str = 'economico') -> list[str]:
     return seen + [k for k in default if k not in seen]
 
 
-def candidates(allowed=None, *, sensitive: bool = True, need_tools: bool = False, profile: str = 'economico') -> list[str]:
-    """Provedores utilizáveis, na ordem de preferência: configurados, permitidos pela política e seguros para o dado."""
+def org_keys(org) -> dict:
+    """Chaves de IA do próprio escritório (CAD-222): {PROVEDOR: OrgAIKey}."""
+    if org is None:
+        return {}
+    from assistant.models import OrgAIKey
+    return {k.provider: k for k in OrgAIKey.objects.filter(organization=org) if k.provider in PROVIDERS}
+
+
+def candidates(allowed=None, *, sensitive: bool = True, need_tools: bool = False, profile: str = 'economico', org=None) -> list[str]:
+    """Provedores utilizáveis, na ordem de preferência: configurados, permitidos pela política e seguros para o dado.
+    Com ``org``, as chaves do próprio escritório vêm primeiro (e contam como permitidas: foi o escritório que as cadastrou)."""
+    own = org_keys(org)
     out = []
     for key in order(profile):
         p = PROVIDERS[key]
-        if allowed is not None and key not in allowed:
+        if need_tools and not p.tools:
+            continue
+        if key in own:
+            if sensitive and p.trains_on_free and not own[key].paid_account:
+                continue
+            out.append(key)
+    for key in order(profile):
+        p = PROVIDERS[key]
+        if key in out or (allowed is not None and key not in allowed):
             continue
         if not configured(key) or (need_tools and not p.tools):
             continue
@@ -171,6 +189,7 @@ class Reply:
     model: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     raw: object = None             # conteúdo original do provedor (reenviado no mesmo laço de ferramentas)
+    own_key: bool = False          # atendido com a chave do próprio escritório (não consome créditos do Cadrius)
 
 
 # Mensagens no formato neutro:
@@ -193,9 +212,14 @@ def _to_openai(system: str, messages: list[dict]) -> list[dict]:
     return out
 
 
-def _call_openai_compat(p: Provider, system, messages, tools, json_mode, max_tokens) -> Reply:
-    client = _openai_client(p.key, base_url(p), _env(p.key_env))
-    kwargs = {'model': model_for(p), 'messages': _to_openai(system, messages), 'max_tokens': max_tokens}
+def _call_openai_compat(p: Provider, system, messages, tools, json_mode, max_tokens, own=None) -> Reply:
+    if own is not None:
+        client = _openai_client(p.key, own.base_url or base_url(p), own.api_key)
+        model = own.model or model_for(p)
+    else:
+        client = _openai_client(p.key, base_url(p), _env(p.key_env))
+        model = model_for(p)
+    kwargs = {'model': model, 'messages': _to_openai(system, messages), 'max_tokens': max_tokens}
     if tools:
         kwargs['tools'] = [{'type': 'function', 'function': {'name': t['name'], 'description': t['description'],
                                                              'parameters': t['parameters']}} for t in tools]
@@ -235,10 +259,10 @@ def _to_anthropic(messages: list[dict]) -> list[dict]:
     return out
 
 
-def _call_anthropic(p: Provider, system, messages, tools, json_mode, max_tokens) -> Reply:
+def _call_anthropic(p: Provider, system, messages, tools, json_mode, max_tokens, own=None) -> Reply:
     import anthropic
-    client = _anthropic_client(_env(p.key_env))
-    model = model_for(p)
+    client = _anthropic_client(own.api_key if own is not None else _env(p.key_env))
+    model = (own.model if own is not None and own.model else '') or model_for(p)
     if json_mode:
         system = f'{system}\n\nResponda APENAS com um objeto JSON válido, sem texto antes ou depois.'
     kwargs = {'model': model, 'max_tokens': max_tokens, 'system': system, 'messages': _to_anthropic(messages)}
@@ -257,13 +281,18 @@ def _call_anthropic(p: Provider, system, messages, tools, json_mode, max_tokens)
     return Reply(text, p.key, model, calls, raw=resp.content)
 
 
-def call(provider: str, *, system: str, messages: list[dict], tools=None, json_mode=False, max_tokens=4096) -> Reply:
+def call(provider: str, *, system: str, messages: list[dict], tools=None, json_mode=False, max_tokens=4096, org=None) -> Reply:
     p = PROVIDERS[provider]
-    if not configured(provider):
+    own = org_keys(org).get(provider) if org is not None else None
+    if own is None and not configured(provider):
         raise LLMError(f'{p.label} não está configurado.')
-    if p.kind == 'anthropic':
-        return _call_anthropic(p, system, messages, tools, json_mode, max_tokens)
-    return _call_openai_compat(p, system, messages, tools, json_mode, max_tokens)
+    fn = _call_anthropic if p.kind == 'anthropic' else _call_openai_compat
+    reply = fn(p, system, messages, tools, json_mode, max_tokens, own)
+    if own is not None:
+        reply.own_key = True
+        from django.utils import timezone
+        type(own).objects.filter(pk=own.pk).update(last_used_at=timezone.now())
+    return reply
 
 
 def complete_json(provider: str, system: str, user: str) -> str:
