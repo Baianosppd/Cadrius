@@ -199,7 +199,7 @@ class PullTests(Base):
         with mock.patch('gcal.sync.pull_link', side_effect=g.GoogleRetryable('429')):
             self.assertEqual(sync.pull_all()['errors'], 1)
         with mock.patch('gcal.sync.pull_link', return_value={'updated': 2, 'unsynced': 1}):
-            self.assertEqual(sync.pull_all(), {'links': 1, 'updated': 2, 'unsynced': 1, 'errors': 0})
+            self.assertEqual(sync.pull_all(), {'links': 1, 'updated': 2, 'unsynced': 1, 'errors': 0, 'eventos': 0})
 
 
 @override_settings(FRONTEND_URL='https://app.example.com', API_PUBLIC_URL='https://api.example.com')

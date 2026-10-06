@@ -130,6 +130,9 @@ class ClientDocumentCreateView(APIView):
             organization=membership.organization,
             uploaded_by=request.user,
         )
+        from automations.engine import emit
+        emit(membership.organization, 'document_uploaded', {'document_id': doc.pk, 'user_id': str(request.user.pk),
+                                                            'cliente': (link.nome_cliente or '')[:120]}, f'doc-upload-{doc.pk}')
         return Response(
             document_response_payload(doc, cliente=link.nome_cliente),
             status=status.HTTP_201_CREATED,

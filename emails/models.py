@@ -61,3 +61,36 @@ class EmailMessage(models.Model):
 
     def __str__(self):
         return f'{self.subject} - {self.sender}'
+
+class EmailTriage(models.Model):
+    """Triagem automática de cada e-mail recebido (CAD-222): categoria, urgência e próxima ação — base do gatilho
+    "E-mail recebido" das automações. Regras primeiro (sem custo); IA quando a política do escritório permite."""
+
+    class Category(models.TextChoices):
+        INTIMACAO = 'intimacao', 'Intimação / tribunal'
+        CLIENTE = 'cliente', 'Mensagem de cliente'
+        AGENDA = 'agenda', 'Audiência, reunião ou compromisso'
+        FINANCEIRO = 'financeiro', 'Financeiro (boleto, pagamento, nota)'
+        COMERCIAL = 'comercial', 'Novo cliente / proposta'
+        DOCUMENTO = 'documento', 'Envio de documento'
+        MARKETING = 'marketing', 'Propaganda / newsletter'
+        OUTRO = 'outro', 'Outro'
+
+    class Urgency(models.TextChoices):
+        ALTA = 'alta', 'Alta'
+        MEDIA = 'media', 'Média'
+        BAIXA = 'baixa', 'Baixa'
+
+    email = models.OneToOneField(EmailMessage, on_delete=models.CASCADE, related_name='triage')
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='email_triages')
+    category = models.CharField(max_length=12, choices=Category.choices, default=Category.OUTRO, db_index=True)
+    urgency = models.CharField(max_length=6, choices=Urgency.choices, default=Urgency.MEDIA)
+    summary = EncryptedTextField(blank=True, default='')
+    suggested_action = models.CharField(max_length=200, blank=True, default='')
+    due_date = models.DateField(null=True, blank=True)
+    contact = models.ForeignKey('contacts.Contact', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    method = models.CharField(max_length=6, default='regras')          # regras | ia
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

@@ -46,6 +46,49 @@ TRIGGERS = {
                  'honorario.link_pagamento': 'Link de pagamento (Asaas)', 'honorario.dias_atraso': 'Dias de atraso',
                  'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
         'destinatarios': ['cliente'], 'config': {'quando': 'antes | vencido', 'dias': 'Dias (0 a 60)'}},
+    T.EMAIL_RECEIVED: {
+        'label': 'E-mail recebido (triado)', 'help': 'Quando chega e-mail numa caixa conectada. O Cadrius classifica (intimação, cliente, '
+                                                    'agenda, financeiro, comercial…) e você filtra pela categoria nas condições.',
+        'vars': {'email.assunto': 'Assunto', 'email.remetente': 'Remetente', 'email.categoria': 'Categoria (intimacao, cliente, agenda…)',
+                 'email.urgencia': 'Urgência (alta, media, baixa)', 'email.resumo': 'Resumo', 'email.acao_sugerida': 'Ação sugerida',
+                 'prazo.data': 'Data citada no e-mail', 'contato.nome': 'Contato que enviou (se cadastrado)',
+                 'contato.primeiro_nome': 'Primeiro nome do contato'},
+        'destinatarios': ['contato']},
+    T.CALENDAR_EVENT: {
+        'label': 'Compromisso da Agenda Google chegando', 'help': 'Prazos, audiências e reuniões criados direto no Google Agenda, N dias '
+                                                                 'antes (verificado a cada 15 min, a partir das 8h).',
+        'vars': {'evento.titulo': 'Título', 'evento.tipo': 'Tipo (prazo, audiencia, reuniao, pericia, outro)', 'evento.data': 'Data',
+                 'evento.hora': 'Hora', 'evento.local': 'Local', 'dias_restantes': 'Dias até o compromisso', 'processo.cnj': 'Processo citado',
+                 'cliente.nome': 'Cliente vinculado', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
+        'destinatarios': ['cliente'], 'config': {'dias_antes': 'Dias de antecedência (0 a 30)'}},
+    T.TASK_OVERDUE: {
+        'label': 'Tarefa atrasada', 'help': 'Tarefa não concluída que passou do horário há N dias (verificado a cada 15 min).',
+        'vars': {'tarefa.titulo': 'Título', 'tarefa.prioridade': 'Prioridade', 'tarefa.data': 'Data prevista', 'dias_atraso': 'Dias de atraso'},
+        'destinatarios': [], 'config': {'dias_atraso': 'Dias de atraso (0 a 30)'}},
+    T.RECEIVABLE_PAID: {
+        'label': 'Pagamento recebido', 'help': 'Quando um honorário recebe baixa (à mão ou pelo Asaas).',
+        'vars': {'honorario.descricao': 'Descrição', 'honorario.valor': 'Valor pago (R$)', 'honorario.data_pagamento': 'Data do pagamento',
+                 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
+        'destinatarios': ['cliente']},
+    T.OPPORTUNITY_STAGE: {
+        'label': 'Oportunidade mudou de etapa', 'help': 'Funil da Carteira: ex. "Reunião marcada" envia confirmação, "Não fechou" pede retorno.',
+        'vars': {'oportunidade.titulo': 'Título', 'oportunidade.etapa': 'Etapa nova (novo, qualificacao, reuniao, proposta, ganho, perdido)',
+                 'oportunidade.etapa_anterior': 'Etapa anterior', 'oportunidade.area': 'Área', 'oportunidade.proxima_acao': 'Próxima ação',
+                 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
+        'destinatarios': ['cliente']},
+    T.AGREEMENT_CREATED: {
+        'label': 'Contrato de honorários criado', 'help': 'Boas-vindas ao cliente, tarefa de abertura do caso, aviso ao financeiro…',
+        'vars': {'contrato.titulo': 'Título', 'contrato.tipo': 'Tipo', 'contrato.valor': 'Valor total (R$)', 'contrato.parcelas': 'Parcelas',
+                 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome do cliente'},
+        'destinatarios': ['cliente']},
+    T.DOCUMENT_UPLOADED: {
+        'label': 'Documento enviado', 'help': 'Assim que um arquivo é enviado (antes da leitura pela IA).',
+        'vars': {'documento.nome': 'Nome do arquivo', 'documento.tipo': 'Tipo informado', 'documento.cliente': 'Cliente informado no envio'},
+        'destinatarios': []},
+    T.PORTAL_VIEWED: {
+        'label': 'Cliente abriu o portal', 'help': 'No máximo um aviso por hora por cliente.',
+        'vars': {'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome', 'portal.acessos': 'Acessos até agora'},
+        'destinatarios': []},
     T.SCHEDULE: {
         'label': 'Agenda', 'help': 'Todo dia (útil) ou toda semana, a partir da hora escolhida.',
         'vars': {'dia_semana': 'Dia da semana'},
@@ -55,7 +98,7 @@ TRIGGERS = {
 
 OPS = {'eq': 'é igual a', 'neq': 'é diferente de', 'contains': 'contém', 'in': 'é um destes', 'exists': 'está preenchido',
        'not_exists': 'está vazio'}
-EXTERNAL = {'send_whatsapp', 'send_email', 'erp_call', 'team_chat'}
+EXTERNAL = {'send_whatsapp', 'send_email', 'send_message', 'erp_call', 'team_chat'}
 ACTIONS = {
     'create_task': {'label': 'Criar tarefa', 'externo': False,
                     'params': {'titulo': 'Título (aceita variáveis)', 'descricao': 'Descrição', 'prioridade': 'alta | media | baixa',
@@ -64,6 +107,9 @@ ACTIONS = {
     'notify': {'label': 'Avisar a equipe (sino)', 'externo': False, 'params': {'titulo': 'Título', 'mensagem': 'Mensagem'}},
     'send_whatsapp': {'label': 'Enviar WhatsApp ao contato', 'externo': True,
                       'params': {'destinatario': 'cliente | contato', 'mensagem': 'Mensagem'}},
+    'send_message': {'label': 'Avisar o cliente (melhor canal autorizado)', 'externo': True,
+                     'params': {'destinatario': 'cliente | contato', 'canal': 'melhor | whatsapp | email', 'assunto': 'Assunto (e-mail)',
+                                'mensagem': 'Mensagem'}},
     'send_email': {'label': 'Enviar e-mail ao contato', 'externo': True,
                    'params': {'destinatario': 'cliente | contato', 'assunto': 'Assunto', 'mensagem': 'Mensagem'}},
     'team_chat': {'label': 'Avisar no chat da equipe (Slack, Teams ou Telegram)', 'externo': True,
@@ -114,6 +160,10 @@ def clean_trigger_config(trigger: str, config) -> dict:
     config = config if isinstance(config, dict) else {}
     if trigger == T.DEADLINE_SOON:
         return {'dias_antes': _int(config.get('dias_antes', 3), 'dias_antes', 1, 30)}
+    if trigger == T.CALENDAR_EVENT:
+        return {'dias_antes': _int(config.get('dias_antes', 1), 'dias_antes', 0, 30)}
+    if trigger == T.TASK_OVERDUE:
+        return {'dias_atraso': _int(config.get('dias_atraso', 1), 'dias_atraso', 0, 30)}
     if trigger == T.SCHEDULE:
         freq = config.get('frequencia', 'diaria')
         if freq not in ('diaria', 'semanal'):
@@ -187,7 +237,7 @@ def clean_actions(trigger: str, actions) -> list:
                 params['dias'] = _int(p.get('dias', 0), 'dias', 0, 60)
         elif kind == 'notify':
             params = {'titulo': _text(p, 'titulo', required=True, limit=120), 'mensagem': _text(p, 'mensagem', required=True, limit=500)}
-        elif kind in ('send_whatsapp', 'send_email'):
+        elif kind in ('send_whatsapp', 'send_email', 'send_message'):
             dest = p.get('destinatario')
             if dest not in TRIGGERS[trigger]['destinatarios']:
                 options = ', '.join(TRIGGERS[trigger]['destinatarios']) or 'nenhum (este gatilho não tem contato vinculado)'
@@ -195,6 +245,11 @@ def clean_actions(trigger: str, actions) -> list:
             params = {'destinatario': dest, 'mensagem': _text(p, 'mensagem', required=True, limit=1000)}
             if kind == 'send_email':
                 params['assunto'] = _text(p, 'assunto', required=True, limit=150)
+            if kind == 'send_message':
+                canal = p.get('canal', 'melhor')
+                if canal not in ('melhor', 'whatsapp', 'email'):
+                    raise RuleError('Canal: melhor, whatsapp ou email.')
+                params.update(canal=canal, assunto=_text(p, 'assunto', limit=150))
         elif kind == 'team_chat':
             canal = p.get('canal')
             if canal not in ('slack', 'teams', 'telegram'):

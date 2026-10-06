@@ -128,7 +128,7 @@ def fetch_emails(mailbox_id) -> int:
 
                 # Salva o email no banco. is_dispatched começa como False por padrão.
                 try:
-                    EmailMessage.objects.create(
+                    created = EmailMessage.objects.create(
                         mailbox=mailbox,
                         message_id=message_id,
                         subject=subject,
@@ -137,6 +137,12 @@ def fetch_emails(mailbox_id) -> int:
                         body_text=body_text
                     )
                     total_created += 1
+                    # CAD-222: triagem (categoria/urgência) + gatilho "E-mail recebido" das automações
+                    try:
+                        from core.queue import enqueue
+                        enqueue('emails.triage.triage_email', created.pk)
+                    except Exception:  # noqa: BLE001 — triagem nunca impede a leitura da caixa
+                        logger.exception('Não foi possível enfileirar a triagem do e-mail %s', created.pk)
                 except IntegrityError:
                     logger.info(f"Email duplicado (uid={uid}) - ignorando.")
                     continue

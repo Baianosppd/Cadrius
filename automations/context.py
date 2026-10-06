@@ -145,9 +145,109 @@ def schedule(org, refs):
     return {**_base(org), 'responsavel': {}}, f'Agenda de {br(timezone.localdate())}'
 
 
+def email_received(org, refs):
+    from emails.models import EmailTriage
+    tri = EmailTriage.objects.filter(email_id=refs.get('email_id'), organization=org).select_related('email', 'contact').first()
+    if tri is None:
+        return None
+    em = tri.email
+    prazo = {'data': br(tri.due_date), 'iso': tri.due_date.isoformat()} if tri.due_date else {}
+    ctx = {**_base(org), 'email': {'id': em.pk, 'assunto': em.subject, 'remetente': em.sender, 'categoria': tri.category,
+                                   'urgencia': tri.urgency, 'resumo': tri.summary[:500], 'acao_sugerida': tri.suggested_action},
+           'prazo': prazo, 'contato': _person(tri.contact), 'responsavel': _user(em.mailbox.user if _is_member(org, em.mailbox.user) else None)}
+    return ctx, f'E-mail: {em.subject}'[:200]
+
+
+def calendar_event(org, refs):
+    from gcal.models import ExternalEvent
+    ev = ExternalEvent.objects.filter(pk=refs.get('event_id'), organization=org, cancelled=False).select_related(
+        'case', 'contact', 'link__user').first()
+    if ev is None:
+        return None
+    local = timezone.localtime(ev.start)
+    client = ev.contact or (ev.case.client if ev.case_id else None)
+    ctx = {**_base(org), 'evento': {'id': ev.pk, 'titulo': ev.title, 'tipo': ev.kind, 'data': br(local), 'iso': local.date().isoformat(),
+                                    'hora': '' if ev.all_day else local.strftime('%H:%M'), 'local': ev.location},
+           'prazo': {'data': br(local), 'iso': local.date().isoformat()},
+           'dias_restantes': str(refs.get('dias', '')), 'processo': {'cnj': ev.case.cnj if ev.case_id else ''},
+           'cliente': _person(client), 'responsavel': _user(ev.link.user if _is_member(org, ev.link.user) else None)}
+    return ctx, f'Agenda: {ev.title}'[:200]
+
+
+def task_overdue(org, refs):
+    from tasks.models import UserTask
+    task = UserTask.objects.filter(pk=refs.get('task_id'), completed=False).select_related('responsavel').first()
+    if task is None or not _is_member(org, task.responsavel):
+        return None
+    day = timezone.localtime(task.scheduled_at).date()
+    ctx = {**_base(org), 'tarefa': {'id': task.pk, 'titulo': task.titulo, 'prioridade': task.get_priority_display(), 'data': br(day)},
+           'prazo': {'data': br(day), 'iso': day.isoformat()},
+           'dias_atraso': str((timezone.localdate() - day).days), 'responsavel': _user(task.responsavel)}
+    return ctx, f'Atrasada: {task.titulo}'[:200]
+
+
+def receivable_paid(org, refs):
+    from carteira.models import Receivable
+    from carteira.services import brl
+    rec = Receivable.objects.filter(pk=refs.get('receivable_id'), organization=org, status=Receivable.Status.PAID).select_related('contact').first()
+    if rec is None:
+        return None
+    ctx = {**_base(org), 'honorario': {'id': rec.pk, 'descricao': rec.description, 'valor': brl(rec.paid_cents or rec.amount_cents),
+                                       'data_pagamento': br(rec.paid_at)},
+           'cliente': _person(rec.contact), 'responsavel': {}}
+    return ctx, f'Pago: {rec.description}'[:200]
+
+
+def opportunity_stage(org, refs):
+    from carteira.models import Opportunity
+    opp = Opportunity.objects.filter(pk=refs.get('opportunity_id'), organization=org).select_related('contact', 'owner').first()
+    if opp is None:
+        return None
+    ctx = {**_base(org), 'oportunidade': {'id': opp.pk, 'titulo': opp.title, 'etapa': opp.stage, 'etapa_anterior': refs.get('de', ''),
+                                          'area': opp.area, 'proxima_acao': opp.next_action},
+           'cliente': _person(opp.contact), 'responsavel': _user(opp.owner if _is_member(org, opp.owner) else None)}
+    return ctx, f'Funil: {opp.title} → {opp.get_stage_display()}'[:200]
+
+
+def agreement_created(org, refs):
+    from carteira.models import FeeAgreement
+    from carteira.services import brl
+    ag = FeeAgreement.objects.filter(pk=refs.get('agreement_id'), organization=org).select_related('contact', 'created_by').first()
+    if ag is None:
+        return None
+    ctx = {**_base(org), 'contrato': {'id': ag.pk, 'titulo': ag.title, 'tipo': ag.get_kind_display(), 'valor': brl(ag.total_cents),
+                                      'parcelas': str(ag.installments)},
+           'cliente': _person(ag.contact), 'responsavel': _user(ag.created_by if _is_member(org, ag.created_by) else None)}
+    return ctx, f'Contrato: {ag.title}'[:200]
+
+
+def document_uploaded(org, refs):
+    from django.contrib.auth import get_user_model
+
+    from documents.models import Document
+    doc = Document.objects.filter(pk=refs.get('document_id'), organization=org).first()
+    if doc is None:
+        return None
+    user = get_user_model().objects.filter(pk=refs.get('user_id')).first() if refs.get('user_id') else None
+    ctx = {**_base(org), 'documento': {'id': doc.pk, 'nome': doc.nome, 'tipo': doc.tipo, 'cliente': refs.get('cliente', '')},
+           'responsavel': _user(user if _is_member(org, user) else None)}
+    return ctx, f'Documento enviado: {doc.nome}'[:200]
+
+
+def portal_viewed(org, refs):
+    from portal.models import PortalLink
+    link = PortalLink.objects.filter(pk=refs.get('link_id'), organization=org).select_related('contact').first()
+    if link is None:
+        return None
+    ctx = {**_base(org), 'cliente': _person(link.contact), 'portal': {'acessos': str(link.access_count)}, 'responsavel': {}}
+    return ctx, f'Portal aberto: {link.contact.name}'[:200]
+
+
 BUILDERS = {'document_confirmed': document_confirmed, 'case_movement': case_movement, 'deadline_soon': deadline_soon,
             'contact_created': contact_created, 'schedule': schedule, 'publication_new': publication_new,
-            'receivable_due': receivable_due}
+            'receivable_due': receivable_due, 'email_received': email_received, 'calendar_event': calendar_event,
+            'task_overdue': task_overdue, 'receivable_paid': receivable_paid, 'opportunity_stage': opportunity_stage,
+            'agreement_created': agreement_created, 'document_uploaded': document_uploaded, 'portal_viewed': portal_viewed}
 
 
 def build(trigger, org, refs):
@@ -182,6 +282,28 @@ def sample_refs(trigger, org) -> dict | None:
         from carteira.models import Receivable
         r = Receivable.objects.filter(organization=org, status='aberto').order_by('due_date').first()
         return {'receivable_id': r.pk} if r else None
+    latest = {   # CAD-222: (modelo, filtro, refs)
+        'email_received': ('emails.EmailTriage', 'organization', lambda o: {'email_id': o.email_id}),
+        'calendar_event': ('gcal.ExternalEvent', 'organization', lambda o: {'event_id': o.pk, 'dias': 1}),
+        'receivable_paid': ('carteira.Receivable', 'organization', lambda o: {'receivable_id': o.pk}),
+        'opportunity_stage': ('carteira.Opportunity', 'organization', lambda o: {'opportunity_id': o.pk, 'de': ''}),
+        'agreement_created': ('carteira.FeeAgreement', 'organization', lambda o: {'agreement_id': o.pk}),
+        'document_uploaded': ('documents.Document', 'organization', lambda o: {'document_id': o.pk}),
+        'portal_viewed': ('portal.PortalLink', 'organization', lambda o: {'link_id': o.pk}),
+    }
+    if trigger in latest:
+        from django.apps import apps
+        label, field, refs = latest[trigger]
+        qs = apps.get_model(label).objects.filter(**{field: org})
+        if trigger == 'receivable_paid':
+            qs = qs.filter(status='pago')
+        obj = qs.order_by('-pk').first()
+        return refs(obj) if obj else None
+    if trigger == 'task_overdue':
+        from tasks.models import UserTask
+        t = UserTask.objects.filter(responsavel__memberships__organization=org, completed=False,
+                                    scheduled_at__lt=timezone.now()).order_by('-scheduled_at').first()
+        return {'task_id': t.pk} if t else None
     return {}
 
 
@@ -210,4 +332,21 @@ def example(trigger, org) -> tuple[dict, str]:
         'receivable_due': {**base, 'honorario': {'descricao': 'Parcela 2/5 — Honorários (exemplo)', 'valor': 'R$ 1.200,00',
                                                  'vencimento': br(today), 'link_pagamento': 'https://www.asaas.com/i/exemplo',
                                                  'dias_atraso': '3'}, 'cliente': person},
+        'email_received': {**base, 'email': {'assunto': 'Dúvida sobre a audiência', 'remetente': 'maria@exemplo.com', 'categoria': 'cliente',
+                                             'urgencia': 'media', 'resumo': 'Cliente pergunta o horário da audiência.',
+                                             'acao_sugerida': 'Responder com data e local.'}, 'prazo': {}, 'contato': person},
+        'calendar_event': {**base, 'evento': {'titulo': 'Audiência de conciliação — Maria Exemplo', 'tipo': 'audiencia', 'data': br(today),
+                                              'iso': today.isoformat(), 'hora': '14:00', 'local': 'Fórum Central'},
+                           'prazo': {'data': br(today), 'iso': today.isoformat()}, 'dias_restantes': '1',
+                           'processo': {'cnj': '0000000-00.2026.8.26.0000'}, 'cliente': person},
+        'task_overdue': {**base, 'tarefa': {'titulo': 'Protocolar petição (exemplo)', 'prioridade': 'Alta', 'data': br(today)},
+                         'prazo': {'data': br(today), 'iso': today.isoformat()}, 'dias_atraso': '1'},
+        'receivable_paid': {**base, 'honorario': {'descricao': 'Parcela 1/3 (exemplo)', 'valor': 'R$ 2.000,00', 'data_pagamento': br(today)},
+                            'cliente': person},
+        'opportunity_stage': {**base, 'oportunidade': {'titulo': 'Divórcio consensual (exemplo)', 'etapa': 'reuniao', 'etapa_anterior': 'novo',
+                                                       'area': 'Família', 'proxima_acao': 'Reunião na terça'}, 'cliente': person},
+        'agreement_created': {**base, 'contrato': {'titulo': 'Ação de alimentos (exemplo)', 'tipo': 'Parcelado', 'valor': 'R$ 6.000,00',
+                                                   'parcelas': '3'}, 'cliente': person},
+        'document_uploaded': {**base, 'documento': {'nome': 'procuracao-exemplo.pdf', 'tipo': 'Procuração', 'cliente': 'Maria Exemplo'}},
+        'portal_viewed': {**base, 'cliente': person, 'portal': {'acessos': '3'}},
     }[trigger], 'Exemplo fictício'

@@ -219,6 +219,14 @@ def pull_all():
         except g.GoogleRetryable:
             total['errors'] += 1
             continue
+        try:                                                       # CAD-222: compromissos criados direto no Google
+            from gcal.events import pull_external
+            res_ext = pull_external(link)
+            total['eventos'] = total.get('eventos', 0) + res_ext['new'] + res_ext['updated']
+        except (g.GoogleRetryable, g.GoogleAuthError):
+            total['errors'] += 1
+        except Exception:  # noqa: BLE001 — importar compromissos nunca derruba a sincronização das tarefas
+            logger.exception('Falha ao importar compromissos do Google (link %s)', link.pk)
         total['links'] += 1
         total['updated'] += res.get('updated', 0)
         total['unsynced'] += res.get('unsynced', 0)

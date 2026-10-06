@@ -24,6 +24,10 @@ class GoogleCalendarApp(models.Model):
         return f'Google Calendar de {self.organization_id}'
 
 
+def default_task_kinds():
+    return ['prazo', 'audiencia']
+
+
 class GoogleCalendarLink(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Ativa'
@@ -38,6 +42,11 @@ class GoogleCalendarLink(models.Model):
     last_sync_at = models.DateTimeField(null=True, blank=True)
     last_error = models.CharField(max_length=255, blank=True, default='')
     connected_at = models.DateTimeField(auto_now_add=True)
+    # CAD-222: trazer também os compromissos criados direto no Google (prazos, audiências, reuniões)
+    import_events = models.BooleanField(default=True)
+    lookahead_days = models.PositiveSmallIntegerField(default=60)
+    task_kinds = models.JSONField(default=default_task_kinds, blank=True, help_text='Tipos que viram tarefa no Cadrius (prazo, audiencia…).')
+    events_synced_at = models.DateTimeField(null=True, blank=True)
 
 
 class TaskEventMap(models.Model):
@@ -47,3 +56,36 @@ class TaskEventMap(models.Model):
     link = models.ForeignKey(GoogleCalendarLink, on_delete=models.CASCADE, related_name='events')
     event_id = models.CharField(max_length=255)
     last_synced_at = models.DateTimeField()
+
+
+class ExternalEvent(models.Model):
+    """Compromisso criado direto no Google Agenda e trazido para o Cadrius (CAD-222). Classificado (prazo, audiência,
+    reunião…), ligado ao processo/cliente quando o texto permite, e fonte do gatilho "Compromisso da Agenda chegando"."""
+
+    class Kind(models.TextChoices):
+        PRAZO = 'prazo', 'Prazo'
+        AUDIENCIA = 'audiencia', 'Audiência'
+        REUNIAO = 'reuniao', 'Reunião / atendimento'
+        PERICIA = 'pericia', 'Perícia / diligência'
+        OUTRO = 'outro', 'Outro compromisso'
+
+    link = models.ForeignKey(GoogleCalendarLink, on_delete=models.CASCADE, related_name='external_events')
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='external_events')
+    event_id = models.CharField(max_length=255)
+    title = EncryptedTextField(blank=True, default='')
+    description = EncryptedTextField(blank=True, default='')
+    location = EncryptedTextField(blank=True, default='')
+    start = models.DateTimeField(db_index=True)
+    end = models.DateTimeField(null=True, blank=True)
+    all_day = models.BooleanField(default=False)
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.OUTRO, db_index=True)
+    kind_locked = models.BooleanField(default=False)                 # a pessoa corrigiu o tipo: a sincronização não muda mais
+    case = models.ForeignKey('research.MonitoredCase', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    contact = models.ForeignKey('contacts.Contact', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    task = models.ForeignKey('tasks.UserTask', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    cancelled = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['start']
+        constraints = [models.UniqueConstraint(fields=['link', 'event_id'], name='uniq_external_event_per_link')]

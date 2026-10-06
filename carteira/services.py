@@ -85,6 +85,8 @@ def move_stage(opp: Opportunity, stage: str, user, lost_reason=''):
     opp.save()
     if old != stage:
         audit.log('crm.stage_changed', actor=user, organization=opp.organization, target=opp, changes={'de': old, 'para': stage})
+        from automations.engine import emit
+        emit(opp.organization, 'opportunity_stage', {'opportunity_id': opp.pk, 'de': old}, f'opp-{opp.pk}-{stage}-{int(opp.stage_changed_at.timestamp())}')
     return opp
 
 
@@ -146,6 +148,8 @@ def create_agreement(org, user, *, contact, title, kind, total_cents=0, installm
     audit.log('crm.agreement_created', actor=user, organization=org, target=ag,
               changes={'tipo': kind, 'parcelas': len(rows), 'total_centavos': sum(r[1] for r in rows)},
               data_categories=['financeiro'], legal_basis='execucao_contrato')
+    from automations.engine import emit
+    emit(org, 'agreement_created', {'agreement_id': ag.pk}, f'agreement-{ag.pk}')
     return ag
 
 
@@ -185,6 +189,8 @@ def mark_paid(rec: Receivable, user, *, paid_at=None, paid_cents=None, method=''
     audit.log('finance.receivable_paid', actor=user, organization=rec.organization, target=rec,
               changes={'valor_centavos': rec.paid_cents, 'forma': rec.method, 'origem': source}, data_categories=['financeiro'])
     _close_if_done(rec.agreement)
+    from automations.engine import emit
+    emit(rec.organization, 'receivable_paid', {'receivable_id': rec.pk}, f'paid-{rec.pk}-{rec.paid_at.isoformat()}')
     return rec
 
 
