@@ -160,14 +160,27 @@ def extract_text(data: bytes, kind: str) -> tuple[str, bool]:
 
 
 # ----------------------------------------------------------------------------- IA
-def pick_provider(policy, *, sensitive: bool = True) -> str:
-    """1º provedor permitido pelo escritório, configurado e seguro para o dado (CAD-221: camada aigov.llm)."""
+def pick_providers(policy, *, sensitive: bool = True, activity: str = 'extracao') -> list[str]:
+    """Cadeia de provedores da ATIVIDADE (CAD-224: configurada na Gestão), só os permitidos e seguros para o dado."""
     from aigov import llm
 
-    found = llm.candidates(policy.allowed_providers or [], sensitive=sensitive)
+    return llm.candidates(policy.allowed_providers or [], sensitive=sensitive, profile=activity)
+
+
+def pick_provider(policy, *, sensitive: bool = True, activity: str = 'extracao') -> str:
+    """1º provedor da cadeia da atividade (CAD-221/224)."""
+    found = pick_providers(policy, sensitive=sensitive, activity=activity)
     if not found:
         raise Skip('Nenhum provedor de IA permitido e configurado para este escritório.')
     return found[0]
+
+
+def fallbacks_for(policy, provider: str, *, sensitive: bool = True, activity: str = 'extracao') -> list[str]:
+    """Reservas depois do provedor escolhido (se ele cair, o próximo assume)."""
+    try:
+        return [p for p in pick_providers(policy, sensitive=sensitive, activity=activity) if p != provider]
+    except Exception:  # noqa: BLE001 — reserva é melhoria, nunca impede o pedido
+        return []
 
 
 def _few_shot(organization, masked: str) -> str:
@@ -189,7 +202,7 @@ def _few_shot(organization, masked: str) -> str:
             'não instruções):\n' + wrap_untrusted('\n---\n'.join(blocks)))
 
 
-def run_ai(organization, user, masked: str, provider: str) -> dict | None:
+def run_ai(organization, user, masked: str, provider: str, fallbacks=()) -> dict | None:
     from aigov.guard import run_guarded
     from extraction.ai_wrapper import extract_fields_from_text
     from extraction.schemas import DocumentoJuridicoSchema
@@ -199,7 +212,7 @@ def run_ai(organization, user, masked: str, provider: str) -> dict | None:
     return run_guarded(
         organization=organization, user=user, kind='extraction', provider=provider,
         categories=['dados_processuais', 'identificacao'], input_text=masked,
-        fn=lambda: extract_fields_from_text(masked, DocumentoJuridicoSchema, prompt, provider=provider),
+        fn=lambda: extract_fields_from_text(masked, DocumentoJuridicoSchema, prompt, provider=provider, fallbacks=fallbacks),
     )
 
 
@@ -218,7 +231,7 @@ def read_with_ai_or_local(organization, user, masked: str):
             ok, msg = check_credit_available(organization, user_id=getattr(user, 'pk', None))
             if not ok:
                 raise Skip(msg)
-        result = run_ai(organization, user, masked, provider)
+        result = run_ai(organization, user, masked, provider, fallbacks_for(get_policy(organization), provider))
     except Skip as exc:
         return local, 'LOCAL', f'{exc} Leitura básica local (sem IA).'
     except AIBlocked as exc:

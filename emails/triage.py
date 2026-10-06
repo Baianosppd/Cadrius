@@ -84,13 +84,14 @@ def by_ai(org, subject: str, body: str):
     from aigov.guard import AIBlocked, get_policy, run_guarded
     from aigov import llm
     from extraction.ai_wrapper import extract_fields_from_text
-    providers = llm.candidates(get_policy(org).allowed_providers or [], sensitive=True)
+    providers = llm.candidates(get_policy(org).allowed_providers or [], sensitive=True, profile='triagem')
     if not providers:
         return None
     text = f'ASSUNTO: {subject}\n\n{body[:6000]}'
     try:
         return run_guarded(organization=org, user=None, kind='triage', provider=providers[0], categories=['contato'],
-                           input_text=text, fn=lambda: extract_fields_from_text(text, TriageSchema, PROMPT, provider=providers[0]))
+                           input_text=text, fn=lambda: extract_fields_from_text(text, TriageSchema, PROMPT, provider=providers[0],
+                                                                                fallbacks=providers[1:]))
     except AIBlocked:
         return None
     except Exception:  # noqa: BLE001 — IA é refinamento: falhou, vale a regra

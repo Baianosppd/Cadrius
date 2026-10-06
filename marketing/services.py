@@ -72,7 +72,7 @@ def _few_shot(org, theme):
 def _ai(org, user, channel, theme, brief, scope):
     """(dict, provedor, aviso). Escritório: governança do escritório + créditos. Cadrius: só o interruptor global de IA."""
     from aigov.guard import AIBlocked, get_policy, global_ai_enabled, run_guarded
-    from documents.pipeline import Skip, pick_provider
+    from documents.pipeline import Skip, fallbacks_for, pick_provider
     from extraction.ai_wrapper import extract_fields_from_text
 
     rules = OAB_RULES if scope == 'escritorio' else CADRIUS_RULES
@@ -85,14 +85,15 @@ def _ai(org, user, channel, theme, brief, scope):
         if scope == 'escritorio':
             from billing.credit_weights import credits_for
             from billing.credits import check_credit_available, consume_credit
-            provider = pick_provider(get_policy(org))   # conteúdo do escritório leva o perfil dele: tratado como sigiloso
+            provider = pick_provider(get_policy(org), activity='marketing')   # conteúdo do escritório: tratado como sigiloso
+            reserves = fallbacks_for(get_policy(org), provider, activity='marketing')
             weight = credits_for('marketing_content')
             if weight:
                 ok, msg = check_credit_available(org, user_id=getattr(user, 'pk', None))
                 if not ok:
                     raise Skip(msg)
             result = run_guarded(organization=org, user=user, kind='marketing', provider=provider, categories=[], input_text=text,
-                                 fn=lambda: extract_fields_from_text(text, ContentSchema, prompt, provider=provider))
+                                 fn=lambda: extract_fields_from_text(text, ContentSchema, prompt, provider=provider, fallbacks=reserves))
             if result and weight:
                 consume_credit(org, user_id=getattr(user, 'pk', None), amount=weight)
         else:
@@ -100,10 +101,11 @@ def _ai(org, user, channel, theme, brief, scope):
                 raise Skip('IA desativada na plataforma.')
             from aigov import llm
             # Conteúdo institucional da Cadrius: sem dado de cliente, pode usar planos gratuitos
-            provider = next(iter(llm.candidates(None, sensitive=False)), None)
-            if not provider:
+            chain = llm.candidates(None, sensitive=False, profile='marketing')
+            if not chain:
                 raise Skip('Nenhum provedor de IA configurado.')
-            result = extract_fields_from_text(text, ContentSchema, prompt, provider=provider)
+            provider = chain[0]
+            result = extract_fields_from_text(text, ContentSchema, prompt, provider=provider, fallbacks=chain[1:])
     except Skip as exc:
         return None, '', f'{exc} Esqueleto sem IA para você completar.'
     except AIBlocked as exc:

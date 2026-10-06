@@ -132,6 +132,26 @@ def _start_trial(organization):
     organization.save(update_fields=['subscription_status', 'trial_ends_at'])
 
 
+def _validate_coupon(data):
+    """CAD-224: cupom opcional no cadastro (validado contra o plano escolhido; uso por escritório é conferido ao aplicar)."""
+    code = str(data.get('cupom') or '').strip()
+    if not code:
+        return
+    from billing.promotions import PromotionError, validate_promotion
+    try:
+        validate_promotion(code, data['plano_id'], None)
+    except PromotionError as exc:
+        raise serializers.ValidationError({'cupom': str(exc)}) from exc
+
+
+def _apply_coupon(validated_data, organization, user):
+    code = str(validated_data.get('cupom') or '').strip()
+    if not code:
+        return
+    from billing.promotions import reserve_at_signup
+    reserve_at_signup(code, validated_data['plano_id'], organization, actor=user)
+
+
 def _create_user(person, **extra):
     first_name, last_name = _split_name(person['nome_completo'])
     return User.objects.create_user(
@@ -152,6 +172,7 @@ class IndividualRegistrationSerializer(LegalAcceptanceMixin, PersonDataSerialize
     oab_uf = serializers.ChoiceField(choices=UF_CHOICES, required=False, allow_blank=True)
     area_atuacao = serializers.ChoiceField(choices=AREA_ATUACAO_CHOICES, required=False, allow_blank=True)
     plano_id = serializers.IntegerField()
+    cupom = serializers.CharField(max_length=40, required=False, allow_blank=True)
 
     def validate_plano_id(self, value):
         return _active_plan(value)
@@ -159,6 +180,7 @@ class IndividualRegistrationSerializer(LegalAcceptanceMixin, PersonDataSerialize
     def validate(self, data):
         data = super().validate(data)
         self._validate_legal_acceptance(data)
+        _validate_coupon(data)
         return data
 
     @transaction.atomic
@@ -182,6 +204,7 @@ class IndividualRegistrationSerializer(LegalAcceptanceMixin, PersonDataSerialize
             role='OWNER',
         )
         self._record_legal_acceptance(user)
+        _apply_coupon(validated_data, organization, user)
         return membership
 
 
@@ -210,6 +233,7 @@ class CompanyRegistrationSerializer(LegalAcceptanceMixin, serializers.Serializer
 
     gerente = ManagerSerializer()
     plano_id = serializers.IntegerField()
+    cupom = serializers.CharField(max_length=40, required=False, allow_blank=True)        # CAD-224
 
     def validate_cnpj(self, value):
         if not is_valid_cnpj(value):
@@ -232,6 +256,7 @@ class CompanyRegistrationSerializer(LegalAcceptanceMixin, serializers.Serializer
 
     def validate(self, data):
         self._validate_legal_acceptance(data)
+        _validate_coupon(data)
         return data
 
     @transaction.atomic
@@ -265,6 +290,7 @@ class CompanyRegistrationSerializer(LegalAcceptanceMixin, serializers.Serializer
             job_title=manager.get('cargo', ''),
         )
         self._record_legal_acceptance(user)
+        _apply_coupon(validated_data, organization, user)
         return membership
 
 

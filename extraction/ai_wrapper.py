@@ -20,10 +20,12 @@ def extract_fields_from_text(
     schema: type[BaseModel], 
     prompt_template: str, 
     provider: str = 'OPENAI',
-    examples: list = None
+    examples: list = None,
+    fallbacks: list | tuple = (),
 ) -> dict | None:
     """
     Roteador universal para extração de dados com validação Pydantic.
+    ``fallbacks`` (CAD-224): se o provedor cair ou não devolver JSON válido, os próximos da cadeia da atividade assumem.
     """
     schema_json = schema.model_json_schema()
     
@@ -39,7 +41,18 @@ def extract_fields_from_text(
     # Texto de terceiros é NÃO CONFIÁVEL: delimitado, sem caracteres de controle e com tamanho limitado.
     user_prompt = f"{prompt_template}\n\nTEXTO DE ENTRADA:\n{wrap_untrusted(text)}"
     
-    # Estratégia de Fallback com Retries
+    base_prompt = user_prompt
+    for current in [provider, *[f for f in fallbacks if f != provider]]:
+        result = _try_provider(current, schema, system_prompt, base_prompt)
+        if result is not None:
+            return result
+        logger.warning('Extração: %s não resolveu; tentando o próximo provedor da cadeia.', current)
+    logger.error("Extração falhou em todos os provedores. Retornando None.")
+    return None
+
+
+def _try_provider(provider, schema, system_prompt, user_prompt):
+    """Tentativas com correção de JSON num provedor; None se falhar."""
     for attempt in range(MAX_RETRY_ATTEMPTS):
         try:
             logger.info(f"Tentativa {attempt + 1}: Chamando API {provider}...")
@@ -61,10 +74,9 @@ def extract_fields_from_text(
             user_prompt += f"\nCorrija os erros de schema no seu JSON:\n{error_message}"
 
         except Exception as e:
-            logger.critical(f"Erro na comunicação com a API {provider}: {e}")
-            break # Falha crítica de rede ou chave errada
+            logger.critical(f"Erro na comunicação com a API {provider}: {type(e).__name__}")
+            break # Falha crítica de rede ou chave errada: passa ao próximo provedor
 
-    logger.error("Extração falhou após todas as tentativas. Retornando None.")
     return None
 
 # --- FUNÇÕES INTERNAS DE CHAMADA ÀS APIS ---

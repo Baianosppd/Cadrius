@@ -3,7 +3,8 @@ import os
 from types import SimpleNamespace
 from unittest import mock
 
-from django.test import SimpleTestCase
+from django.core.cache import cache
+from django.test import SimpleTestCase, TestCase
 
 from aigov import llm
 
@@ -13,7 +14,10 @@ CLEAN = {k: '' for k in [*KEYS, 'GEMINI_PAID', 'MISTRAL_PAID', 'OPENROUTER_PAID'
                          'AI_ASSISTANT_PROVIDER_ORDER', 'OPENROUTER_MODEL']}
 
 
-class RoutingTests(SimpleTestCase):
+class RoutingTests(TestCase):          # CAD-224: a ordem vem da cadeia da atividade (tabela AIRoute)
+    def setUp(self):
+        cache.clear()
+
     def test_dado_sigiloso_nunca_vai_para_plano_gratuito_que_treina(self):
         with mock.patch.dict(os.environ, {**CLEAN, **KEYS}):
             sigiloso = llm.candidates(None, sensitive=True)
@@ -33,11 +37,16 @@ class RoutingTests(SimpleTestCase):
 
     def test_ordem_por_perfil_politica_e_override(self):
         with mock.patch.dict(os.environ, {**CLEAN, **KEYS}):
-            self.assertEqual(llm.candidates(None)[0], 'GROQ')                          # econômico: barato primeiro
+            self.assertEqual(llm.candidates(None)[0], 'OPENAI')                        # perfil antigo "economico" = leitura
             self.assertEqual(llm.candidates(None, profile='assistente')[0], 'ANTHROPIC')
+            self.assertEqual(llm.candidates(None, profile='redacao')[0], 'MARITACA')
             self.assertEqual(llm.candidates(['OPENAI', 'OLLAMA'], profile='assistente'), ['OPENAI', 'OLLAMA'])
-        with mock.patch.dict(os.environ, {**CLEAN, **KEYS, 'AI_ASSISTANT_PROVIDER_ORDER': 'maritaca, openai'}):
-            self.assertEqual(llm.candidates(None, profile='assistente')[:2], ['MARITACA', 'OPENAI'])
+            # a Gestão troca a cadeia e desliga as reservas
+            from aigov import routing
+            from aigov.models import AIRoute
+            AIRoute.objects.create(activity='automacao', providers=['MARITACA', 'OPENAI'], use_reserves=False)
+            routing.invalidate()
+            self.assertEqual(llm.candidates(None, profile='assistente'), ['MARITACA', 'OPENAI'])
 
     def test_sem_chave_nao_e_candidato_e_catalogo_nao_expoe_segredo(self):
         with mock.patch.dict(os.environ, {**CLEAN, 'OPENAI_API_KEY': 'sk-segredo-123'}):

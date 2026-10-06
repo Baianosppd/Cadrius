@@ -34,7 +34,7 @@ def _workflow_ai_provider(organization=None) -> str:
     if organization is not None:
         from aigov.guard import get_policy
         allowed = get_policy(organization).allowed_providers
-    found = llm.candidates(allowed, sensitive=True)
+    found = llm.candidates(allowed, sensitive=True, profile='automacao')
     return found[0] if found else "GROQ"
 
 
@@ -64,11 +64,15 @@ def generate_workflow_from_prompt(user_prompt: str, organization: Organization, 
         "payload_template com templates JSON e marcadores {{variável}} quando fizer sentido).\n"
     )
     provider = _workflow_ai_provider(organization)
+    from aigov import llm
+    from aigov.guard import get_policy
+    reserves = [p for p in llm.candidates(get_policy(organization).allowed_providers, sensitive=True, profile='automacao')
+                if p != provider] if organization is not None else []
     return run_guarded(
         organization=organization, user=user, kind='workflow_generation', provider=provider,
         categories=['processual'], input_text=user_prompt,
         fn=lambda: extract_fields_from_text(
             text=user_prompt.strip(), schema=WorkflowGenerationSchema,
-            prompt_template=prompt_template, provider=provider,
+            prompt_template=prompt_template, provider=provider, fallbacks=reserves,
         ),
     )

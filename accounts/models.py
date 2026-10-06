@@ -76,6 +76,8 @@ class Organization(PIIIndexMixin, models.Model):
     # default ACTIVE: escritórios legados/semeados continuam com os limites do plano; o cadastro novo define TRIALING.
     subscription_status = models.CharField(max_length=12, choices=SubscriptionStatus.choices, default='active')
     trial_ends_at = models.DateTimeField(null=True, blank=True)
+    # CAD-224: cupom de desconto informado no cadastro; aplicado sozinho no 1º pagamento (checkout)
+    pending_promotion = models.ForeignKey('billing.Promotion', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     past_due_since = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
     stripe_customer_id = models.CharField(max_length=64, blank=True, default='')

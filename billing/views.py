@@ -4,12 +4,12 @@ from django.conf import settings
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import permissions, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from audit import service as audit_service
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
-from billing.models import SubscriptionPlan
+from billing.models import Promotion, SubscriptionPlan
 from billing.serializers import SubscriptionPlanSerializer, current_plan_payload
 from billing.promotions import PromotionError, ensure_stripe_coupon, validate_promotion
 from billing.stripe_sync import apply_event
@@ -20,6 +20,22 @@ logger = logging.getLogger(__name__)
 
 # Configura a chave secreta do Stripe
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '') or None
+
+NOT_CONFIGURED = 'Pagamento on-line ainda não está disponível. Fale com o suporte do Cadrius.'
+
+
+def _stripe_ready() -> bool:
+    """CAD-224: sem chave o Stripe falhava com 500 genérico; agora a tela recebe 503 com mensagem clara."""
+    key = getattr(settings, 'STRIPE_SECRET_KEY', '')
+    if not key:
+        logger.error('STRIPE_SECRET_KEY não configurada: checkout recusado.')
+        return False
+    stripe.api_key = key
+    return True
+
+
+def _payment_methods() -> list:
+    return list(getattr(settings, 'STRIPE_PAYMENT_METHODS', None) or ['card'])
 
 
 class PlansListView(APIView):
@@ -85,17 +101,24 @@ class CreateCheckoutSessionView(APIView):
             # 2b. Cupom opcional: validado no servidor (período, plano, limite de usos, uma vez por escritório)
             promo, session_extra, promo_meta = None, {}, {}
             promo_code = (request.data.get('promo_code') or '').strip()
+            if not promo_code and user_org.pending_promotion_id:          # CAD-224: cupom reservado no cadastro
+                promo_code = user_org.pending_promotion.code
             if promo_code:
                 try:
                     promo, _final = validate_promotion(promo_code, plan, user_org)
+                    if promo.kind == Promotion.Kind.TRIAL:
+                        raise PromotionError('Cupom de dias extras de teste: aplique em Plano → "Aplicar cupom", não no pagamento.')
                 except PromotionError as exc:
                     return Response({'detail': str(exc), 'code': 'invalid_promotion'}, status=status.HTTP_400_BAD_REQUEST)
                 session_extra['discounts'] = [{'coupon': ensure_stripe_coupon(promo)}]
                 promo_meta = {'promo_id': str(promo.pk)}
 
             # 3. Cria a sessão de Checkout no Stripe
+            if not _stripe_ready():
+                return Response({'detail': NOT_CONFIGURED, 'code': 'payments_not_configured'},
+                                status=status.HTTP_503_SERVICE_UNAVAILABLE)
             checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
+                payment_method_types=_payment_methods(),
                 line_items=[{
                     'price_data': {
                         'currency': 'brl',
@@ -198,9 +221,12 @@ class CreditPackCheckoutView(APIView):
         pack = CreditPack.objects.filter(pk=request.data.get('pack_id'), is_active=True).first()
         if pack is None:
             return Response({'detail': 'Pacote inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not _stripe_ready():
+            return Response({'detail': NOT_CONFIGURED, 'code': 'payments_not_configured'},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
         try:
             session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
+                payment_method_types=_payment_methods(),
                 line_items=[{'price_data': {'currency': 'brl', 'unit_amount': int(pack.price_brl * 100),
                                             'product_data': {'name': f'Cadrius — {pack.name}',
                                                              'description': f'{pack.credits} créditos de IA (valem 12 meses).'}},
@@ -235,7 +261,30 @@ class PromotionValidateView(APIView):
         except PromotionError as exc:
             return Response({'valid': False, 'detail': str(exc)}, status=status.HTTP_200_OK)
         return Response({'valid': True, 'name': promo.name, 'duration': promo.duration, 'duration_months': promo.duration_months,
-                         'original': str(plan.price_brl), 'discounted': str(final)})
+                         'original': str(plan.price_brl), 'discounted': str(final), 'kind': promo.kind,
+                         'trial_days': int(promo.value) if promo.kind == Promotion.Kind.TRIAL else None})
+
+
+class PromotionRedeemView(APIView):
+    """POST /api/billing/promotions/redeem/ {code} — cupom de dias extras de teste (CAD-224). Só dono/admin, durante o teste."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from billing.promotions import apply_trial_coupon
+        membership = get_active_membership(request.user)
+        if membership is None or membership.role not in MANAGE_TEAM_ROLES:
+            return Response({'detail': 'Apenas donos ou administradores aplicam cupons.'}, status=status.HTTP_403_FORBIDDEN)
+        code = str(request.data.get('code') or '').strip().upper()
+        promo = Promotion.objects.filter(code=code, is_active=True).first()
+        if promo is None:
+            return Response({'detail': 'Cupom inválido ou inativo.'}, status=status.HTTP_400_BAD_REQUEST)
+        org = membership.organization
+        try:
+            validate_promotion(code, org.plan, org)
+            days = apply_trial_coupon(promo, org, request.user)
+        except PromotionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'dias': days, 'teste_ate': org.trial_ends_at})
 
 
 class BillingNoticesView(APIView):

@@ -225,16 +225,18 @@ class PipelineTests(PipelineBase):
         set_global_switch(True)
         self.ai_mock.assert_not_called()
 
-    def test_provedor_respeita_a_politica_e_a_ordem_barato_primeiro(self):
+    def test_provedor_respeita_a_politica_e_a_cadeia_da_atividade(self):
+        # CAD-224: leitura de documentos segue a cadeia "extracao" (OpenAI > Gemini > Claude > Groq...), configurável na Gestão
         with mock.patch.dict(os.environ, {'GROQ_API_KEY': 'k', 'GEMINI_API_KEY': 'g', 'OPENAI_API_KEY': 'o'}):
-            self.assertEqual(pipeline.pick_provider(get_policy(self.org)), 'GROQ')
             policy = get_policy(self.org)
-            policy.allowed_providers = ['OPENAI', 'GEMINI']
-            # CAD-221: Gemini no plano gratuito treina com os dados → documento de cliente vai para o OpenAI
-            self.assertEqual(pipeline.pick_provider(policy), 'OPENAI')
+            policy.allowed_providers = ['GROQ', 'GEMINI']
+            # CAD-221: Gemini no plano gratuito treina com os dados → documento de cliente vai para o Groq
+            self.assertEqual(pipeline.pick_provider(policy), 'GROQ')
             with mock.patch.dict(os.environ, {'GEMINI_PAID': 'true'}):
                 self.assertEqual(pipeline.pick_provider(policy), 'GEMINI')
             self.assertEqual(pipeline.pick_provider(policy, sensitive=False), 'GEMINI')
+            policy.allowed_providers = ['OPENAI', 'GEMINI', 'GROQ']
+            self.assertEqual(pipeline.pick_providers(policy), ['OPENAI', 'GROQ'])      # reserva pronta se o OpenAI cair
 
     @override_settings(CLAMAV_HOST='clam.local')
     def test_antivirus_bloqueia_infectado_e_falha_fechado_se_estiver_fora(self):

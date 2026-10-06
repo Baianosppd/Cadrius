@@ -177,7 +177,7 @@ def ai_rewrite(org, user, base: str, source_text: str):
     from billing.credit_weights import credits_for
     from billing.credits import check_credit_available, consume_credit
     from core.pii import mask_text
-    from documents.pipeline import Skip, pick_provider
+    from documents.pipeline import Skip, fallbacks_for, pick_provider
     from extraction.ai_wrapper import extract_fields_from_text
 
     if not source_text.strip():
@@ -185,13 +185,15 @@ def ai_rewrite(org, user, base: str, source_text: str):
     masked = mask_text(source_text)[:15000]
     weight = credits_for('draft_petition')
     try:
-        provider = pick_provider(get_policy(org))
+        provider = pick_provider(get_policy(org), activity='redacao')
+        reserves = fallbacks_for(get_policy(org), provider, activity='redacao')
         if weight:
             ok, msg = check_credit_available(org, user_id=getattr(user, 'pk', None))
             if not ok:
                 raise Skip(msg)
         result = run_guarded(organization=org, user=user, kind='draft', provider=provider, categories=['dados_processuais'],
-                             input_text=masked, fn=lambda: extract_fields_from_text(masked, DraftSchema, _prompt(org, base), provider=provider))
+                             input_text=masked, fn=lambda: extract_fields_from_text(masked, DraftSchema, _prompt(org, base), provider=provider,
+                                                                     fallbacks=reserves))
     except Skip as exc:
         return None, [], '', f'{exc} Minuta só com o modelo (sem IA).'
     except AIBlocked as exc:

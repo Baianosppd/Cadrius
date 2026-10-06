@@ -1,7 +1,7 @@
 from django.urls import include, path
 from .admin_api import PriceHistoryView, SummaryView, router as admin_router
 from .views import (BillingNoticesView, CreateCheckoutSessionView, CreditPackCheckoutView, CreditPacksView, CurrentPlanView,
-                    PlansListView, PromotionValidateView, StripeWebhookView)
+                    PlansListView, PromotionRedeemView, PromotionValidateView, StripeWebhookView)
 
 urlpatterns = [
     path('plans/', PlansListView.as_view(), name='billing-plans'),
@@ -13,6 +13,7 @@ urlpatterns = [
     path('credit-packs/checkout/', CreditPackCheckoutView.as_view(), name='billing-credit-pack-checkout'),
 
     path('promotions/validate/', PromotionValidateView.as_view(), name='billing-promo-validate'),
+    path('promotions/redeem/', PromotionRedeemView.as_view(), name='billing-promo-redeem'),          # CAD-224
     path('notices/', BillingNoticesView.as_view(), name='billing-notices'),
 
     # Área administrativa do financeiro (só equipe Cadrius, is_staff)

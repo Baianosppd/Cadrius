@@ -87,6 +87,8 @@ class PromotionAdminSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'value': 'Percentual deve ficar entre 0 e 100 (exclusive).'})
         if kind == Promotion.Kind.AMOUNT and value <= 0:
             raise serializers.ValidationError({'value': 'O valor do desconto deve ser maior que zero.'})
+        if kind == Promotion.Kind.TRIAL and not (1 <= value <= 90 and value == int(value)):
+            raise serializers.ValidationError({'value': 'Dias extras de teste: número inteiro de 1 a 90.'})
         if duration == Promotion.Duration.REPEATING and not months:
             raise serializers.ValidationError({'duration_months': 'Informe por quantos meses o desconto vale.'})
         start, end = data.get('starts_at', getattr(inst, 'starts_at', None)), data.get('ends_at', getattr(inst, 'ends_at', None))
