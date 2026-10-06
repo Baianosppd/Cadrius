@@ -151,6 +151,8 @@ class AccessView(APIView):
         if cache.add(f'portal:viewed:{link.pk}', 1, 3600):              # audita no máximo 1 acesso por hora por link
             audit.log('portal.viewed', organization=link.organization, target=link.contact, actor_type='anonymous',
                       actor_label='cliente (portal)', data_categories=['processual'], legal_basis='execucao_contrato')
+            from automations.engine import emit
+            emit(link.organization, 'portal_viewed', {'link_id': link.pk}, f'portal-{link.pk}-{now:%Y%m%d%H}')
         return Response(payload(link))
 
 

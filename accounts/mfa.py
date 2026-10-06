@@ -188,7 +188,10 @@ def issue_tokens(user, *, mfa: bool) -> dict:
     if mfa:
         refresh['amr'] = 'mfa'                     # copiado para o access token (e nos refresh seguintes)
     update_last_login(None, user)
-    return {'access': str(refresh.access_token), 'refresh': str(refresh)}
+    data = {'access': str(refresh.access_token), 'refresh': str(refresh)}
+    if getattr(user, 'must_change_password', False):
+        data['password_change_required'] = True      # senha temporária da TI: o app abre a troca obrigatória
+    return data
 
 
 MFA_DENIED = {'detail': 'Ative a verificação em duas etapas e entre de novo para acessar a Gestão Cadrius.', 'code': 'mfa_required'}

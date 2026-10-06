@@ -93,6 +93,82 @@ CATALOG = {
                   {'label': 'Explorador da Graph API', 'url': 'https://developers.facebook.com/tools/explorer/'}],
         'validar': 'Limite do Instagram: até 100 publicações por API em 24 h; o Instagram exige imagem em URL pública.',
     },
+    'D4SIGN': {
+        'label': 'D4Sign (assinatura eletrônica)', 'categoria': 'Documentos', 'novo': True,
+        'uso': 'Alternativa ao ZapSign: enviar contratos e procurações para assinatura com validade jurídica (MP 2.200-2/2001).',
+        'campos': [
+            {'key': 'token_api', 'label': 'tokenAPI', 'secret': True, 'required': True},
+            {'key': 'crypt_key', 'label': 'cryptKey', 'secret': True, 'required': True},
+            {'key': 'sandbox', 'label': 'Ambiente de testes? (sim/não)', 'placeholder': 'não'},
+        ],
+        'guia': ['No D4Sign: menu do usuário → "Dev / API" → gere o tokenAPI e a cryptKey.',
+                 'Para testar sem custo, crie uma conta no ambiente sandbox e responda "sim" no campo de testes.'],
+        'links': [{'label': 'Documentação da API D4Sign', 'url': 'https://docapi.d4sign.com.br/'}],
+        'validar': 'Conferir no sandbox o envio de documento e o webhook de assinatura antes de usar com clientes.',
+    },
+    'CLICKSIGN': {
+        'label': 'Clicksign (assinatura eletrônica)', 'categoria': 'Documentos', 'novo': True,
+        'uso': 'Para escritórios que já assinam pela Clicksign: enviar documentos e acompanhar as assinaturas.',
+        'campos': [
+            {'key': 'access_token', 'label': 'Access token da API', 'secret': True, 'required': True},
+            {'key': 'sandbox', 'label': 'Ambiente de testes? (sim/não)', 'placeholder': 'não'},
+        ],
+        'guia': ['Na Clicksign: "Configurações" → "API" → copie o access token (o plano precisa incluir API).',
+                 'Use primeiro o ambiente sandbox (app.clicksign.com só em produção).'],
+        'links': [{'label': 'Documentação da API Clicksign', 'url': 'https://developers.clicksign.com/'}],
+        'validar': 'Sem teste automático ainda: valide no sandbox antes de usar com clientes.',
+    },
+    'ESCAVADOR': {
+        'label': 'Escavador (dados processuais)', 'categoria': 'Pesquisa jurídica', 'novo': True,
+        'uso': 'Complementar o DataJud: buscar processos por nome/CPF/CNPJ das partes e monitorar diários oficiais (API paga por crédito).',
+        'campos': [{'key': 'token', 'label': 'Token da API', 'secret': True, 'required': True}],
+        'guia': ['No Escavador: "API" → "Tokens de acesso" → crie um token para o Cadrius.',
+                 'Cada consulta consome créditos da sua conta Escavador: acompanhe o saldo no painel deles.'],
+        'links': [{'label': 'API do Escavador', 'url': 'https://api.escavador.com/'}],
+        'validar': 'Consultas por nome de parte trazem dados pessoais: use só com finalidade definida (LGPD art. 7º/IX ou VI).',
+    },
+    'NOTION': {
+        'label': 'Notion', 'categoria': 'Tarefas', 'novo': True,
+        'uso': 'Para escritórios que organizam processos e base de conhecimento no Notion.',
+        'campos': [{'key': 'token', 'label': 'Token da integração interna', 'secret': True, 'required': True},
+                   {'key': 'database_id', 'label': 'ID do banco de dados (opcional)'}],
+        'guia': ['Acesse notion.so/profile/integrations → "Nova integração" (interna) → copie o "Internal Integration Secret".',
+                 'Na página/banco que o Cadrius vai usar: "…" → "Conexões" → adicione a integração criada.'],
+        'links': [{'label': 'API do Notion', 'url': 'https://developers.notion.com/'}],
+    },
+    'PIPEDRIVE': {
+        'label': 'Pipedrive (CRM)', 'categoria': 'Comercial', 'novo': True,
+        'uso': 'Escritórios que fazem captação no Pipedrive: levar negócios ganhos para a Carteira do Cadrius.',
+        'campos': [{'key': 'api_token', 'label': 'Token da API pessoal', 'secret': True, 'required': True}],
+        'guia': ['No Pipedrive: avatar → "Preferências pessoais" → "API" → copie o token pessoal.'],
+        'links': [{'label': 'API do Pipedrive', 'url': 'https://developers.pipedrive.com/docs/api/v1'}],
+    },
+    'CALENDLY': {
+        'label': 'Calendly (agendamento de consultas)', 'categoria': 'Comercial', 'novo': True,
+        'uso': 'Consultas agendadas pelo site viram contato + tarefa no Cadrius (via webhook).',
+        'campos': [{'key': 'token', 'label': 'Personal access token', 'secret': True, 'required': True}],
+        'guia': ['No Calendly: "Integrações e apps" → "API e webhooks" → "Gerar novo token".',
+                 'Webhooks exigem plano pago do Calendly.'],
+        'links': [{'label': 'API do Calendly', 'url': 'https://developer.calendly.com/'}],
+    },
+    'SLACK': {
+        'label': 'Slack', 'categoria': 'Comunicação', 'novo': True,
+        'uso': 'Avisos das automações no canal da equipe (ex.: "publicação nova com prazo em 5 dias").',
+        'campos': [{'key': 'webhook_url', 'label': 'URL do Incoming Webhook', 'secret': True, 'required': True,
+                    'placeholder': 'https://hooks.slack.com/services/…'}],
+        'guia': ['Em api.slack.com/apps → "Create New App" → "Incoming Webhooks" → ative → "Add New Webhook to Workspace".',
+                 'Escolha o canal da equipe e copie a URL gerada.'],
+        'links': [{'label': 'Incoming Webhooks do Slack', 'url': 'https://api.slack.com/messaging/webhooks'}],
+    },
+    'TEAMS': {
+        'label': 'Microsoft Teams', 'categoria': 'Comunicação', 'novo': True,
+        'uso': 'Avisos das automações num canal do Teams (para escritórios no Microsoft 365).',
+        'campos': [{'key': 'webhook_url', 'label': 'URL do webhook do canal', 'secret': True, 'required': True,
+                    'placeholder': 'https://….webhook.office.com/… ou URL do fluxo do Workflows'}],
+        'guia': ['No canal do Teams: "…" → "Workflows" → modelo "Postar em um canal quando uma solicitação de webhook for recebida".',
+                 'Conclua o assistente e copie a URL gerada (as antigas URLs "webhook.office.com" também funcionam enquanto existirem).'],
+        'links': [{'label': 'Webhooks no Teams', 'url': 'https://learn.microsoft.com/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook'}],
+    },
     'TELEGRAM': {
         'label': 'Telegram', 'categoria': 'Comunicação',
         'uso': 'Avisos da equipe por bot (alternativa ao sino, para quem prefere receber no celular).',
@@ -142,7 +218,7 @@ CATALOG = {
     },
 }
 
-CATEGORIES = ['Comunicação', 'Documentos', 'Financeiro', 'Marketing', 'Tarefas', 'ERP jurídico', 'Dados']
+CATEGORIES = ['Comunicação', 'Documentos', 'Financeiro', 'Comercial', 'Pesquisa jurídica', 'Marketing', 'Tarefas', 'ERP jurídico', 'Dados']
 
 
 def public_catalog() -> list:

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from assistant.mcp import McpView
 from django.urls import path, re_path, include
 from rest_framework import routers
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
@@ -144,6 +145,9 @@ urlpatterns = [
     path('api/v1/audit/', include('audit.urls')),
     path('api/v1/', include('privacy.urls')),
     path('api/v1/ai/', include('aigov.urls')),
+    path('api/v1/assistant/', include('assistant.urls')),
+    path('mcp/', McpView.as_view(), name='mcp'),                      # conector Claude/ChatGPT (CAD-222)
+    path('mcp/<str:token>/', McpView.as_view(), name='mcp-token'),
     path('api/v1/security/', include((compliance_urls.api_urlpatterns, 'security-api'))),
     path('security-center/', include('compliance.urls')),
     path('api/billing/', include('billing.urls')),

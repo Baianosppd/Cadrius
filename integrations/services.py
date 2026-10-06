@@ -235,4 +235,61 @@ def test_connection(conn) -> str:
         data = _get(f'{base}/instance/connectionState/{c.get("instance_name")}', 'Evolution API', headers={'apikey': str(c.get('api_key') or '')})
         state = (data.get('instance') or {}).get('state') or data.get('state') or '?'
         return f'Instância encontrada (estado: {state}).'
+    if app == 'D4SIGN':
+        base = 'https://sandbox.d4sign.com.br' if is_yes(c.get('sandbox')) else 'https://secure.d4sign.com.br'
+        _get(f'{base}/api/v1/account/balance', 'D4Sign', params={'tokenAPI': c.get('token_api'), 'cryptKey': c.get('crypt_key')})
+        return 'Credenciais do D4Sign aceitas' + (' (sandbox).' if is_yes(c.get('sandbox')) else '.')
+    if app == 'ESCAVADOR':
+        _get('https://api.escavador.com/api/v1/quantidade-creditos', 'Escavador',
+             headers={'Authorization': f'Bearer {c.get("token")}', 'X-Requested-With': 'XMLHttpRequest'})
+        return 'Token do Escavador aceito.'
+    if app == 'NOTION':
+        data = _get('https://api.notion.com/v1/users/me', 'Notion',
+                    headers={'Authorization': f'Bearer {c.get("token")}', 'Notion-Version': '2022-06-28'})
+        return f'Integração "{data.get("name") or "Notion"}" conectada.'
+    if app == 'PIPEDRIVE':
+        data = _get('https://api.pipedrive.com/v1/users/me', 'Pipedrive', params={'api_token': c.get('api_token')})
+        return f'Conectado como {(data.get("data") or {}).get("name", "?")}.'
+    if app == 'CALENDLY':
+        data = _get('https://api.calendly.com/users/me', 'Calendly', headers={'Authorization': f'Bearer {c.get("token")}'})
+        return f'Conectado como {(data.get("resource") or {}).get("name", "?")}.'
+    if app in ('SLACK', 'TEAMS'):
+        post_team_message(conn, 'Teste do Cadrius: a conexão com o canal da equipe está funcionando.')
+        return 'Mensagem de teste enviada ao canal.'
     raise IntegrationError('Este app não tem teste automático. Use-o numa automação de teste.')
+
+
+# ----------------------------------------------------------------------------- chat da equipe (CAD-221)
+TEAM_HOSTS = {'SLACK': ('hooks.slack.com',),
+              'TEAMS': ('.webhook.office.com', '.logic.azure.com', '.environment.api.powerplatform.com')}
+
+
+def team_webhook_url(app: str, url: str) -> str:
+    """Só aceita URL HTTPS dos domínios oficiais do Slack/Teams (evita usar a conexão para chamar outro endereço — SSRF)."""
+    from urllib.parse import urlparse
+    url = (url or '').strip()
+    host = (urlparse(url).hostname or '').lower()
+    allowed = TEAM_HOSTS.get(app, ())
+    if not url.startswith('https://') or not any(host == h or (h.startswith('.') and host.endswith(h)) for h in allowed):
+        raise IntegrationError(f'URL do webhook do {"Slack" if app == "SLACK" else "Teams"} inválida: use a URL gerada pelo próprio app.')
+    try:
+        validate_outbound_url(url)
+    except UnsafeURLError as exc:
+        raise IntegrationError(str(exc)) from exc
+    return url
+
+
+def post_team_message(conn, text: str) -> None:
+    c, app = conn.credentials or {}, conn.app_name
+    if app == 'TELEGRAM':
+        resp = requests.post(f'https://api.telegram.org/bot{c.get("telegram_bot_token")}/sendMessage', timeout=TIMEOUT,
+                             json={'chat_id': c.get('telegram_chat_id'), 'text': text[:4000]})
+        _check(resp, 'Telegram')
+        return
+    url = team_webhook_url(app, c.get('webhook_url'))
+    try:
+        resp = requests.post(url, json={'text': text[:4000]}, timeout=TIMEOUT, allow_redirects=False)
+    except requests.RequestException as exc:
+        raise IntegrationError(f'{app.title()} inacessível ({exc.__class__.__name__}).') from exc
+    if resp.status_code >= 400:
+        raise IntegrationError(f'{"Slack" if app == "SLACK" else "Teams"} respondeu {resp.status_code}.')

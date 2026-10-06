@@ -115,6 +115,8 @@ class CustomUser(PIIIndexMixin, AbstractUser):
         blank=True, 
         verbose_name="Foto de Perfil"
     )
+    # CAD-221: senha temporária definida pela TI → a API só libera /auth/* até a pessoa trocar a senha
+    must_change_password = models.BooleanField(default=False, verbose_name="Trocar senha no próximo acesso")
 
     @property
     def organization(self):

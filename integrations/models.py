@@ -26,6 +26,14 @@ class AppConnection(models.Model):
         ('ZAPSIGN', 'ZapSign (assinatura eletrônica)'),
         ('ASAAS', 'Asaas (boleto e Pix)'),
         ('META', 'Facebook e Instagram (Meta)'),
+        ('D4SIGN', 'D4Sign (assinatura eletrônica)'),       # CAD-221
+        ('CLICKSIGN', 'Clicksign (assinatura eletrônica)'),
+        ('ESCAVADOR', 'Escavador (dados processuais)'),
+        ('NOTION', 'Notion'),
+        ('PIPEDRIVE', 'Pipedrive (CRM)'),
+        ('CALENDLY', 'Calendly (agendamento)'),
+        ('SLACK', 'Slack'),
+        ('TEAMS', 'Microsoft Teams'),
     )
 
     user = models.ForeignKey(

@@ -53,7 +53,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'initials',
             'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture',
-            'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required',
+            'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required', 'must_change_password',
         ]
         read_only_fields = fields
 
@@ -74,7 +74,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if membership is None:
             return None
         org = membership.organization
-        return {'id': str(org.id), 'name': org.name, 'account_type': org.account_type}
+        from billing.entitlements import effective_max_users
+        members = org.members.filter(is_active=True).count()
+        # CAD-222: advogado autônomo (pessoa física e sozinho na conta) vê o sistema sem os textos de equipe
+        return {'id': str(org.id), 'name': org.name, 'account_type': org.account_type, 'members': members,
+                'max_users': effective_max_users(org), 'solo': org.account_type == 'PESSOA_FISICA' and members <= 1}
 
     def get_role(self, obj):
         """Papel no escritório ativo (OWNER/ADMIN/MEMBER/VIEWER) — o front usa para mostrar/ocultar telas."""
@@ -148,8 +152,10 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         user = self.context['request'].user
+        self.was_forced = user.must_change_password
         user.set_password(self.validated_data['new_password'])
-        user.save(update_fields=['password'])
+        user.must_change_password = False
+        user.save(update_fields=['password', 'must_change_password'])
         return user
 
 class TeamMemberSerializer(serializers.ModelSerializer):

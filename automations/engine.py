@@ -12,8 +12,6 @@ import logging
 import re
 from datetime import datetime, time, timedelta
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
@@ -119,6 +117,23 @@ def plan_step(org, rule, action, ctx) -> dict:
         step['dados'] = {'titulo': render(p['titulo'], ctx)[:120], 'mensagem': render(p['mensagem'], ctx)[:500],
                          'responsavel_id': resolve(ctx, 'responsavel.id')}
         step['detalhe'] = f'Aviso no sino: {step["dados"]["titulo"]}.'
+    elif kind == 'send_message':
+        from automations import messaging
+        contact = _contact(org, ctx, p['destinatario'])
+        data = {'mensagem': render(p['mensagem'], ctx)[:1000], 'assunto': render(p.get('assunto', ''), ctx)[:150], 'canal': p['canal']}
+        if contact is None:
+            name = resolve(ctx, f'{p["destinatario"]}.nome')
+            return {**step, 'status': 'bloqueado', 'dados': data,
+                    'detalhe': f'Simulação com contato de exemplo ({name}).' if name else
+                               f'O evento não tem {p["destinatario"]} vinculado.'}
+        data.update(contato_id=contact.pk, nome=contact.name)
+        try:
+            channel = messaging.pick_channel(org, contact, p['canal'])
+        except messaging.Blocked as exc:
+            return {**step, 'status': 'bloqueado', 'dados': data, 'detalhe': str(exc)}
+        step['dados'] = data
+        step['detalhe'] = f'Aviso por {messaging.CHANNEL_LABEL[channel]} para {contact.name}' + \
+            ('' if messaging.business_hours() else ' (fora do horário comercial: vai às 8h do próximo dia útil)') + '.'
     elif kind in ('send_whatsapp', 'send_email'):
         channel = 'whatsapp' if kind == 'send_whatsapp' else 'email'
         contact = _contact(org, ctx, p['destinatario'])
@@ -137,6 +152,13 @@ def plan_step(org, rule, action, ctx) -> dict:
                                f'(ou saiu da lista, ou não tem {"telefone" if channel == "whatsapp" else "e-mail"}).'}
         step['dados'] = data
         step['detalhe'] = f'{"WhatsApp" if channel == "whatsapp" else "E-mail"} para {contact.name}.'
+    elif kind == 'team_chat':
+        conn = _team_connection(org, p['canal'])
+        names = {'slack': 'Slack', 'teams': 'Teams', 'telegram': 'Telegram'}
+        if conn is None:
+            return {**step, 'status': 'bloqueado', 'detalhe': f'Nenhuma conexão de {names[p["canal"]]} ativa (Integrações).'}
+        step['dados'] = {'conexao_id': conn.pk, 'mensagem': render(p['mensagem'], ctx)[:1000]}
+        step['detalhe'] = f'Aviso no {names[p["canal"]]} ({conn.name}).'
     else:   # erp_call
         from erp.models import ErpConnector
 
@@ -154,19 +176,14 @@ def plan(org, rule, ctx) -> list:
 
 
 # ----------------------------------------------------------------------------- execução de um passo
-def _whatsapp_connection(org):
+def _team_connection(org, canal):
     from integrations.models import AppConnection
 
-    return (AppConnection.objects.filter(app_name='WHATSAPP', is_active=True, user__memberships__organization=org,
+    return (AppConnection.objects.filter(app_name=canal.upper(), is_active=True, user__memberships__organization=org,
                                          user__memberships__is_active=True).order_by('-pk').first())
 
 
-def _digits_phone(raw: str) -> str:
-    digits = re.sub(r'\D', '', raw or '')
-    return f'55{digits}' if len(digits) in (10, 11) else digits
-
-
-def perform(org, rule, run, step, index) -> dict:
+def perform(org, rule, run, step, index, force=False) -> dict:
     """Executa um passo planejado. Nunca levanta: devolve o passo com status 'feito' ou 'erro'."""
     d = step['dados']
     try:
@@ -190,32 +207,34 @@ def perform(org, rule, run, step, index) -> dict:
                    actor_id=d.get('responsavel_id'), origem='Regras de automação', documento=rule.name, acao='Regra executada',
                    link=AUTOMACOES_LINK, dedupe_key=f'regra-{run.pk}-{index}')
             return {**step, 'status': 'feito'}
-        if step['tipo'] in ('send_whatsapp', 'send_email'):
+        if step['tipo'] in ('send_whatsapp', 'send_email', 'send_message'):
+            from automations import messaging
             from contacts.models import Contact
 
-            channel = 'whatsapp' if step['tipo'] == 'send_whatsapp' else 'email'
+            wanted = d.get('canal') or ('whatsapp' if step['tipo'] == 'send_whatsapp' else 'email')
             contact = Contact.objects.filter(organization=org, pk=d.get('contato_id')).first()
-            if contact is None or not contact.can_receive(channel):          # consentimento conferido de novo na hora do envio
-                return {**step, 'status': 'bloqueado', 'detalhe': 'Consentimento retirado ou contato removido antes do envio.'}
-            if channel == 'whatsapp':
-                conn = _whatsapp_connection(org)
-                if conn is None:
-                    raise ValueError('Nenhuma conexão de WhatsApp ativa no escritório (Integrações → WhatsApp).')
-                from integrations.evolution import WhatsAppEvolutionExecutor
-                from workflows.tasks import _evolution_credentials_from_connection
+            try:
+                messaging.pick_channel(org, contact, wanted)           # consentimento conferido de novo na hora do envio
+            except messaging.Blocked as exc:
+                return {**step, 'status': 'bloqueado', 'detalhe': f'Não enviado: {exc}'}
+            if not force and not messaging.business_hours():
+                when = messaging.next_business_moment()
+                _schedule_resume(run, index, when)
+                return {**step, 'status': 'agendado', 'agendado_para': when.isoformat(),
+                        'detalhe': f'Fora do horário comercial: envio agendado para {when.strftime("%d/%m às %Hh")}.'}
+            used = messaging.deliver(org, contact, wanted, d['mensagem'], d.get('assunto', ''),
+                                     origin={'regra': rule.pk, 'execucao': run.pk})
+            return {**step, 'status': 'feito', 'resultado': {'canal': used}}
+        if step['tipo'] == 'team_chat':
+            from integrations.models import AppConnection
+            from integrations.services import post_team_message
 
-                base_url, api_key, instance = _evolution_credentials_from_connection(conn, org)
-                WhatsAppEvolutionExecutor(base_url=base_url, api_key=api_key).send(
-                    instance, {'number': _digits_phone(contact.phone), 'text': d['mensagem']})
-            else:
-                footer = (f'\n\n—\nVocê recebe esta mensagem porque autorizou o contato de {org}. '
-                          'Para não receber mais, responda a este e-mail pedindo a remoção.')
-                from integrations.services import send_office_email
-                if not send_office_email(org, d['assunto'], d['mensagem'] + footer, [contact.email]):   # SMTP do escritório (CAD-174)
-                    send_mail(d['assunto'], d['mensagem'] + footer, settings.DEFAULT_FROM_EMAIL, [contact.email], fail_silently=False)
-            audit.log('message.sent', actor_type='system', organization=org, target=contact,
-                      changes={'canal': channel, 'regra': rule.pk, 'execucao': run.pk},
-                      data_categories=['contato'], legal_basis='consentimento')
+            conn = AppConnection.objects.filter(pk=d.get('conexao_id'), is_active=True, user__memberships__organization=org).first()
+            if conn is None:
+                raise ValueError('Conexão do chat da equipe removida ou desativada.')
+            post_team_message(conn, d['mensagem'])
+            audit.log('integration.call', actor_type='system', organization=org, target=conn,
+                      changes={'app': conn.app_name, 'regra': rule.pk, 'execucao': run.pk}, legal_basis='execucao_contrato')
             return {**step, 'status': 'feito'}
         if step['tipo'] == 'erp_call':
             from erp import engine as erp_engine
@@ -258,6 +277,8 @@ def final_status(steps) -> str:
     if 'aguardando' in states:
         return S.PENDING
     done = states.count('feito')
+    if 'agendado' in states and all(x in ('feito', 'agendado') for x in states):
+        return S.SCHEDULED
     bad = len(states) - done
     if bad == 0:
         return S.SUCCESS
@@ -322,6 +343,27 @@ def execute(rule_id, refs, dedupe_key, now=None):
     run.save(update_fields=['steps', 'status'])
     Rule.objects.filter(pk=rule.pk).update(last_run_at=timezone.now(), run_count=F('run_count') + 1)
     _notify_outcome(org, rule, run)
+    return run
+
+
+def _schedule_resume(run, index, when):
+    from django_q.models import Schedule
+    Schedule.objects.create(func='automations.engine.resume_step', args=f'{run.pk},{index}', schedule_type=Schedule.ONCE,
+                            next_run=when, name=f'automacao-envio-{run.pk}-{index}'[:100], repeats=1)
+
+
+def resume_step(run_id, index):
+    """Envio que estava fora do horário comercial: roda agora (agendado pelo django-q)."""
+    run = RuleRun.objects.filter(pk=run_id).select_related('rule', 'organization').first()
+    if run is None or not run.rule.enabled and run.status != S.SCHEDULED:
+        return None
+    steps = list(run.steps or [])
+    if index >= len(steps) or steps[index].get('status') != 'agendado':
+        return None
+    steps[index] = perform(run.organization, run.rule, run, steps[index], index, force=True)
+    run.steps, run.status = steps, final_status(steps)
+    run.save(update_fields=['steps', 'status'])
+    _notify_outcome(run.organization, run.rule, run)
     return run
 
 
@@ -425,9 +467,10 @@ def tick(now=None) -> dict:
     now = now or timezone.now()
     local = timezone.localtime(now)
     today = local.date()
-    out = {'deadline': 0, 'schedule': 0, 'expired': 0, 'receivable': 0}
+    out = {'deadline': 0, 'schedule': 0, 'expired': 0, 'receivable': 0, 'calendar': 0, 'overdue': 0}
     rules = Rule.objects.filter(enabled=True, organization__is_active=True,
-                                trigger__in=[Rule.Trigger.DEADLINE_SOON, Rule.Trigger.SCHEDULE, Rule.Trigger.RECEIVABLE_DUE]
+                                trigger__in=[Rule.Trigger.DEADLINE_SOON, Rule.Trigger.SCHEDULE, Rule.Trigger.RECEIVABLE_DUE,
+                                             Rule.Trigger.CALENDAR_EVENT, Rule.Trigger.TASK_OVERDUE]
                                 ).select_related('organization')
     for rule in rules:
         org = rule.organization
@@ -440,6 +483,25 @@ def tick(now=None) -> dict:
             for t in tasks:
                 if execute(rule.pk, {'task_id': t.pk, 'dias': n}, f'task-{t.pk}-d{n}', now=now):
                     out['deadline'] += 1
+        elif rule.trigger == Rule.Trigger.CALENDAR_EVENT:
+            from gcal.models import ExternalEvent
+            if local.hour < 8:                       # avisos da agenda só a partir das 8h
+                continue
+            n = int(rule.trigger_config.get('dias_antes', 1))
+            target = today + timedelta(days=n)
+            events = ExternalEvent.objects.filter(organization=org, cancelled=False, start__date=target).only('pk')
+            for ev in events:
+                if execute(rule.pk, {'event_id': ev.pk, 'dias': n}, f'gcal-{ev.pk}-d{n}', now=now):
+                    out['calendar'] += 1
+        elif rule.trigger == Rule.Trigger.TASK_OVERDUE:
+            n = int(rule.trigger_config.get('dias_atraso', 1))
+            limit = now - timedelta(days=n)
+            tasks = (UserTask.objects.filter(responsavel__memberships__organization=org, responsavel__memberships__is_active=True,
+                                             completed=False, scheduled_at__lt=limit, scheduled_at__gte=limit - timedelta(days=7))
+                     .distinct().only('pk'))
+            for t in tasks:
+                if execute(rule.pk, {'task_id': t.pk}, f'overdue-{t.pk}-d{n}', now=now):
+                    out['overdue'] += 1
         elif rule.trigger == Rule.Trigger.RECEIVABLE_DUE:
             from carteira.models import Receivable
             cfg = rule.trigger_config

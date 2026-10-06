@@ -166,3 +166,20 @@ class AnomalyAlert(models.Model):
 
     def __str__(self):
         return f'[{self.severity}] {self.rule}: {self.summary}'
+
+
+class BlockedIP(models.Model):
+    """Endereço (ou faixa CIDR) bloqueado pela TI na tela de Cibersegurança (CAD-221). Bloqueio vale para todo o sistema."""
+
+    network = models.CharField(max_length=64, unique=True, help_text='IP (203.0.113.7) ou faixa CIDR (203.0.113.0/24).')
+    reason = models.CharField(max_length=255)
+    created_by = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True, help_text='Vazio = até a TI remover.')
+    hits = models.PositiveIntegerField(default=0)
+    last_hit_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'IP bloqueado'
+        verbose_name_plural = 'IPs bloqueados'

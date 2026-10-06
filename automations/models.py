@@ -22,6 +22,15 @@ class Rule(models.Model):
         SCHEDULE = 'schedule', 'Agenda (diária/semanal)'
         PUBLICATION_NEW = 'publication_new', 'Publicação nova (DJEN)'
         RECEIVABLE_DUE = 'receivable_due', 'Honorário vencendo ou vencido'
+        # CAD-222: mais pontos de partida para tirar trabalho manual do dia a dia
+        EMAIL_RECEIVED = 'email_received', 'E-mail recebido (triado)'
+        CALENDAR_EVENT = 'calendar_event', 'Compromisso da Agenda Google chegando'
+        TASK_OVERDUE = 'task_overdue', 'Tarefa atrasada'
+        RECEIVABLE_PAID = 'receivable_paid', 'Pagamento recebido'
+        OPPORTUNITY_STAGE = 'opportunity_stage', 'Oportunidade mudou de etapa'
+        AGREEMENT_CREATED = 'agreement_created', 'Contrato de honorários criado'
+        DOCUMENT_UPLOADED = 'document_uploaded', 'Documento enviado'
+        PORTAL_VIEWED = 'portal_viewed', 'Cliente abriu o portal'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='automation_rules')
     name = models.CharField(max_length=120)
@@ -64,6 +73,7 @@ class RuleRun(models.Model):
         PENDING = 'pending_approval', 'Aguardando aprovação'
         REJECTED = 'rejected', 'Recusada'
         EXPIRED = 'expired', 'Aprovação expirada'
+        SCHEDULED = 'scheduled', 'Agendada (fora do horário comercial)'
 
     rule = models.ForeignKey(Rule, on_delete=models.CASCADE, related_name='runs')
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='+')

@@ -94,6 +94,95 @@ TEMPLATES = {
                                                        'descricao': 'Semana de {{hoje}}.', 'prioridade': 'media',
                                                        'quando': 'dias_uteis', 'dias': 0}}],
     },
+    # ---------------------------------------------------------------- CAD-222: agenda Google, e-mails, funil, contratos
+    'agenda_audiencia_cliente': {
+        'name': 'Lembrar o cliente da audiência (1 dia antes)',
+        'description': 'Audiência marcada no Google Agenda: avisa o cliente pelo melhor canal que ele autorizou (WhatsApp ou e-mail), '
+                       'em horário comercial e depois de alguém aprovar o texto.',
+        'trigger': 'calendar_event', 'trigger_config': {'dias_antes': 1},
+        'conditions': [{'field': 'evento.tipo', 'op': 'eq', 'value': 'audiencia'}],
+        'actions': [{'type': 'send_message', 'params': {
+            'destinatario': 'cliente', 'canal': 'melhor', 'assunto': 'Lembrete: audiência em {{evento.data}}',
+            'mensagem': 'Olá, {{cliente.primeiro_nome}}! Lembrete da sua audiência em {{evento.data}} às {{evento.hora}} '
+                        '({{evento.local}}). Chegue com 30 minutos de antecedência e leve documento com foto. Qualquer dúvida, '
+                        'fale com {{escritorio.nome}}.'}}],
+    },
+    'agenda_prazo_equipe': {
+        'name': 'Prazo do Google Agenda: aviso à equipe 2 dias antes',
+        'description': 'Prazos lançados direto no Google Agenda também entram no radar: aviso no sino 2 dias antes.',
+        'trigger': 'calendar_event', 'trigger_config': {'dias_antes': 2},
+        'conditions': [{'field': 'evento.tipo', 'op': 'eq', 'value': 'prazo'}],
+        'actions': [{'type': 'notify', 'params': {'titulo': 'Prazo em 2 dias: {{evento.titulo}}',
+                                                  'mensagem': 'Vence em {{evento.data}}. Processo {{processo.cnj}}.'}}],
+    },
+    'email_intimacao_tarefa': {
+        'name': 'E-mail de intimação vira tarefa urgente',
+        'description': 'E-mail classificado como intimação/tribunal: tarefa para hoje e aviso no sino.',
+        'trigger': 'email_received', 'trigger_config': {},
+        'conditions': [{'field': 'email.categoria', 'op': 'eq', 'value': 'intimacao'}],
+        'actions': [
+            {'type': 'create_task', 'params': {'titulo': 'Intimação por e-mail: {{email.assunto}}', 'descricao': '{{email.resumo}}',
+                                               'prioridade': 'alta', 'quando': 'dias_uteis', 'dias': 0}},
+            {'type': 'notify', 'params': {'titulo': 'Intimação recebida por e-mail', 'mensagem': '{{email.assunto}} — {{email.acao_sugerida}}'}},
+        ],
+    },
+    'email_cliente_responder': {
+        'name': 'Mensagem de cliente: tarefa para responder em 1 dia útil',
+        'description': 'Nenhum cliente fica sem resposta: e-mail de cliente cadastrado vira tarefa.',
+        'trigger': 'email_received', 'trigger_config': {},
+        'conditions': [{'field': 'email.categoria', 'op': 'eq', 'value': 'cliente'}],
+        'actions': [{'type': 'create_task', 'params': {'titulo': 'Responder {{contato.nome}}: {{email.assunto}}',
+                                                       'descricao': '{{email.resumo}}', 'prioridade': 'media',
+                                                       'quando': 'dias_uteis', 'dias': 1}}],
+    },
+    'email_comercial_aviso': {
+        'name': 'Possível cliente novo por e-mail: avisar a equipe',
+        'description': 'Pedido de orçamento/consulta: aviso imediato para não perder o lead.',
+        'trigger': 'email_received', 'trigger_config': {},
+        'conditions': [{'field': 'email.categoria', 'op': 'eq', 'value': 'comercial'}],
+        'actions': [{'type': 'notify', 'params': {'titulo': 'Possível cliente novo', 'mensagem': '{{email.remetente}}: {{email.assunto}}'}},
+                    {'type': 'create_task', 'params': {'titulo': 'Retornar contato comercial: {{email.remetente}}',
+                                                       'descricao': '{{email.resumo}}', 'prioridade': 'alta',
+                                                       'quando': 'dias_uteis', 'dias': 0}}],
+    },
+    'pagamento_agradecimento': {
+        'name': 'Agradecer o pagamento',
+        'description': 'Confirma ao cliente que o pagamento foi recebido.',
+        'trigger': 'receivable_paid', 'trigger_config': {}, 'conditions': [],
+        'actions': [{'type': 'send_message', 'params': {
+            'destinatario': 'cliente', 'canal': 'melhor', 'assunto': 'Pagamento recebido',
+            'mensagem': 'Olá, {{cliente.primeiro_nome}}! Confirmamos o recebimento de {{honorario.valor}} ({{honorario.descricao}}). '
+                        'Obrigado! {{escritorio.nome}}'}}],
+    },
+    'funil_reuniao_confirmacao': {
+        'name': 'Confirmar a reunião com o possível cliente',
+        'description': 'Quando a oportunidade vai para "Reunião marcada", envia a confirmação.',
+        'trigger': 'opportunity_stage', 'trigger_config': {},
+        'conditions': [{'field': 'oportunidade.etapa', 'op': 'eq', 'value': 'reuniao'}],
+        'actions': [{'type': 'send_message', 'params': {
+            'destinatario': 'cliente', 'canal': 'melhor', 'assunto': 'Reunião confirmada',
+            'mensagem': 'Olá, {{cliente.primeiro_nome}}! Sua reunião com {{escritorio.nome}} está confirmada: '
+                        '{{oportunidade.proxima_acao}}. Traga os documentos que tiver sobre o caso.'}}],
+    },
+    'contrato_boas_vindas': {
+        'name': 'Boas-vindas e abertura do caso ao fechar contrato',
+        'description': 'Mensagem de boas-vindas ao cliente e tarefa para abrir a pasta do caso.',
+        'trigger': 'agreement_created', 'trigger_config': {}, 'conditions': [],
+        'actions': [
+            {'type': 'send_message', 'params': {
+                'destinatario': 'cliente', 'canal': 'melhor', 'assunto': 'Bem-vindo(a) ao {{escritorio.nome}}',
+                'mensagem': 'Olá, {{cliente.primeiro_nome}}! Seja bem-vindo(a). Seu contrato "{{contrato.titulo}}" foi registrado. '
+                            'Vamos te manter informado(a) por aqui sobre cada passo.'}},
+            {'type': 'create_task', 'params': {'titulo': 'Abrir o caso: {{contrato.titulo}}', 'descricao': 'Cliente {{cliente.nome}}.',
+                                               'prioridade': 'media', 'quando': 'dias_uteis', 'dias': 1}},
+        ],
+    },
+    'tarefa_atrasada_aviso': {
+        'name': 'Tarefa atrasada há 1 dia: avisar',
+        'description': 'Aviso no sino de tarefas que passaram do horário e não foram concluídas.',
+        'trigger': 'task_overdue', 'trigger_config': {'dias_atraso': 1}, 'conditions': [],
+        'actions': [{'type': 'notify', 'params': {'titulo': 'Tarefa atrasada', 'mensagem': '{{tarefa.titulo}} (prevista para {{tarefa.data}}).'}}],
+    },
 }
 
 

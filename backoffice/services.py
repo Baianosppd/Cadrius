@@ -204,14 +204,25 @@ def user_row(user) -> dict:
         'id': str(user.pk), 'email': user.email, 'nome': user.get_full_name(), 'ativo': user.is_active,
         'equipe_cadrius': user.is_staff, 'superusuario': user.is_superuser,
         'ultimo_acesso': user.last_login, 'criado_em': user.date_joined, 'bloqueado': is_locked(user),
-        'mfa': mfa.enabled(user),
+        'mfa': mfa.enabled(user), 'troca_de_senha_pendente': user.must_change_password,
         'escritorios': [{'nome': str(m.organization), 'papel': m.role, 'ativo': m.is_active}
                         for m in user.memberships.select_related('organization')],
     }
 
 
+def temporary_password() -> str:
+    """Senha temporária forte (16 caracteres; maiúscula, minúscula, número e símbolo), legível ao ditar (sem 0/O/l/1)."""
+    import secrets
+    groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '#$%&*+-=?@']
+    alphabet = ''.join(groups)
+    while True:
+        pwd = ''.join(secrets.choice(alphabet) for _ in range(16))
+        if all(any(ch in g for ch in pwd) for g in groups):
+            return pwd
+
+
 def user_action(actor, user, action: str, reason: str) -> dict:
-    if action in ('deactivate', 'revoke_sessions', 'reset_mfa') and user.pk == actor.pk:
+    if action in ('deactivate', 'revoke_sessions', 'reset_mfa', 'temp_password') and user.pk == actor.pk:
         raise ActionError('Você não pode aplicar esta ação na própria conta.')
     if user.is_superuser and not actor.is_superuser:
         raise ActionError('Só um superusuário altera outro superusuário.')
@@ -235,6 +246,18 @@ def user_action(actor, user, action: str, reason: str) -> dict:
         mfa.disable(user)
         result = {'mfa': False, 'sessoes_encerradas': revoke_sessions(user)}
         audit.log('auth.mfa.reset', actor=actor, target=user, reason=reason[:255], data_categories=['credenciais'])
+    elif action == 'temp_password':
+        if not user.is_active:
+            raise ActionError('Conta desativada: ative antes de redefinir a senha.')
+        password = temporary_password()
+        user.set_password(password)
+        user.must_change_password = True
+        user.save(update_fields=['password', 'must_change_password'])
+        from axes.utils import reset
+        reset(username=user.get_username())                     # desbloqueia, se estava bloqueada por tentativas
+        result = {'senha_temporaria': password, 'troca_obrigatoria': True, 'sessoes_encerradas': revoke_sessions(user)}
+        # a senha NUNCA vai para a auditoria nem para log: só o fato
+        audit.log('auth.password.temp_set', actor=actor, target=user, reason=reason[:255], data_categories=['credenciais'])
     elif action == 'send_password_reset':
         if not user.is_active:
             raise ActionError('Conta desativada: ative antes de enviar o link.')

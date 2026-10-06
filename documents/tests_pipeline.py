@@ -230,7 +230,11 @@ class PipelineTests(PipelineBase):
             self.assertEqual(pipeline.pick_provider(get_policy(self.org)), 'GROQ')
             policy = get_policy(self.org)
             policy.allowed_providers = ['OPENAI', 'GEMINI']
-            self.assertEqual(pipeline.pick_provider(policy), 'GEMINI')
+            # CAD-221: Gemini no plano gratuito treina com os dados → documento de cliente vai para o OpenAI
+            self.assertEqual(pipeline.pick_provider(policy), 'OPENAI')
+            with mock.patch.dict(os.environ, {'GEMINI_PAID': 'true'}):
+                self.assertEqual(pipeline.pick_provider(policy), 'GEMINI')
+            self.assertEqual(pipeline.pick_provider(policy, sensitive=False), 'GEMINI')
 
     @override_settings(CLAMAV_HOST='clam.local')
     def test_antivirus_bloqueia_infectado_e_falha_fechado_se_estiver_fora(self):

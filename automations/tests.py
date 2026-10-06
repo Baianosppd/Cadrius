@@ -60,6 +60,9 @@ class CatalogTests(APITestCase):
 class Base(APITestCase):
     def setUp(self):
         cache.clear()
+        hours = mock.patch('automations.messaging.business_hours', return_value=True)   # envio imediato (CAD-222)
+        hours.start()
+        self.addCleanup(hours.stop)
         self.org = make_org()
         self.owner = make_user('dono@x.com', self.org, role='OWNER')
         self.member = make_user('adv@x.com', self.org, role='MEMBER')
@@ -104,7 +107,7 @@ class ApiFlowTests(Base):
         self.assertTrue(res.json()['desligada_para_simular'])
         self.assertFalse(res.json()['ativa'])
         self.assertTrue(AuditEvent.objects.filter(action='automation.rule_enabled').exists())
-        self.assertEqual(len(self.c.get('/api/v1/automations/catalog/').json()['gatilhos']), 7)
+        self.assertEqual(len(self.c.get('/api/v1/automations/catalog/').json()['gatilhos']), 15)   # +8 no CAD-222
         self.assertEqual(len(self.c.get('/api/v1/automations/templates/').json()), len(TEMPLATES))
 
     def test_permissoes_e_isolamento(self):

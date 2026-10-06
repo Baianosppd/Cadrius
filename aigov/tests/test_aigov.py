@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from aigov.guard import AIBlocked, check, get_policy, run_guarded, set_global_switch
-from aigov.models import AIActionLog
+from aigov.models import DEFAULT_PROVIDERS, AIActionLog
 from aigov.sanitize import MAX_UNTRUSTED_CHARS, sanitize_untrusted_text, wrap_untrusted
 from audit.models import AuditEvent
 from cadrius.tests_security import make_org, make_user
@@ -67,7 +67,7 @@ class GuardTests(TestCase):
         policy = get_policy(self.org)
         self.assertEqual(policy.autonomy_level, 'supervised')
         self.assertTrue(policy.requires_execution_review())
-        self.assertEqual(sorted(policy.allowed_providers), ['GEMINI', 'GROQ', 'OPENAI'])
+        self.assertEqual(sorted(policy.allowed_providers), sorted(DEFAULT_PROVIDERS))
 
     def test_kill_switch_global_bloqueia_tudo_e_e_auditado(self):
         set_global_switch(False, reason='incidente', changed_by='sec')

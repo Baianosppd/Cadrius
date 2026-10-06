@@ -4,11 +4,13 @@ from __future__ import annotations
 import base64
 import hashlib
 import secrets
+from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core import signing
 from django.http import HttpResponseRedirect
+from django.utils import timezone
 from django.views import View
 from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
@@ -17,7 +19,7 @@ from rest_framework.views import APIView
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from audit import service as audit
 from gcal import google_api as g
-from gcal.models import GoogleCalendarApp, GoogleCalendarLink
+from gcal.models import ExternalEvent, GoogleCalendarApp, GoogleCalendarLink
 from gcal.sync import pull_link
 
 STATE_COOKIE = 'cadrius_gcal'
@@ -72,6 +74,11 @@ class GCalStatusView(APIView):
             'last_error': link.last_error if link else '',
             'redirect_uri': redirect_uri(request),
             'scope': g.SCOPE,
+            # CAD-222: compromissos criados direto no Google
+            'import_events': link.import_events if link else True,
+            'lookahead_days': link.lookahead_days if link else 60,
+            'task_kinds': link.task_kinds if link else ['prazo', 'audiencia'],
+            'events_synced_at': link.events_synced_at if link else None,
         })
 
 
@@ -195,6 +202,89 @@ class GCalSyncNowView(APIView):
         if link is None:
             return Response({'detail': 'Google Calendar não conectado.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            return Response(pull_link(link))
+            from gcal.events import pull_external
+            return Response({**pull_link(link), 'compromissos': pull_external(link, force=True)})
         except g.GoogleRetryable:
             return Response({'detail': 'Google indisponível agora. Tente em instantes.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+# ----------------------------------------------------------------------------- compromissos do Google (CAD-222)
+
+
+def event_json(e: ExternalEvent) -> dict:
+    return {'id': e.pk, 'titulo': e.title, 'tipo': e.kind, 'tipo_label': e.get_kind_display(), 'inicio': e.start, 'fim': e.end,
+            'dia_inteiro': e.all_day, 'local': e.location, 'processo': e.case.cnj if e.case_id else '', 'processo_id': e.case_id,
+            'cliente': e.contact.name if e.contact_id else '', 'cliente_id': e.contact_id, 'tarefa_id': e.task_id,
+            'tipo_corrigido': e.kind_locked}
+
+
+class GCalSettingsView(APIView):
+    """PATCH {import_events, lookahead_days, task_kinds} — o que trazer do Google e o que vira tarefa."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        link = GoogleCalendarLink.objects.filter(user=request.user).first()
+        if link is None:
+            return Response({'detail': 'Conecte o Google Agenda primeiro.'}, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data
+        if 'import_events' in data:
+            link.import_events = bool(data['import_events'])
+        if 'lookahead_days' in data:
+            try:
+                link.lookahead_days = max(7, min(int(data['lookahead_days']), 180))
+            except (TypeError, ValueError):
+                return Response({'detail': 'Dias à frente: número entre 7 e 180.'}, status=status.HTTP_400_BAD_REQUEST)
+        if 'task_kinds' in data:
+            kinds = data['task_kinds'] if isinstance(data['task_kinds'], list) else []
+            valid = {k for k, _ in ExternalEvent.Kind.choices}
+            link.task_kinds = [k for k in kinds if k in valid]
+        link.save(update_fields=['import_events', 'lookahead_days', 'task_kinds'])
+        return Response({'import_events': link.import_events, 'lookahead_days': link.lookahead_days, 'task_kinds': link.task_kinds})
+
+
+class GCalEventsView(APIView):
+    """GET — próximos compromissos trazidos do Google (da própria pessoa; dono/admin veem os do escritório com ?todos=1)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        membership = _membership(request)
+        if membership is None:
+            return Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
+        qs = ExternalEvent.objects.filter(organization=membership.organization, cancelled=False,
+                                          start__gte=timezone.now() - timedelta(days=1)).select_related('case', 'contact')
+        if not (request.query_params.get('todos') and membership.role in MANAGE_TEAM_ROLES):
+            qs = qs.filter(link__user=request.user)
+        kind = request.query_params.get('tipo')
+        if kind:
+            qs = qs.filter(kind=kind)
+        return Response([event_json(e) for e in qs[:200]])
+
+
+class GCalEventDetailView(APIView):
+    """PATCH {tipo, cliente_id, processo_id} — corrige a classificação/vínculos (a correção não é desfeita pela sincronização)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        membership = _membership(request)
+        ev = ExternalEvent.objects.filter(pk=pk, organization=membership.organization if membership else None).first()
+        if ev is None or (ev.link.user_id != request.user.id and membership.role not in MANAGE_TEAM_ROLES):
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        data, fields = request.data, []
+        if 'tipo' in data:
+            if data['tipo'] not in ExternalEvent.Kind.values:
+                return Response({'detail': 'Tipo inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+            ev.kind, ev.kind_locked = data['tipo'], True
+            fields += ['kind', 'kind_locked']
+        if 'cliente_id' in data:
+            from contacts.models import Contact
+            ev.contact = Contact.objects.filter(organization=ev.organization, pk=data['cliente_id']).first() if data['cliente_id'] else None
+            fields.append('contact')
+        if 'processo_id' in data:
+            from research.models import MonitoredCase
+            ev.case = MonitoredCase.objects.filter(organization=ev.organization, pk=data['processo_id']).first() if data['processo_id'] else None
+            fields.append('case')
+        if fields:
+            ev.save(update_fields=fields)
+            from gcal.events import _ensure_task
+            _ensure_task(ev.link, ev)
+        return Response(event_json(ev))

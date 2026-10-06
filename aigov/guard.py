@@ -45,6 +45,12 @@ def set_global_switch(enabled: bool, *, reason='', changed_by='') -> GlobalAISwi
     return switch
 
 
+def _own_key(organization, provider) -> bool:
+    """Chave cadastrada pelo próprio escritório (Plugins) conta como provedor permitido por ele (CAD-222)."""
+    from assistant.models import OrgAIKey
+    return OrgAIKey.objects.filter(organization=organization, provider=provider).exists()
+
+
 def check(organization, kind: str, provider: str) -> AIGovernancePolicy:
     """Levanta ``AIBlocked`` se a política não permitir esta chamada; devolve a política se permitir."""
     if not global_ai_enabled():
@@ -52,7 +58,7 @@ def check(organization, kind: str, provider: str) -> AIGovernancePolicy:
     policy = get_policy(organization)
     if not policy.ai_enabled or policy.autonomy_level == AIGovernancePolicy.Autonomy.OFF:
         raise AIBlocked('org_disabled', 'A IA está desativada para este escritório.')
-    if provider not in policy.allowed_providers:
+    if provider not in policy.allowed_providers and not _own_key(organization, provider):
         raise AIBlocked('provider_not_allowed', f'O provedor {provider} não está autorizado pelo escritório.')
     if kind == AIActionLog.Kind.EXTRACTION and policy.autonomy_level == AIGovernancePolicy.Autonomy.SUGGEST:
         raise AIBlocked('suggest_only', 'No modo "somente sugestões" a extração automática está desligada.')
