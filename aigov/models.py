@@ -86,3 +86,17 @@ class AIActionLog(models.Model):
         indexes = [models.Index(fields=['organization_id', 'created_at'])]
 
 
+
+
+class AIRoute(models.Model):
+    """Qual IA atende cada ATIVIDADE (CAD-224), definida pela equipe Cadrius em Gestão → IA por atividade.
+
+    ``providers`` é a cadeia em ordem: o 1º atende; se cair (erro, chave inválida, limite), o próximo assume. Com
+    ``use_reserves``, depois da cadeia o Cadrius ainda tenta os demais provedores configurados e seguros (última reserva).
+    Sem registro, vale a recomendação de ``aigov.routing.ACTIVITIES``."""
+
+    activity = models.CharField(max_length=20, unique=True)
+    providers = models.JSONField(default=list)
+    use_reserves = models.BooleanField(default=True)
+    updated_by = models.CharField(max_length=120, blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)

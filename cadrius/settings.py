@@ -527,6 +527,8 @@ SESSION_CACHE_ALIAS = "default"
 STRIPE_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+# CAD-224: meios aceitos no checkout. Assinatura: 'card' (e 'boleto' só depois de ativado no painel do Stripe).
+STRIPE_PAYMENT_METHODS = env.list('STRIPE_PAYMENT_METHODS', default=['card'])
 # Pesquisa jurídica (CAD-166). [VALIDAR] chave pública e URL do DataJud na documentação vigente do CNJ.
 DATAJUD_API_KEY = os.environ.get('DATAJUD_API_KEY', '')
 DATAJUD_BASE_URL = os.environ.get('DATAJUD_BASE_URL', 'https://api-publica.datajud.cnj.jus.br')

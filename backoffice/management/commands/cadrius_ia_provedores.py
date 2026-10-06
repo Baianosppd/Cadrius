@@ -34,6 +34,11 @@ class Command(BaseCommand):
             self.stdout.write(f'  {row["chave"]:<11} {flag:<12} modelo={row["modelo"]}{extra}')
         safe = llm.candidates(None, sensitive=True)
         self.stdout.write(f'Seguros para dado de cliente agora: {", ".join(safe) or "NENHUM — o assistente não vai responder"}')
+        from aigov import routing
+        self.stdout.write('IA por atividade (Gestão → IA por atividade; reserva automática se o 1º cair):')
+        for row in routing.overview():
+            self.stdout.write(f'  {row["atividade"]:<11} atende agora: {row["atende_agora"] or "NINGUÉM"} · ordem: '
+                              f'{" > ".join(row["ordem_efetiva"]) or "—"}{" (personalizada)" if row["personalizado"] else ""}')
         qs = AIGovernancePolicy.objects.all()
         if opts['escritorio']:
             qs = qs.filter(organization_id=opts['escritorio'])

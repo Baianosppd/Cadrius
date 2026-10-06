@@ -91,6 +91,7 @@ class Promotion(models.Model):
     class Kind(models.TextChoices):
         PERCENT = 'percent', 'Percentual (%)'
         AMOUNT = 'amount', 'Valor fixo (R$)'
+        TRIAL = 'trial', 'Dias extras de teste'           # CAD-224: valor = dias; não gera desconto no Stripe
 
     class Duration(models.TextChoices):
         ONCE = 'once', 'Só na primeira cobrança'

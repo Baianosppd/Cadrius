@@ -173,7 +173,8 @@ def ask(ctx: Ctx, conv: Conversation, text: str) -> Message:
         raise AssistantError('Escreva uma mensagem.')
     if len(text) > MAX_INPUT:
         raise AssistantError(f'Mensagem longa demais (máximo {MAX_INPUT} caracteres). Envie o documento pela tela de Documentos.')
-    providers = llm.candidates(get_policy(ctx.org).allowed_providers or [], sensitive=True, need_tools=True, profile='assistente',
+    activity = 'estrategia' if conv.mode == Conversation.Mode.CASO else 'automacao'      # CAD-224: IA por atividade
+    providers = llm.candidates(get_policy(ctx.org).allowed_providers or [], sensitive=True, need_tools=True, profile=activity,
                                org=ctx.org)
     if not providers:
         raise AssistantError('Nenhuma IA permitida e configurada para dados do escritório. Peça à TI para configurar um provedor '
@@ -258,7 +259,7 @@ def write(ctx: Ctx, action: str, text: str, instructions: str = '') -> dict:
         raise AssistantError('Cole ou escreva o texto.')
     if len(text) > 20000:
         raise AssistantError('Texto longo demais (máximo 20.000 caracteres).')
-    providers = llm.candidates(get_policy(ctx.org).allowed_providers or [], sensitive=True, profile='assistente', org=ctx.org)
+    providers = llm.candidates(get_policy(ctx.org).allowed_providers or [], sensitive=True, profile='redacao', org=ctx.org)
     if not providers:
         raise AssistantError('Nenhuma IA permitida e configurada para dados do escritório.')
     weight = credits_for('writing')

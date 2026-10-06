@@ -86,15 +86,17 @@ def ai_triage(organization, user, text: str):
     """Triagem pela IA (ou None se não der: política, provedor, falha). Nunca levanta."""
     from aigov.guard import AIBlocked, get_policy, run_guarded
     from core.pii import mask_text
-    from documents.pipeline import Skip, pick_provider
+    from documents.pipeline import Skip, fallbacks_for, pick_provider
     from extraction.ai_wrapper import extract_fields_from_text
 
     masked = mask_text(text)[:12000]
     try:
-        provider = pick_provider(get_policy(organization))
+        # publicação traz prazo: usa a cadeia de EXTRAÇÃO (precisão), não a de triagem rápida (CAD-224)
+        provider = pick_provider(get_policy(organization), activity='extracao')
+        reserves = fallbacks_for(get_policy(organization), provider, activity='extracao')
         result = run_guarded(organization=organization, user=user, kind='triage', provider=provider,
                              categories=['dados_processuais'], input_text=masked,
-                             fn=lambda: extract_fields_from_text(masked, TriageSchema, PROMPT, provider=provider))
+                             fn=lambda: extract_fields_from_text(masked, TriageSchema, PROMPT, provider=provider, fallbacks=reserves))
     except (Skip, AIBlocked):
         return None
     except Exception:  # noqa: BLE001 — triagem pela IA é um extra; a leitura local já existe

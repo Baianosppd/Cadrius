@@ -84,7 +84,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         members = org.members.filter(is_active=True).count()
         # CAD-222: advogado autônomo (pessoa física e sozinho na conta) vê o sistema sem os textos de equipe
         return {'id': str(org.id), 'name': org.name, 'account_type': org.account_type, 'members': members,
-                'max_users': effective_max_users(org), 'solo': org.account_type == 'PESSOA_FISICA' and members <= 1}
+                'max_users': effective_max_users(org), 'solo': org.account_type == 'PESSOA_FISICA' and members <= 1,
+                # CAD-224: cupom de desconto reservado no cadastro (aplicado no 1º pagamento)
+                'cupom_pendente': ({'codigo': org.pending_promotion.code, 'nome': org.pending_promotion.name}
+                                   if org.pending_promotion_id else None)}
 
     def get_role(self, obj):
         """Papel no escritório ativo (OWNER/ADMIN/MEMBER/VIEWER) — o front usa para mostrar/ocultar telas."""

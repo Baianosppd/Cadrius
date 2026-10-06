@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest import mock
 
 from django.contrib.auth.models import Group
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -135,6 +136,7 @@ class PromotionRulesTests(APITestCase):
 
 
 @mock.patch('billing.promotions.ensure_stripe_coupon', return_value='coupon_1')
+@override_settings(STRIPE_SECRET_KEY='sk_test_x')
 class PromotionCheckoutTests(APITestCase):
     def setUp(self):
         self.pro = plan()

@@ -1,5 +1,7 @@
 from django.urls import path
 
+from aigov import staff_api as ai_staff
+
 from backoffice import api
 
 urlpatterns = [
@@ -7,6 +9,8 @@ urlpatterns = [
     path('overview/', api.OverviewView.as_view(), name='bo-overview'),
     path('health/', api.HealthView.as_view(), name='bo-health'),
     path('ai-switch/', api.AISwitchView.as_view(), name='bo-ai-switch'),
+    path('ia/rotas/', ai_staff.RoutesView.as_view(), name='bo-ai-routes'),                      # CAD-224
+    path('ia/rotas/<str:activity>/', ai_staff.RouteDetailView.as_view(), name='bo-ai-route'),
     path('cyber/', api.CyberView.as_view(), name='bo-cyber'),
     path('cyber/blocked-ips/', api.BlockedIPView.as_view(), name='bo-cyber-block'),
     path('cyber/blocked-ips/<int:pk>/', api.BlockedIPView.as_view(), name='bo-cyber-unblock'),

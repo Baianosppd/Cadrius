@@ -92,6 +92,8 @@ def _checkout_completed(session) -> str:
     org.is_active = True
     org.stripe_customer_id = session.get('customer') or org.stripe_customer_id
     org.stripe_subscription_id = session.get('subscription') or org.stripe_subscription_id
+    if promo and org.pending_promotion_id == promo.pk:
+        org.pending_promotion = None                  # CAD-224: cupom do cadastro consumido no 1º pagamento
     org.save()
     if promo:
         record_redemption(promo, org, session.get('id', ''))

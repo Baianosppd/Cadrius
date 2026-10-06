@@ -113,11 +113,26 @@ def may_train(key: str) -> bool:
     return _env(p.paid_env).lower() != 'true'
 
 
-def order(profile: str = 'economico') -> list[str]:
+def _env_order(profile: str) -> list[str]:
     env_name, default = ORDERS.get(profile, ORDERS['economico'])
     wanted = [k.strip().upper() for k in _env(env_name).split(',') if k.strip()]
     seen = [k for k in wanted if k in PROVIDERS]
     return seen + [k for k in default if k not in seen]
+
+
+def order(profile: str = 'economico') -> list[str]:
+    """Ordem de tentativa. ``profile`` é a ATIVIDADE (CAD-224: automacao, redacao, extracao, triagem, estrategia,
+    marketing — configurável na Gestão) ou um perfil antigo (economico/assistente). Depois da cadeia da atividade entram as
+    reservas (ordem do .env), se a atividade usa reservas."""
+    from aigov import routing
+    act = routing.LEGACY.get(profile, profile)
+    if act not in routing.ACTIVITIES:
+        return _env_order(profile)
+    providers, reserves = routing.chain(act)
+    if reserves:
+        legacy = 'assistente' if routing.ACTIVITIES[act]['needs_tools'] else 'economico'
+        providers = providers + [k for k in _env_order(legacy) if k not in providers]
+    return providers
 
 
 def org_keys(org) -> dict:
@@ -150,7 +165,9 @@ def candidates(allowed=None, *, sensitive: bool = True, need_tools: bool = False
         if sensitive and may_train(key):
             continue
         out.append(key)
-    return out
+    from aigov.routing import reorder_by_health
+    own_first = [k for k in out if k in own]
+    return own_first + reorder_by_health([k for k in out if k not in own])   # provedor fora do ar vai para o fim
 
 
 def catalog(allowed=None) -> list[dict]:
@@ -287,7 +304,15 @@ def call(provider: str, *, system: str, messages: list[dict], tools=None, json_m
     if own is None and not configured(provider):
         raise LLMError(f'{p.label} não está configurado.')
     fn = _call_anthropic if p.kind == 'anthropic' else _call_openai_compat
-    reply = fn(p, system, messages, tools, json_mode, max_tokens, own)
+    from aigov import routing
+    try:
+        reply = fn(p, system, messages, tools, json_mode, max_tokens, own)
+    except Exception as exc:
+        if own is None:
+            routing.record(provider, False, type(exc).__name__)       # saúde do provedor da plataforma (disjuntor)
+        raise
+    if own is None:
+        routing.record(provider, True)
     if own is not None:
         reply.own_key = True
         from django.utils import timezone

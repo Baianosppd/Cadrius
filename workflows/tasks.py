@@ -252,10 +252,55 @@ def _dispatch_action_execution(
             }
 
         case "EMAIL_SMTP":
-            raise ValueError("Tipo de ação EMAIL_SMTP ainda não implementado no runner.")
+            return _send_workflow_email(final_data, tenant, workflow)
 
         case _:
             raise ValueError(f"Tipo de Action '{action.action_type}' não suportada.")
+
+
+def _send_workflow_email(data: dict, org, workflow: Workflow) -> dict:
+    """CAD-224: ação "Enviar e-mail" do fluxo. Payload: {"to", "subject", "body"}.
+
+    Só envia para quem é da equipe do escritório ou para contato que autorizou e-mail (LGPD): o resto é recusado.
+    """
+    from django.conf import settings
+    from django.core.exceptions import ValidationError
+    from django.core.mail import send_mail
+    from django.core.validators import validate_email
+
+    from automations import messaging
+    from contacts.models import Contact
+    from core.pii import blind_index
+    from integrations.services import send_office_email
+
+    to = str(data.get("to") or data.get("email") or "").strip().lower()
+    subject = str(data.get("subject") or data.get("assunto") or f"Aviso de {org}")[:200]
+    body = str(data.get("body") or data.get("text") or data.get("mensagem") or "").strip()
+    try:
+        validate_email(to)
+    except ValidationError:
+        raise ValueError("E-mail do destinatário ausente ou inválido no campo \"to\".")
+    if not body:
+        raise ValueError("Mensagem vazia: preencha o campo \"body\".")
+
+    is_member = OrganizationMembership.objects.filter(
+        organization=org, is_active=True, user__email__iexact=to
+    ).exists()
+    if is_member:
+        if not send_office_email(org, subject, body, [to]):
+            send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [to], fail_silently=False)
+        return {"channel": "email", "recipient": "equipe"}
+
+    contact = Contact.objects.filter(organization=org, email_bidx=blind_index("contact.email", to, "text")).first()
+    if contact is None:
+        raise ValueError(
+            "Destinatário não é da equipe nem contato do escritório: o Cadrius só envia e-mail a quem autorizou (LGPD)."
+        )
+    try:
+        messaging.deliver(org, contact, "email", body, subject, origin={"workflow_id": workflow.pk})
+    except messaging.Blocked as exc:
+        raise ValueError(str(exc))
+    return {"channel": "email", "recipient": "contato"}
 
 
 def _resolve_execution_user_id(exec_log: ExecutionLog, workflow: Workflow):

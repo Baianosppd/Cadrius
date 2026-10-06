@@ -198,7 +198,7 @@ class StripeSyncTests(TestCase):
                          'ignored:unknown_subscription')
 
 
-@override_settings(STRIPE_WEBHOOK_SECRET='whsec_test', FRONTEND_URL='https://app.example.com')
+@override_settings(STRIPE_WEBHOOK_SECRET='whsec_test', FRONTEND_URL='https://app.example.com', STRIPE_SECRET_KEY='sk_test_x')
 class BillingApiTests(APITestCase):
     def setUp(self):
         self.plan = make_paid_plan()
