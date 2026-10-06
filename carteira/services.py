@@ -227,6 +227,8 @@ def create_expense(org, user, *, description, category, amount_cents, when, case
             exp.save(update_fields=['reimbursement'])
     audit.log('finance.expense_created', actor=user, organization=org, target=exp,
               changes={'categoria': category, 'valor_centavos': amount_cents, 'reembolsavel': reimbursable}, data_categories=['financeiro'])
+    from automations.engine import emit
+    emit(org, 'expense_created', {'expense_id': exp.pk}, f'expense-{exp.pk}')
     return exp
 
 
@@ -293,6 +295,50 @@ def charge(rec: Receivable, user, billing_type='UNDEFINED') -> Receivable:
     return rec
 
 
+def issue_nfse(rec: Receivable, user) -> Receivable:
+    """Pede a NFS-e de um honorário pago com cobrança no Asaas (CAD-223). A emissão é da prefeitura; o status volta pelo webhook."""
+    from carteira.models import FinanceSettings
+    from integrations import services as integ
+    if rec.status != Receivable.Status.PAID:
+        raise FinanceError('A nota é emitida depois do pagamento.')
+    if not rec.asaas_id:
+        raise FinanceError('Este lançamento não tem cobrança no Asaas: emita a nota no sistema da prefeitura e registre o número.')
+    if rec.nfse_id and rec.nfse_status not in ('ERROR', 'CANCELED'):
+        raise FinanceError('Este lançamento já tem nota pedida.')
+    conn = integ.org_connection(rec.organization, 'ASAAS')
+    if conn is None:
+        raise FinanceError('Conecte o Asaas em Integrações primeiro.')
+    cfg = FinanceSettings.of(rec.organization)
+    result = integ.asaas_invoice(conn.credentials or {}, payment_id=rec.asaas_id, value=Decimal(rec.paid_cents or rec.amount_cents) / 100,
+                                 description=f'{cfg.service_description} — {rec.description}', effective_date=timezone.localdate(),
+                                 service_code=cfg.municipal_service_code, service_name=cfg.municipal_service_name, iss_pct=cfg.iss_pct)
+    rec.nfse_id, rec.nfse_status, rec.nfse_url = result['id'][:40], (result['status'] or 'SCHEDULED')[:30], result['pdf'][:500]
+    rec.save(update_fields=['nfse_id', 'nfse_status', 'nfse_url', 'updated_at'])
+    audit.log('fiscal.office_nfse_requested', actor=user, organization=rec.organization, target=rec,
+              changes={'provedor': 'asaas', 'valor_centavos': rec.paid_cents}, data_categories=['financeiro'],
+              legal_basis='obrigacao_legal')
+    return rec
+
+
+INVOICE_EVENTS = {'INVOICE_CREATED', 'INVOICE_UPDATED', 'INVOICE_SYNCHRONIZED', 'INVOICE_AUTHORIZED', 'INVOICE_PROCESSING_CANCELLATION',
+                  'INVOICE_CANCELED', 'INVOICE_CANCELLATION_DENIED', 'INVOICE_ERROR'}
+
+
+def _handle_invoice(org, event: str, invoice: dict) -> str:
+    inv_id = str(invoice.get('id') or '')[:40]
+    rec = Receivable.objects.filter(organization=org, nfse_id=inv_id).first() if inv_id else None
+    if rec is None:
+        return 'ignorado'
+    before = rec.nfse_status
+    rec.nfse_status = str(invoice.get('status') or event.replace('INVOICE_', ''))[:30]
+    rec.nfse_url = str(invoice.get('pdfUrl') or rec.nfse_url or '')[:500]
+    rec.save(update_fields=['nfse_status', 'nfse_url', 'updated_at'])
+    if event == 'INVOICE_AUTHORIZED' and before != 'AUTHORIZED':
+        from automations.engine import emit
+        emit(org, 'nfse_issued', {'receivable_id': rec.pk}, f'nfse-{rec.pk}')
+    return 'nota'
+
+
 def webhook_config(conn) -> str:
     """Gera (ou devolve) o token que o Asaas manda no cabeçalho asaas-access-token."""
     creds = dict(conn.credentials or {})
@@ -318,12 +364,15 @@ def handle_asaas_event(org, payload: dict) -> str:
     event = str(payload.get('event') or '')[:40]
     payment = payload.get('payment') or {}
     pay_id = str(payment.get('id') or '')[:40]
-    event_id = str(payload.get('id') or f'{event}:{pay_id}')[:80]
+    ref = pay_id or str((payload.get('invoice') or {}).get('id') or '')[:40]
+    event_id = str(payload.get('id') or f'{event}:{ref}')[:80]
     try:
         with transaction.atomic():
             AsaasEvent.objects.create(organization=org, event_id=event_id, event=event, payment_id=pay_id)
     except IntegrityError:
         return 'duplicado'
+    if event in INVOICE_EVENTS:
+        return _handle_invoice(org, event, payload.get('invoice') or {})
     rec = Receivable.objects.filter(organization=org, asaas_id=pay_id).first() if pay_id else None
     if rec is None:
         return 'ignorado'

@@ -34,7 +34,8 @@ STAFF = {
     'gestao.financeiro': ('Financeiro', ['financeiro'], None, None),
     'gestao.fiscal': ('Fiscal', ['fiscal'], None, None),
     'gestao.marketing': ('Marketing', ['marketing'], None, None),
-    'gestao.completa': ('Gestão completa', ['ti', 'financeiro', 'fiscal', 'suporte', 'marketing'], None, None),
+    'gestao.juridico': ('Jurídico', ['juridico'], None, None),                  # CAD-223
+    'gestao.completa': ('Gestão completa', ['ti', 'financeiro', 'fiscal', 'suporte', 'marketing', 'juridico'], None, None),
     'gestao.semarea': ('Equipe sem área', [], None, None),
 }
 # escritório → (estado, dias: trial restante ou dias em atraso, plano preferido)

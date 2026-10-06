@@ -39,6 +39,7 @@ class Opportunity(models.Model):
     stage = models.CharField(max_length=14, choices=Stage.choices, default=Stage.NEW, db_index=True)
     source = models.CharField(max_length=12, choices=Source.choices, default=Source.OTHER)
     value_cents = models.PositiveBigIntegerField(default=0)            # honorários estimados
+    campaign = models.ForeignKey('marketing.Campaign', null=True, blank=True, on_delete=models.SET_NULL, related_name='opportunities')  # CAD-223
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     next_action = models.CharField(max_length=160, blank=True, default='')
     next_action_at = models.DateField(null=True, blank=True)
@@ -115,6 +116,10 @@ class Receivable(models.Model):
     method = models.CharField(max_length=14, choices=Method.choices, blank=True, default='')
     asaas_id = models.CharField(max_length=40, blank=True, default='', db_index=True)
     payment_url = models.URLField(max_length=500, blank=True, default='')
+    # NFS-e dos honorários pelo emissor conectado (Asaas) — CAD-223
+    nfse_id = models.CharField(max_length=40, blank=True, default='', db_index=True)
+    nfse_status = models.CharField(max_length=30, blank=True, default='')
+    nfse_url = models.URLField(max_length=500, blank=True, default='')
     notes = models.CharField(max_length=255, blank=True, default='')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -161,3 +166,48 @@ class AsaasEvent(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['organization', 'event_id'], name='uniq_asaas_event')]
+
+
+class RecurringExpense(models.Model):
+    """Custo fixo do escritório (aluguel, sistemas, contador...) lançado sozinho todo mês (CAD-223)."""
+
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='recurring_expenses')
+    description = models.CharField(max_length=200)
+    category = models.CharField(max_length=14, choices=Expense.Category.choices, default=Expense.Category.OFFICE)
+    amount_cents = models.PositiveBigIntegerField()
+    day = models.PositiveSmallIntegerField(default=5)                 # dia do mês (1-28)
+    active = models.BooleanField(default=True)
+    starts_on = models.DateField()
+    ends_on = models.DateField(null=True, blank=True)
+    last_month = models.CharField(max_length=7, blank=True, default='')   # 'AAAA-MM' do último lançamento gerado
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['day', 'description']
+
+
+class FinanceSettings(models.Model):
+    """Preferências do financeiro/fiscal do escritório (CAD-223)."""
+
+    class Regime(models.TextChoices):
+        SIMPLES = 'simples', 'Simples Nacional (Anexo IV)'
+        PRESUMIDO = 'presumido', 'Lucro Presumido'
+        AUTONOMO = 'autonomo', 'Advogado autônomo (Carnê-Leão)'
+        UNIPROFISSIONAL = 'uniprofissional', 'Sociedade uniprofissional (ISS fixo)'
+        OUTRO = 'outro', 'Outro / não sei'
+
+    organization = models.OneToOneField('accounts.Organization', on_delete=models.CASCADE, related_name='finance_settings')
+    monthly_goal_cents = models.PositiveBigIntegerField(default=0)
+    regime = models.CharField(max_length=16, choices=Regime.choices, default=Regime.OUTRO)
+    iss_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    service_description = models.CharField(max_length=300, blank=True, default='Honorários advocatícios')
+    municipal_service_code = models.CharField(max_length=20, blank=True, default='')     # item da lista de serviços (ex.: 17.14)
+    municipal_service_name = models.CharField(max_length=120, blank=True, default='')
+    accountant_email = models.EmailField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def of(cls, org):
+        obj, _ = cls.objects.get_or_create(organization=org)
+        return obj

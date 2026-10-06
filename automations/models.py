@@ -31,6 +31,17 @@ class Rule(models.Model):
         AGREEMENT_CREATED = 'agreement_created', 'Contrato de honorários criado'
         DOCUMENT_UPLOADED = 'document_uploaded', 'Documento enviado'
         PORTAL_VIEWED = 'portal_viewed', 'Cliente abriu o portal'
+        # CAD-223
+        LEAD_CAPTURED = 'lead_captured', 'Contato pelo formulário de captação'
+        SURVEY_ANSWERED = 'survey_answered', 'Cliente respondeu a pesquisa de satisfação'
+        NFSE_ISSUED = 'nfse_issued', 'Nota fiscal de honorários emitida'
+        EXPENSE_CREATED = 'expense_created', 'Despesa lançada'
+        COURT_SUSPENSION = 'court_suspension', 'Suspensão de prazos no tribunal'
+        CONTACT_BIRTHDAY = 'contact_birthday', 'Aniversário do cliente'
+        OPPORTUNITY_STALE = 'opportunity_stale', 'Oportunidade parada no funil'
+        CASE_STALE = 'case_stale', 'Processo sem andamento'
+        CONTRACT_ENDING = 'contract_ending', 'Contrato de honorários terminando'
+        MONTHLY_GOAL = 'monthly_goal', 'Acompanhamento da meta do mês'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='automation_rules')
     name = models.CharField(max_length=120)

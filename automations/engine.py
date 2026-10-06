@@ -117,10 +117,12 @@ def plan_step(org, rule, action, ctx) -> dict:
         step['dados'] = {'titulo': render(p['titulo'], ctx)[:120], 'mensagem': render(p['mensagem'], ctx)[:500],
                          'responsavel_id': resolve(ctx, 'responsavel.id')}
         step['detalhe'] = f'Aviso no sino: {step["dados"]["titulo"]}.'
-    elif kind == 'send_message':
+    elif kind in ('send_message', 'send_survey'):
         from automations import messaging
         contact = _contact(org, ctx, p['destinatario'])
         data = {'mensagem': render(p['mensagem'], ctx)[:1000], 'assunto': render(p.get('assunto', ''), ctx)[:150], 'canal': p['canal']}
+        if kind == 'send_survey':                       # CAD-223: o link único da pesquisa é criado na hora do envio
+            data.update(assunto=f'Sua opinião sobre {org.name}'[:150], motivo=render(p.get('motivo', ''), ctx)[:120])
         if contact is None:
             name = resolve(ctx, f'{p["destinatario"]}.nome')
             return {**step, 'status': 'bloqueado', 'dados': data,
@@ -207,7 +209,7 @@ def perform(org, rule, run, step, index, force=False) -> dict:
                    actor_id=d.get('responsavel_id'), origem='Regras de automação', documento=rule.name, acao='Regra executada',
                    link=AUTOMACOES_LINK, dedupe_key=f'regra-{run.pk}-{index}')
             return {**step, 'status': 'feito'}
-        if step['tipo'] in ('send_whatsapp', 'send_email', 'send_message'):
+        if step['tipo'] in ('send_whatsapp', 'send_email', 'send_message', 'send_survey'):
             from automations import messaging
             from contacts.models import Contact
 
@@ -222,7 +224,12 @@ def perform(org, rule, run, step, index, force=False) -> dict:
                 _schedule_resume(run, index, when)
                 return {**step, 'status': 'agendado', 'agendado_para': when.isoformat(),
                         'detalhe': f'Fora do horário comercial: envio agendado para {when.strftime("%d/%m às %Hh")}.'}
-            used = messaging.deliver(org, contact, wanted, d['mensagem'], d.get('assunto', ''),
+            text = d['mensagem']
+            if step['tipo'] == 'send_survey':
+                from marketing import leads
+                survey = leads.create_survey(org, contact, d.get('motivo', ''))
+                text = f'{text}\n\n{leads.survey_link(survey)}'
+            used = messaging.deliver(org, contact, wanted, text, d.get('assunto', ''),
                                      origin={'regra': rule.pk, 'execucao': run.pk})
             return {**step, 'status': 'feito', 'resultado': {'canal': used}}
         if step['tipo'] == 'team_chat':
@@ -459,6 +466,51 @@ def emit(organization, trigger, refs, dedupe_key) -> int:
         return 0
 
 
+DAILY_TRIGGERS = (Rule.Trigger.CONTACT_BIRTHDAY, Rule.Trigger.OPPORTUNITY_STALE, Rule.Trigger.CASE_STALE,
+                  Rule.Trigger.CONTRACT_ENDING, Rule.Trigger.MONTHLY_GOAL)
+
+
+def _daily(rule, org, now, today) -> int:
+    """Gatilhos de verificação diária (CAD-223). A chave de deduplicação garante uma execução por evento/dia."""
+    from django.db.models import F
+    from django.db.models.functions import Coalesce
+    T, cfg, n = Rule.Trigger, rule.trigger_config, 0
+    jobs = []
+    if rule.trigger == T.CONTACT_BIRTHDAY:
+        from contacts.models import Contact
+        for c in Contact.objects.filter(organization=org, birthday=today.strftime('%m-%d'), opted_out=False).only('pk'):
+            jobs.append(({'contact_id': c.pk}, f'bday-{c.pk}-{today.year}'))
+    elif rule.trigger == T.OPPORTUNITY_STALE:
+        from carteira.models import Opportunity
+        days = int(cfg.get('dias', 7))
+        for o in Opportunity.objects.filter(organization=org, stage__in=Opportunity.OPEN_STAGES,
+                                            stage_changed_at__lte=now - timedelta(days=days)).only('pk', 'stage_changed_at'):
+            jobs.append(({'opportunity_id': o.pk}, f'oppstale-{o.pk}-{o.stage_changed_at:%Y%m%d%H%M}-d{days}'))
+    elif rule.trigger == T.CASE_STALE:
+        from research.models import MonitoredCase
+        days = int(cfg.get('dias', 60))
+        qs = (MonitoredCase.objects.filter(organization=org, is_active=True)
+              .annotate(ref=Coalesce(F('last_movement_at'), F('created_at'))).filter(ref__lte=now - timedelta(days=days)))
+        for c in qs.only('pk'):
+            jobs.append(({'case_id': c.pk}, f'casestale-{c.pk}-{c.ref:%Y%m%d}-d{days}'))
+    elif rule.trigger == T.CONTRACT_ENDING:
+        from django.db.models import Max
+
+        from carteira.models import FeeAgreement
+        days = int(cfg.get('dias', 15))
+        qs = (FeeAgreement.objects.filter(organization=org, status=FeeAgreement.Status.ACTIVE, receivables__status='aberto')
+              .annotate(last=Max('receivables__due_date')).filter(last=today + timedelta(days=days)))
+        for ag in qs.only('pk'):
+            jobs.append(({'agreement_id': ag.pk}, f'ending-{ag.pk}-d{days}'))
+    elif rule.trigger == T.MONTHLY_GOAL:
+        if today.day == int(cfg.get('dia', 20)):
+            jobs.append(({}, f'goal-{today:%Y-%m}'))
+    for refs, key in jobs:
+        if execute(rule.pk, refs, key, now=now):
+            n += 1
+    return n
+
+
 def tick(now=None) -> dict:
     """A cada 15 min: prazos chegando, regras agendadas e aprovações vencidas."""
     from forense.calendar import Calendar
@@ -467,14 +519,18 @@ def tick(now=None) -> dict:
     now = now or timezone.now()
     local = timezone.localtime(now)
     today = local.date()
-    out = {'deadline': 0, 'schedule': 0, 'expired': 0, 'receivable': 0, 'calendar': 0, 'overdue': 0}
+    out = {'deadline': 0, 'schedule': 0, 'expired': 0, 'receivable': 0, 'calendar': 0, 'overdue': 0, 'diarios': 0}
     rules = Rule.objects.filter(enabled=True, organization__is_active=True,
                                 trigger__in=[Rule.Trigger.DEADLINE_SOON, Rule.Trigger.SCHEDULE, Rule.Trigger.RECEIVABLE_DUE,
-                                             Rule.Trigger.CALENDAR_EVENT, Rule.Trigger.TASK_OVERDUE]
+                                             Rule.Trigger.CALENDAR_EVENT, Rule.Trigger.TASK_OVERDUE, *DAILY_TRIGGERS]
                                 ).select_related('organization')
     for rule in rules:
         org = rule.organization
         cal = Calendar(org)
+        if rule.trigger in DAILY_TRIGGERS:
+            if local.hour >= 9:                      # CAD-223: verificações diárias a partir das 9h
+                out['diarios'] += _daily(rule, org, now, today)
+            continue
         if rule.trigger == Rule.Trigger.DEADLINE_SOON:
             n = int(rule.trigger_config.get('dias_antes', 3))
             target = cal.add(today, n)

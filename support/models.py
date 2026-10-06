@@ -14,6 +14,7 @@ class Ticket(models.Model):
         BILLING = 'financeiro', 'Financeiro / assinatura'
         INTEGRATION = 'integracao', 'Integração'
         SUGGESTION = 'sugestao', 'Sugestão'
+        CUSTOMIZATION = 'parametrizacao', 'Pedido de parametrização'      # CAD-223
         OTHER = 'outro', 'Outro'
 
     class Priority(models.TextChoices):
@@ -69,3 +70,49 @@ class SupportAccessGrant(models.Model):
     expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CustomizationRequest(models.Model):
+    """Pedido de parametrização (CAD-223): o escritório descreve algo específico que quer configurado (uma automação, um relatório,
+    um modelo de documento, uma integração, acessos...). A equipe Cadrius analisa, propõe (prazo e, se houver, custo) e só executa
+    depois do "aprovo" do dono/admin. Ligado a um chamado para a conversa seguir no mesmo lugar."""
+
+    class Area(models.TextChoices):
+        AUTOMATION = 'automacao', 'Automação / gatilho'
+        INTEGRATION = 'integracao', 'Integração com outro sistema'
+        REPORT = 'relatorio', 'Relatório ou painel'
+        TEMPLATE = 'modelo', 'Modelo de documento / minuta'
+        ACCESS = 'acessos', 'Grupos de acesso da equipe'
+        FINANCE = 'financeiro', 'Financeiro / cobrança'
+        FISCAL = 'fiscal', 'Fiscal / nota fiscal'
+        MARKETING = 'marketing', 'Marketing / captação'
+        IMPORT = 'importacao', 'Importação de dados'
+        COURTS = 'tribunais', 'Tribunais / prazos'
+        OTHER = 'outro', 'Outro'
+
+    class Stage(models.TextChoices):
+        RECEIVED = 'recebido', 'Recebido'
+        ANALYSIS = 'em_analise', 'Em análise'
+        PROPOSAL = 'proposta', 'Proposta enviada (aguardando você)'
+        APPROVED = 'aprovado', 'Aprovado pelo escritório'
+        IN_PROGRESS = 'em_execucao', 'Em execução'
+        DELIVERED = 'entregue', 'Entregue'
+        DECLINED = 'recusado', 'Não será feito'
+        CANCELED = 'cancelado', 'Cancelado pelo escritório'
+
+    ticket = models.OneToOneField(Ticket, on_delete=models.CASCADE, related_name='customization')
+    area = models.CharField(max_length=12, choices=Area.choices)
+    objective = EncryptedTextField()                         # o que precisa e por quê
+    example = EncryptedTextField(blank=True, default='')     # exemplo concreto / como é feito hoje
+    frequency = models.CharField(max_length=40, blank=True, default='')   # ex.: "toda publicação nova"
+    users_affected = models.PositiveSmallIntegerField(default=1)
+    wanted_by = models.DateField(null=True, blank=True)
+    stage = models.CharField(max_length=12, choices=Stage.choices, default=Stage.RECEIVED, db_index=True)
+    proposal = EncryptedTextField(blank=True, default='')    # o que será feito, prazo e custo (se houver)
+    estimate_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    price_cents = models.PositiveIntegerField(null=True, blank=True)       # null = sem custo (incluído no plano)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

@@ -183,6 +183,89 @@ TEMPLATES = {
         'trigger': 'task_overdue', 'trigger_config': {'dias_atraso': 1}, 'conditions': [],
         'actions': [{'type': 'notify', 'params': {'titulo': 'Tarefa atrasada', 'mensagem': '{{tarefa.titulo}} (prevista para {{tarefa.data}}).'}}],
     },
+    # ---------------------------------------------------------------- CAD-223
+    'lead_responder': {
+        'name': 'Responder quem preencheu o formulário',
+        'description': 'Contato novo pelo formulário vira tarefa para responder no mesmo dia útil e avisa a equipe.',
+        'trigger': 'lead_captured', 'trigger_config': {}, 'conditions': [],
+        'actions': [{'type': 'create_task', 'params': {'titulo': 'Responder {{cliente.nome}} ({{oportunidade.area}})',
+                                                        'descricao': 'Contato pelo formulário "{{formulario.titulo}}".', 'prioridade': 'alta',
+                                                        'quando': 'dias_uteis', 'dias': 0}},
+                    {'type': 'notify', 'params': {'titulo': 'Novo contato pelo formulário', 'mensagem': '{{cliente.nome}} — {{oportunidade.area}}'}}],
+    },
+    'pesquisa_contrato_concluido': {
+        'name': 'Pedir avaliação no fim do contrato',
+        'description': 'Um dia antes da última parcela do contrato, envia a pesquisa de satisfação (nota de 0 a 10).',
+        'trigger': 'contract_ending', 'trigger_config': {'dias': 1}, 'conditions': [],
+        'actions': [{'type': 'send_survey', 'params': {
+            'destinatario': 'cliente', 'canal': 'melhor', 'motivo': 'Contrato concluído',
+            'mensagem': 'Olá, {{cliente.primeiro_nome}}! Sua opinião nos ajuda a melhorar. Pode responder em 1 minuto?'}}],
+    },
+    'detrator_ligar': {
+        'name': 'Cliente insatisfeito: ligar',
+        'description': 'Nota de 0 a 6 na pesquisa cria tarefa urgente para o responsável ligar.',
+        'trigger': 'survey_answered', 'trigger_config': {},
+        'conditions': [{'field': 'pesquisa.classificacao', 'op': 'eq', 'value': 'detrator'}],
+        'actions': [{'type': 'create_task', 'params': {'titulo': 'Ligar para {{cliente.nome}} (nota {{pesquisa.nota}})', 'descricao': '',
+                                                        'prioridade': 'alta', 'quando': 'dias_uteis', 'dias': 1}}],
+    },
+    'nota_enviar_cliente': {
+        'name': 'Enviar a nota fiscal ao cliente',
+        'description': 'Quando a prefeitura autoriza a NFS-e, manda o link ao cliente.',
+        'trigger': 'nfse_issued', 'trigger_config': {}, 'conditions': [],
+        'actions': [{'type': 'send_message', 'params': {
+            'destinatario': 'cliente', 'canal': 'email', 'assunto': 'Nota fiscal dos honorários',
+            'mensagem': 'Olá, {{cliente.primeiro_nome}}! Segue a nota fiscal de {{honorario.descricao}} ({{honorario.valor}}): {{nota.link}}'}}],
+    },
+    'custas_reembolso': {
+        'name': 'Avisar o financeiro de custas reembolsáveis',
+        'description': 'Despesa reembolsável lançada avisa o financeiro para cobrar o cliente.',
+        'trigger': 'expense_created', 'trigger_config': {},
+        'conditions': [{'field': 'despesa.reembolsavel', 'op': 'eq', 'value': 'sim'}],
+        'actions': [{'type': 'notify', 'params': {'titulo': 'Despesa reembolsável: {{despesa.valor}}',
+                                                  'mensagem': '{{despesa.descricao}} — cliente {{cliente.nome}}.'}}],
+    },
+    'suspensao_prazos_equipe': {
+        'name': 'Avisar a equipe de suspensão de prazos',
+        'description': 'O tribunal suspendeu prazos (cadastrado pela Cadrius): aviso no sino com o link oficial.',
+        'trigger': 'court_suspension', 'trigger_config': {}, 'conditions': [],
+        'actions': [{'type': 'notify', 'params': {'titulo': '{{suspensao.tipo}} — {{suspensao.tribunal}}',
+                                                  'mensagem': 'De {{suspensao.inicio}} a {{suspensao.fim}}: {{suspensao.motivo}}. '
+                                                              '{{processos.quantidade}} processo(s) do escritório. Fonte: {{suspensao.fonte}}'}}],
+    },
+    'aniversario_cliente': {
+        'name': 'Parabéns no aniversário do cliente',
+        'description': 'Mensagem cordial no dia do aniversário (só para quem autorizou o canal).',
+        'trigger': 'contact_birthday', 'trigger_config': {}, 'conditions': [],
+        'actions': [{'type': 'send_message', 'params': {
+            'destinatario': 'cliente', 'canal': 'melhor', 'assunto': 'Feliz aniversário',
+            'mensagem': 'Olá, {{cliente.primeiro_nome}}! A equipe de {{escritorio.nome}} deseja um feliz aniversário.'}}],
+    },
+    'funil_parado': {
+        'name': 'Retomar oportunidade parada',
+        'description': 'Oportunidade sem mudar de etapa há 7 dias vira tarefa de retorno.',
+        'trigger': 'opportunity_stale', 'trigger_config': {'dias': 7}, 'conditions': [],
+        'actions': [{'type': 'create_task', 'params': {'titulo': 'Retomar: {{oportunidade.titulo}} ({{oportunidade.dias_parada}} dias)',
+                                                        'descricao': 'Próxima ação: {{oportunidade.proxima_acao}}', 'prioridade': 'media',
+                                                        'quando': 'dias_uteis', 'dias': 0}}],
+    },
+    'processo_parado': {
+        'name': 'Processo parado: verificar no cartório',
+        'description': 'Sem andamento há 60 dias: tarefa para consultar a secretaria (Balcão Virtual) e dar notícia ao cliente.',
+        'trigger': 'case_stale', 'trigger_config': {'dias': 60}, 'conditions': [],
+        'actions': [{'type': 'create_task', 'params': {'titulo': 'Verificar andamento: {{processo.cnj}}',
+                                                        'descricao': 'Sem andamento há {{processo.dias_parado}} dias. Consulte a secretaria '
+                                                                     '(Balcão Virtual) e atualize o cliente.',
+                                                        'prioridade': 'media', 'quando': 'dias_uteis', 'dias': 1}}],
+    },
+    'meta_mes_equipe': {
+        'name': 'Meta do mês no dia 20',
+        'description': 'No dia 20, avisa quanto da meta de faturamento já entrou.',
+        'trigger': 'monthly_goal', 'trigger_config': {'dia': 20}, 'conditions': [],
+        'actions': [{'type': 'notify', 'params': {'titulo': 'Meta do mês: {{meta.pct}}%',
+                                                  'mensagem': 'Recebido {{meta.recebido}} de {{meta.valor}}; ainda previsto {{meta.previsto}}.'}}],
+    },
+
 }
 
 

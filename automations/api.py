@@ -9,6 +9,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts import access
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from audit import service as audit
 from automations import catalog, engine
@@ -41,7 +42,8 @@ class _Base(APIView):
         m = get_active_membership(request.user)
         if m is None:
             return None, Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
-        if roles is not None and m.role not in roles:
+        perm = 'automacoes.gerir' if roles == MANAGE_TEAM_ROLES else 'automacoes.editar'      # grupo de acesso (CAD-223)
+        if roles is not None and not access.allowed(m, perm, roles):
             return None, Response({'detail': 'Seu perfil não permite esta ação.'}, status=status.HTTP_403_FORBIDDEN)
         return m, None
 
@@ -196,3 +198,14 @@ class RunDecisionView(_Base):
         except engine.DecisionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(run_json(run))
+
+
+class ComplianceView(_Base):
+    """GET /api/v1/automations/conformidade/ — achados de conformidade das regras e dos acessos (CAD-223)."""
+
+    def get(self, request):
+        m, err = self.membership(request)
+        if err:
+            return err
+        from automations import governance
+        return Response(governance.report(m.organization))

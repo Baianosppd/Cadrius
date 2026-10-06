@@ -14,6 +14,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts import access
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from audit import service as audit
 from backoffice.permissions import HasArea
@@ -54,7 +55,8 @@ class _Scoped(APIView):
         if m is None:
             return None, Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
         roles = {'write': WRITE_ROLES, 'approve': MANAGE_TEAM_ROLES}.get(need)
-        if roles and m.role not in roles:
+        perm = {'write': 'marketing.editar', 'approve': 'marketing.aprovar'}.get(need)
+        if roles and not access.allowed(m, perm, roles):           # grupo de acesso (CAD-223)
             msg = 'Só dono ou administrador aprova e publica conteúdo.' if need == 'approve' else 'Seu perfil não permite esta ação.'
             return None, Response({'detail': msg}, status=status.HTTP_403_FORBIDDEN)
         return m.organization, None

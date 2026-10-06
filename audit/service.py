@@ -59,6 +59,12 @@ ACTIONS = frozenset({
     'fiscal.nfse_requested', 'fiscal.nfse_canceled', 'fiscal.obligation_done',
     'assistant.action', 'assistant.mcp_call', 'assistant.token_created', 'assistant.token_revoked', 'assistant.key_saved',
     'assistant.key_removed', 'auth.password.temp_set', 'auth.password.forced_change', 'security.ip_blocked', 'security.ip_unblocked',
+    # CAD-223
+    'team.access_group_saved', 'team.access_group_deleted', 'team.access_assigned', 'staff.areas_changed',
+    'finance.recurring_saved', 'finance.recurring_deleted', 'finance.settings_saved', 'fiscal.office_nfse_requested',
+    'marketing.form_saved', 'marketing.lead_captured', 'marketing.survey_answered',
+    'support.customization_requested', 'support.customization_updated',
+    'forense.suspension_saved', 'forense.suspension_deleted', 'contact.cnpj_lookup',
 })
 
 

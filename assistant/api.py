@@ -37,7 +37,8 @@ class _Base(APIView):
         m = get_active_membership(request.user)
         if m is None:
             return None, Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
-        return engine.Ctx(org=m.organization, user=request.user, role=m.role), None
+        from accounts import access
+        return engine.Ctx(org=m.organization, user=request.user, role=m.role, perms=access.effective(m)), None
 
     def conv(self, ctx, pk):
         return Conversation.objects.filter(pk=pk, organization=ctx.org, user=ctx.user).first()
@@ -60,7 +61,7 @@ class StatusView(_Base):
                          'pode_configurar': ctx.role in engine.MANAGER_ROLES,
                          'ia_ligada': policy.ai_enabled and global_ai_enabled(), 'pode_agir': ctx.role in engine.WRITE_ROLES,
                          'escrita': sorted(engine.WRITING), 'ferramentas': [{'nome': t.name, 'rotulo': t.label, 'acao': t.action}
-                                                                            for t in TOOLS.values()]})
+                                                                            for t in TOOLS.values() if engine.tool_permitted(ctx, t)]})
 
 
 class ConversationListView(_Base):

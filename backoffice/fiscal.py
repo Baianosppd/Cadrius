@@ -58,7 +58,25 @@ def summary(qs) -> dict:
                for row in qs.values('kind').annotate(n=Count('id'), t=Sum('amount_cents'))}
     total = qs.aggregate(t=Sum('amount_cents'))['t'] or 0
     return {'total_brl': f'{total / 100:.2f}', 'quantidade': qs.count(), 'por_tipo': by_kind,
-            'nf_pendentes': qs.filter(invoice_status=Payment.InvoiceStatus.PENDING).count()}
+            'nf_pendentes': qs.filter(invoice_status=Payment.InvoiceStatus.PENDING).count(), 'faturamento_12m': revenue_12m()}
+
+
+# Limites de faturamento anual (LC 123/2006): Simples Nacional R$ 4,8 mi; sublimite estadual/municipal (ISS e ICMS no DAS) R$ 3,6 mi.
+SIMPLES_LIMIT, SUBLIMIT = 4_800_000_00, 3_600_000_00
+
+
+def revenue_12m(today=None) -> dict:
+    """CAD-223: receita bruta dos últimos 12 meses (RBT12) e alerta de proximidade dos limites do Simples."""
+    from datetime import timedelta
+    today = today or timezone.localdate()
+    start = today.replace(day=1) - timedelta(days=365)
+    total = Payment.objects.filter(paid_at__date__gte=start, paid_at__date__lt=today.replace(day=1)).aggregate(t=Sum('amount_cents'))['t'] or 0
+    alert = ''
+    if total >= SIMPLES_LIMIT * 0.8:
+        alert = 'Faturamento acima de 80% do limite do Simples Nacional (R$ 4,8 mi): fale com o contador sobre o regime.'
+    elif total >= SUBLIMIT * 0.8:
+        alert = 'Faturamento perto do sublimite de R$ 3,6 mi (ISS passa a ser recolhido fora do DAS): avise o contador.'
+    return {'rbt12_brl': f'{total / 100:.2f}', 'uso_do_limite_pct': round(100 * total / SIMPLES_LIMIT, 1), 'alerta': alert}
 
 
 def register_invoice(actor, payment, *, status, number, issued_at, note, reason):

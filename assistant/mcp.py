@@ -61,15 +61,19 @@ def authenticate(raw: str):
         return None, 'Você não faz mais parte deste escritório.'
     if getattr(tok.user, 'must_change_password', False):
         return None, 'Troque a senha temporária no Cadrius antes de usar o conector.'
-    return tok, Ctx(org=tok.organization, user=tok.user, role=m.role)
+    from accounts import access
+    perms = access.effective(m)
+    if perms is not None and 'ia.ver' not in perms:
+        return None, 'Seu grupo de acesso não libera o Assistente IA.'
+    return tok, Ctx(org=tok.organization, user=tok.user, role=m.role, perms=perms)
 
 
 def _tools_for(tok, ctx):
-    from assistant.engine import MANAGER_ROLES, WRITE_ROLES
-    from assistant.tools import TOOLS
+    from assistant.engine import WRITE_ROLES
+    from assistant.tools import TOOLS, tool_permitted
     out = []
     for t in TOOLS.values():
-        if t.managers and ctx.role not in MANAGER_ROLES:
+        if not tool_permitted(ctx, t):
             continue
         if t.action and (tok.scope != 'pedidos' or ctx.role not in WRITE_ROLES):
             continue

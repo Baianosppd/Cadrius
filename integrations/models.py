@@ -34,6 +34,16 @@ class AppConnection(models.Model):
         ('CALENDLY', 'Calendly (agendamento)'),
         ('SLACK', 'Slack'),
         ('TEAMS', 'Microsoft Teams'),
+        ('JUDIT', 'Judit (dados processuais)'),               # CAD-223
+        ('JUSBRASIL', 'Jusbrasil Soluções'),
+        ('AUTENTIQUE', 'Autentique (assinatura eletrônica)'),
+        ('NFEIO', 'NFE.io (NFS-e)'),
+        ('OMIE', 'Omie (ERP)'),
+        ('BREVO', 'Brevo (e-mail)'),
+        ('MAILCHIMP', 'Mailchimp'),
+        ('RDSTATION', 'RD Station Marketing'),
+        ('ZOOM', 'Zoom'),
+        ('ZENVIA', 'Zenvia (SMS/WhatsApp)'),
     )
 
     user = models.ForeignKey(

@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from aigov import llm
 from assistant.models import Conversation, Message, PendingAction
-from assistant.tools import TOOLS, WRITE_ROLES, ToolError, describe
+from assistant.tools import TOOLS, WRITE_ROLES, ToolError, describe, tool_permitted
 
 logger = logging.getLogger(__name__)
 MAX_STEPS = 6
@@ -28,6 +28,7 @@ class Ctx:
     org: object
     user: object
     role: str
+    perms: set | None = None        # grupo de acesso (CAD-223); None = vale o cargo
 
 
 class AssistantError(Exception):
@@ -114,8 +115,10 @@ def _run_tool(ctx: Ctx, conv: Conversation, name: str, args: dict, created: list
     tool = TOOLS.get(name)
     if tool is None:
         return json.dumps({'erro': f'Ferramenta desconhecida: {name}'})
-    if tool.managers and ctx.role not in MANAGER_ROLES:
-        return json.dumps({'erro': 'Só dono ou administrador do escritório pode fazer isso.'}, ensure_ascii=False)
+    if not tool_permitted(ctx, tool):
+        msg = ('Só dono ou administrador do escritório pode fazer isso.' if tool.managers and ctx.perms is None
+               else 'O acesso desta pessoa não libera essa área do escritório.')
+        return json.dumps({'erro': msg}, ensure_ascii=False)
     if tool.action:
         if ctx.role not in WRITE_ROLES:
             return json.dumps({'erro': 'O perfil desta pessoa é só de leitura: ações não são permitidas.'}, ensure_ascii=False)
@@ -143,7 +146,7 @@ def _loop(ctx: Ctx, conv: Conversation, providers: list[str]):
     used, created = [], []
     last = next((m['content'] for m in reversed(messages) if m['role'] == 'user'), '')
     system = _system(ctx, conv, last)
-    specs = [t.spec() for t in TOOLS.values()]
+    specs = [t.spec() for t in TOOLS.values() if tool_permitted(ctx, t)]
     reply = None
     for _step in range(MAX_STEPS):
         reply = llm.chat_with_fallback(providers, system=system, messages=messages, tools=specs, max_tokens=4096, org=ctx.org)
@@ -212,7 +215,7 @@ def confirm(ctx: Ctx, action: PendingAction, accept: bool) -> PendingAction:
         action.save(update_fields=['status', 'decided_at'])
         Message.objects.create(conversation=action.conversation, role=Message.Role.NOTE, content=f'Cancelado: {action.summary}')
         return action
-    if tool is None or ctx.role not in WRITE_ROLES or (tool.managers and ctx.role not in MANAGER_ROLES):
+    if tool is None or ctx.role not in WRITE_ROLES or not tool_permitted(ctx, tool):
         raise AssistantError('Seu perfil não permite esta ação.')
     try:
         action.result = tool.run(ctx, **(action.arguments or {}))

@@ -16,6 +16,7 @@ JOBS = {
     'Publicações: capturar comunicações do DJEN': ('publications_poll', Schedule.MINUTES, 180),
     'Marketing: publicar conteúdos agendados': ('marketing_publish', Schedule.MINUTES, 15),
     'Fiscal: situação das NFS-e e lembretes de obrigações': ('fiscal_sync', Schedule.MINUTES, 60),
+    'Financeiro: lançar despesas fixas do mês': ('finance_daily', Schedule.MINUTES, 360),
 }
 
 

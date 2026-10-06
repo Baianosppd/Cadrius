@@ -223,7 +223,32 @@ def finance_summary() -> dict:
         'creditos_cortesia_30d': courtesy_30d,
         'promocoes_ativas': Promotion.objects.filter(is_active=True).count(),
         'usos_de_promocao': Promotion.objects.aggregate(t=Sum('redemptions_count'))['t'] or 0,
+        'inadimplentes': by_status.get('past_due', 0) + by_status.get('restricted', 0),
+        'tendencia_12m': trend_12m(now),
     }
+
+
+def trend_12m(now=None) -> list:
+    """CAD-223: por mês — receita recebida (Stripe), escritórios novos, cancelamentos e churn (cancelamentos ÷ pagantes)."""
+    from audit.models import AuditEvent
+    from billing.models import Payment
+    now = now or timezone.now()
+    first = timezone.localtime(now).date().replace(day=1)
+    months = []
+    for i in range(11, -1, -1):
+        y, m = first.year, first.month - i
+        while m <= 0:
+            y, m = y - 1, m + 12
+        months.append((y, m))
+    out = []
+    paying = max(Organization.objects.exclude(stripe_subscription_id='').count(), 1)
+    for y, m in months:
+        rec = Payment.objects.filter(paid_at__year=y, paid_at__month=m).aggregate(t=Sum('amount_cents'))['t'] or 0
+        new = Organization.objects.filter(created_at__year=y, created_at__month=m).count()
+        canceled = AuditEvent.objects.filter(action='billing.subscription_canceled', occurred_at__year=y, occurred_at__month=m).count()
+        out.append({'mes': f'{y}-{m:02d}', 'receita_brl': str(round(rec / 100, 2)), 'novos_escritorios': new,
+                    'cancelamentos': canceled, 'churn_pct': round(100 * canceled / paying, 1)})
+    return out
 
 
 class SummaryView(APIView):

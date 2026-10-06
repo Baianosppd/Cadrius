@@ -6,6 +6,8 @@ Conteúdo de marketing é público por natureza; não guardamos dados de cliente
 from django.conf import settings
 from django.db import models
 
+from core.utils import EncryptedTextField
+
 
 class Campaign(models.Model):
     class Scope(models.TextChoices):
@@ -75,3 +77,48 @@ class ContentPiece(models.Model):
     class Meta:
         ordering = ['scheduled_at', '-created_at']
         indexes = [models.Index(fields=['scope', 'organization', 'status'])]
+
+
+class CaptureForm(models.Model):
+    """Formulário público de captação do escritório (CAD-223): vira contato + oportunidade no funil, com consentimento LGPD.
+
+    Texto informativo (Provimento OAB 205/2021): o verificador de marketing roda no título e na apresentação ao salvar."""
+
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='capture_forms')
+    campaign = models.ForeignKey(Campaign, null=True, blank=True, on_delete=models.SET_NULL, related_name='forms')
+    token = models.CharField(max_length=40, unique=True)
+    title = models.CharField(max_length=120)
+    intro = models.CharField(max_length=500, blank=True, default='')
+    areas = models.JSONField(default=list, blank=True)                       # opções de "assunto" (ex.: Previdenciário)
+    thank_you = models.CharField(max_length=300, blank=True, default='Recebemos sua mensagem. Retornaremos em breve.')
+    active = models.BooleanField(default=True)
+    compliance = models.JSONField(default=list, blank=True)
+    submissions = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class SatisfactionSurvey(models.Model):
+    """Pesquisa de satisfação (NPS) enviada a um cliente por automação (CAD-223). Resposta só pelo link único."""
+
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='surveys')
+    contact = models.ForeignKey('contacts.Contact', on_delete=models.CASCADE, related_name='surveys')
+    token = models.CharField(max_length=40, unique=True)
+    reason = models.CharField(max_length=120, blank=True, default='')          # ex.: "Contrato concluído"
+    score = models.PositiveSmallIntegerField(null=True, blank=True)
+    comment = EncryptedTextField(blank=True, default='')                         # opinião do cliente: cifrada
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    answered_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def category(self) -> str:
+        if self.score is None:
+            return ''
+        return 'promotor' if self.score >= 9 else ('neutro' if self.score >= 7 else 'detrator')

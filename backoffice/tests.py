@@ -45,7 +45,7 @@ class Base(APITestCase):
 class PermissionTests(Base):
     def test_areas(self):
         self.assertEqual(user_areas(self.ti), ['ti'])
-        self.assertEqual(user_areas(staff('root@cadrius.ia.br', superuser=True)), ['financeiro', 'fiscal', 'marketing', 'suporte', 'ti'])
+        self.assertEqual(user_areas(staff('root@cadrius.ia.br', superuser=True)), ['financeiro', 'fiscal', 'juridico', 'marketing', 'suporte', 'ti'])
         self.assertEqual(user_areas(staff('semgrupo@cadrius.ia.br')), [])   # is_staff sem área não entra
         self.assertEqual(user_areas(self.owner), [])
 
@@ -215,8 +215,8 @@ class SeedValidationUsersTests(Base):
         from accounts.models import Organization
         from billing import entitlements as ent
         users = get_user_model().objects.filter(email__endswith='@teste.cadrius.ia.br')
-        self.assertEqual(users.count(), 16)
-        self.assertEqual(user_areas(users.get(email='gestao.completa@teste.cadrius.ia.br')), ['financeiro', 'fiscal', 'marketing', 'suporte', 'ti'])
+        self.assertEqual(users.count(), 17)
+        self.assertEqual(user_areas(users.get(email='gestao.completa@teste.cadrius.ia.br')), ['financeiro', 'fiscal', 'juridico', 'marketing', 'suporte', 'ti'])
         self.assertEqual(user_areas(users.get(email='gestao.marketing@teste.cadrius.ia.br')), ['marketing'])
         self.assertEqual(user_areas(users.get(email='gestao.fiscal@teste.cadrius.ia.br')), ['fiscal'])
         self.assertEqual(user_areas(users.get(email='gestao.semarea@teste.cadrius.ia.br')), [])
@@ -230,7 +230,7 @@ class SeedValidationUsersTests(Base):
         self.assertTrue(users.get(email='dono@teste.cadrius.ia.br').check_password(password))
         out2 = StringIO()
         call_command('seed_validation_users', stdout=out2)                       # idempotente
-        self.assertEqual(users.count(), 16)
+        self.assertEqual(users.count(), 17)
         self.assertIn('já existia', out2.getvalue())
         call_command('seed_validation_users', remove=True, stdout=StringIO())
         self.assertEqual(users.count(), 0)

@@ -27,7 +27,7 @@ def contact_json(c) -> dict:
             'whatsapp_consent': c.whatsapp_consent, 'email_consent': c.email_consent, 'opted_out': c.opted_out,
             'consent_updated_at': c.consent_updated_at, 'consent_source': c.consent_source,
             'can_whatsapp': c.can_receive('whatsapp'), 'can_email': c.can_receive('email'),
-            'source': c.source, 'created_at': c.created_at, 'updated_at': c.updated_at}
+            'source': c.source, 'birthday': c.birthday, 'created_at': c.created_at, 'updated_at': c.updated_at}
 
 
 def search(qs, term: str):
@@ -165,3 +165,25 @@ class ContactDetailView(_Base):
                   data_categories=['identificacao', 'contato'], legal_basis='execucao_contrato')
         c.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CnpjLookupView(_Base):
+    """GET /api/v1/contacts/cnpj/<cnpj>/ — dados públicos da empresa na Receita (via BrasilAPI, sem chave) para preencher o cadastro.
+    CAD-223. Só dados de pessoa jurídica (públicos); resultado em cache por 24 h."""
+
+    def get(self, request, cnpj):
+        m, err = self.membership(request, write=True)
+        if err:
+            return err
+        from accounts.validators import is_valid_cnpj
+        from integrations import public_data
+        digits = re.sub(r'\D', '', cnpj or '')
+        if len(digits) != 14 or not is_valid_cnpj(digits):
+            return Response({'detail': 'CNPJ inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            data = public_data.cnpj(digits)
+        except public_data.PublicDataError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        audit.log('contact.cnpj_lookup', actor=request.user, organization=m.organization, changes={'cnpj_final': digits[-4:]},
+                  data_categories=['identificacao'], legal_basis='execucao_contrato')
+        return Response(data)

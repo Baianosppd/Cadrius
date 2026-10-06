@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from accounts import access
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from audit import service as audit
 from carteira import services as svc
@@ -49,7 +50,8 @@ def rec_json(r: Receivable, today=None) -> dict:
             'contrato_id': r.agreement_id, 'valor_centavos': r.amount_cents, 'vencimento': r.due_date, 'status': r.status,
             'vencido': r.status == Receivable.Status.OPEN and r.due_date < today, 'dias_atraso': svc.overdue_days(r, today) if r.status == 'aberto' else 0,
             'pago_em': r.paid_at, 'pago_centavos': r.paid_cents, 'forma': r.method, 'link_pagamento': r.payment_url,
-            'no_asaas': bool(r.asaas_id), 'obs': r.notes}
+            'no_asaas': bool(r.asaas_id), 'obs': r.notes,
+            'nota': {'status': r.nfse_status, 'link': r.nfse_url} if r.nfse_id else None}
 
 
 def ag_json(a: FeeAgreement, with_items=False) -> dict:
@@ -74,11 +76,13 @@ def exp_json(e: Expense) -> dict:
 class _Base(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def membership(self, request, roles=None):
+    def membership(self, request, roles=None, perm=None):
+        """``perm``: permissão do grupo de acesso (CAD-223); sem grupo vale o cargo (``roles``)."""
         m = get_active_membership(request.user)
         if m is None:
             return None, _bad('Usuário sem escritório.', status.HTTP_403_FORBIDDEN)
-        if roles and m.role not in roles:
+        ok = access.allowed(m, perm, roles) if perm else not (roles and m.role not in roles)
+        if not ok:
             return None, _bad('Seu perfil não permite esta ação.', status.HTTP_403_FORBIDDEN)
         return m, None
 
@@ -135,7 +139,7 @@ class OpportunitiesView(_Base):
                          'origens': Opportunity.Source.choices, 'resumo': svc.funnel(m.organization)})
 
     def post(self, request):
-        m, err = self.membership(request, WRITE_ROLES)
+        m, err = self.membership(request, WRITE_ROLES, perm='funil.editar')
         if err:
             return err
         return self._save(request, m, Opportunity(organization=m.organization, created_by=request.user, owner=request.user),
@@ -173,7 +177,7 @@ class OpportunityDetailView(OpportunitiesView):
         return Opportunity.objects.filter(organization=m.organization, pk=pk).select_related('contact', 'owner').first()
 
     def patch(self, request, pk):
-        m, err = self.membership(request, WRITE_ROLES)
+        m, err = self.membership(request, WRITE_ROLES, perm='funil.editar')
         if err:
             return err
         opp = self.get_obj(m, pk)
@@ -182,7 +186,7 @@ class OpportunityDetailView(OpportunitiesView):
         return self._save(request, m, opp, status.HTTP_200_OK)
 
     def delete(self, request, pk):
-        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='funil.editar')
         if err:
             return err
         opp = self.get_obj(m, pk)
@@ -206,7 +210,7 @@ class AgreementsView(_Base):
         return Response({'resultados': [ag_json(a) for a in qs[:PAGE]], 'tipos': FeeAgreement.Kind.choices})
 
     def post(self, request):
-        m, err = self.membership(request, WRITE_ROLES)
+        m, err = self.membership(request, WRITE_ROLES, perm='financeiro.editar')
         if err:
             return err
         d = request.data
@@ -237,7 +241,8 @@ class AgreementDetailView(_Base):
         return Response(ag_json(ag, with_items=True)) if ag else _bad('Contrato não encontrado.', status.HTTP_404_NOT_FOUND)
 
     def post(self, request, pk, action):
-        m, err = self.membership(request, MANAGE_TEAM_ROLES if action == 'cancelar' else WRITE_ROLES)
+        m, err = self.membership(request, MANAGE_TEAM_ROLES if action == 'cancelar' else WRITE_ROLES,
+                                   perm='financeiro.cancelar' if action == 'cancelar' else 'financeiro.editar')
         if err:
             return err
         ag = self.obj(m, pk)
@@ -260,7 +265,7 @@ class AgreementDetailView(_Base):
 # ----------------------------------------------------------------------------- financeiro
 class ReceivablesView(_Base):
     def get(self, request):
-        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
         if err:
             return err
         today = timezone.localdate()
@@ -278,7 +283,7 @@ class ReceivablesView(_Base):
 
     def post(self, request):
         """Lançamento avulso (consulta, parecer, reembolso…)."""
-        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.editar')
         if err:
             return err
         d = request.data
@@ -297,7 +302,8 @@ class ReceivablesView(_Base):
 
 class ReceivableActionView(_Base):
     def post(self, request, pk, action):
-        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        perm = {'cancelar': 'financeiro.cancelar', 'nota': 'financeiro.nota'}.get(action, 'financeiro.editar')
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm=perm)
         if err:
             return err
         rec = Receivable.objects.filter(organization=m.organization, pk=pk).select_related('contact', 'agreement').first()
@@ -318,6 +324,8 @@ class ReceivableActionView(_Base):
                 audit.log('finance.receivable_saved', actor=request.user, organization=m.organization, target=rec, changes={'status': 'cancelado'})
             elif action == 'cobrar':
                 svc.charge(rec, request.user, d.get('forma') if d.get('forma') in ('BOLETO', 'PIX', 'UNDEFINED') else 'UNDEFINED')
+            elif action == 'nota':                                # NFS-e pelo Asaas (CAD-223)
+                svc.issue_nfse(rec, request.user)
             else:
                 return _bad('Ação inválida.', status.HTTP_404_NOT_FOUND)
         except svc.FinanceError as exc:
@@ -346,7 +354,7 @@ class ExpensesView(_Base):
         return Response({'resultados': [exp_json(e) for e in qs[:300]], 'categorias': Expense.Category.choices})
 
     def post(self, request):
-        m, err = self.membership(request, WRITE_ROLES)
+        m, err = self.membership(request, WRITE_ROLES, perm='financeiro.editar')
         if err:
             return err
         d = request.data
@@ -363,7 +371,7 @@ class ExpensesView(_Base):
 
 class ExpenseDetailView(_Base):
     def delete(self, request, pk):
-        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.editar')
         if err:
             return err
         exp = Expense.objects.filter(organization=m.organization, pk=pk).select_related('reimbursement').first()
@@ -381,7 +389,7 @@ class ExpenseDetailView(_Base):
 
 class SummaryView(_Base):
     def get(self, request):
-        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
         if err:
             return err
         try:
@@ -401,7 +409,7 @@ class ClientView(_Base):
         c = Contact.objects.filter(organization=m.organization, pk=pk).first()
         if c is None:
             return _bad('Contato não encontrado.', status.HTTP_404_NOT_FOUND)
-        finance = m.role in MANAGE_TEAM_ROLES
+        finance = access.allowed(m, 'financeiro.ver', MANAGE_TEAM_ROLES)
         recs = Receivable.objects.filter(organization=m.organization, contact=c).select_related('case')
         today = timezone.localdate()
         data = {'contato': {'id': c.pk, 'nome': c.name, 'tipo': c.get_kind_display()},
@@ -423,7 +431,7 @@ class AsaasWebhookConfigView(_Base):
 
     def post(self, request):
         from integrations.services import org_connection
-        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.editar')
         if err:
             return err
         conn = org_connection(m.organization, 'ASAAS')
@@ -456,3 +464,208 @@ class AsaasWebhookView(APIView):
         payload = request.data if isinstance(request.data, dict) else {}
         result = svc.handle_asaas_event(m.organization, payload)
         return Response({'ok': True, 'resultado': result})
+
+
+# ----------------------------------------------------------------------------- financeiro e fiscal do escritório (CAD-223)
+class FinanceSettingsView(_Base):
+    def get(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
+        if err:
+            return err
+        from carteira.models import FinanceSettings
+        from carteira.reports import settings_json
+        return Response(settings_json(FinanceSettings.of(m.organization)))
+
+    def patch(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.editar')
+        if err:
+            return err
+        from decimal import Decimal, InvalidOperation
+
+        from carteira.models import FinanceSettings
+        from carteira.reports import settings_json
+        cfg, d, changed = FinanceSettings.of(m.organization), request.data, []
+        try:
+            if 'meta_mensal' in d:
+                cfg.monthly_goal_cents = svc.to_cents(d['meta_mensal'], allow_zero=True) if d['meta_mensal'] not in (None, '') else 0
+                changed.append('meta')
+            if 'regime' in d:
+                if d['regime'] not in FinanceSettings.Regime.values:
+                    raise svc.FinanceError('Regime inválido.')
+                cfg.regime = d['regime']
+                changed.append('regime')
+            if 'iss_pct' in d:
+                try:
+                    pct = Decimal(str(d['iss_pct']).replace(',', '.'))
+                except InvalidOperation as exc:
+                    raise svc.FinanceError('ISS inválido.') from exc
+                if not 0 <= pct <= 5:
+                    raise svc.FinanceError('ISS entre 0% e 5% (LC 116/2003).')
+                cfg.iss_pct = pct
+                changed.append('iss')
+            for key, attr, size in (('descricao_servico', 'service_description', 300), ('codigo_servico_municipal', 'municipal_service_code', 20),
+                                    ('nome_servico_municipal', 'municipal_service_name', 120)):
+                if key in d:
+                    setattr(cfg, attr, str(d[key] or '').strip()[:size])
+                    changed.append(key)
+            if 'email_contador' in d:
+                from django.core.validators import validate_email
+                email = str(d['email_contador'] or '').strip()
+                if email:
+                    try:
+                        validate_email(email)
+                    except Exception as exc:  # noqa: BLE001
+                        raise svc.FinanceError('E-mail do contador inválido.') from exc
+                cfg.accountant_email = email
+                changed.append('email_contador')
+        except svc.FinanceError as exc:
+            return _bad(str(exc))
+        cfg.save()
+        audit.log('finance.settings_saved', actor=request.user, organization=m.organization, changes={'campos': changed})
+        return Response(settings_json(cfg))
+
+
+class RecurringView(_Base):
+    def get(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
+        if err:
+            return err
+        from carteira.models import RecurringExpense
+        from carteira.reports import recurring_json
+        rows = RecurringExpense.objects.filter(organization=m.organization)
+        return Response({'resultados': [recurring_json(r) for r in rows], 'categorias': Expense.Category.choices,
+                         'total_mensal_centavos': sum(r.amount_cents for r in rows if r.active)})
+
+    def _read(self, d, obj=None):
+        from carteira.models import RecurringExpense
+        desc = str(d.get('descricao', obj.description if obj else '') or '').strip()[:200]
+        if not desc:
+            raise svc.FinanceError('Descreva a despesa.')
+        cat = d.get('categoria', obj.category if obj else Expense.Category.OFFICE)
+        if cat not in Expense.Category.values:
+            raise svc.FinanceError('Categoria inválida.')
+        cents = svc.to_cents(d['valor']) if 'valor' in d else (obj.amount_cents if obj else svc.to_cents(None))
+        day = int(d.get('dia', obj.day if obj else 5) or 5)
+        if not 1 <= day <= 28:
+            raise svc.FinanceError('Dia do mês entre 1 e 28.')
+        start = svc.to_date(d['inicio'], 'início') if d.get('inicio') else (obj.starts_on if obj else timezone.localdate())
+        end = svc.to_date(d['fim'], 'fim') if d.get('fim') else (None if 'fim' in d else (obj.ends_on if obj else None))
+        if end and end < start:
+            raise svc.FinanceError('O fim precisa ser depois do início.')
+        return {'description': desc, 'category': cat, 'amount_cents': cents, 'day': day, 'starts_on': start, 'ends_on': end,
+                'active': bool(d.get('ativa', obj.active if obj else True))}, RecurringExpense
+
+    def post(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.editar')
+        if err:
+            return err
+        from carteira.reports import recurring_json
+        try:
+            data, model = self._read(request.data)
+        except (svc.FinanceError, ValueError, TypeError) as exc:
+            return _bad(str(exc) if isinstance(exc, svc.FinanceError) else 'Dados inválidos.')
+        r = model.objects.create(organization=m.organization, created_by=request.user, **data)
+        audit.log('finance.recurring_saved', actor=request.user, organization=m.organization, target=r,
+                  changes={'valor_centavos': r.amount_cents, 'dia': r.day}, data_categories=['financeiro'])
+        return Response(recurring_json(r), status=status.HTTP_201_CREATED)
+
+
+class RecurringDetailView(RecurringView):
+    def patch(self, request, pk):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.editar')
+        if err:
+            return err
+        from carteira.models import RecurringExpense
+        from carteira.reports import recurring_json
+        r = RecurringExpense.objects.filter(organization=m.organization, pk=pk).first()
+        if r is None:
+            return _bad('Despesa fixa não encontrada.', status.HTTP_404_NOT_FOUND)
+        try:
+            data, _model = self._read(request.data, r)
+        except (svc.FinanceError, ValueError, TypeError) as exc:
+            return _bad(str(exc) if isinstance(exc, svc.FinanceError) else 'Dados inválidos.')
+        for k, v in data.items():
+            setattr(r, k, v)
+        r.save()
+        audit.log('finance.recurring_saved', actor=request.user, organization=m.organization, target=r,
+                  changes={'valor_centavos': r.amount_cents, 'ativa': r.active}, data_categories=['financeiro'])
+        return Response(recurring_json(r))
+
+    def delete(self, request, pk):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.editar')
+        if err:
+            return err
+        from carteira.models import RecurringExpense
+        r = RecurringExpense.objects.filter(organization=m.organization, pk=pk).first()
+        if r is None:
+            return _bad('Despesa fixa não encontrada.', status.HTTP_404_NOT_FOUND)
+        audit.log('finance.recurring_deleted', actor=request.user, organization=m.organization, target=r)
+        r.delete()                                   # despesas já lançadas continuam
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CashFlowView(_Base):
+    def get(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
+        if err:
+            return err
+        from carteira import reports
+        try:
+            weeks = int(request.query_params.get('semanas') or 12)
+        except ValueError:
+            weeks = 12
+        return Response(reports.cash_flow(m.organization, weeks))
+
+
+class IndicatorsView(_Base):
+    def get(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
+        if err:
+            return err
+        from carteira import reports
+        try:
+            year = int(request.query_params.get('ano') or timezone.localdate().year)
+        except ValueError:
+            return _bad('Ano inválido.')
+        return Response({'meta': reports.goal(m.organization), 'inadimplencia': reports.aging(m.organization),
+                         'dre': reports.dre(m.organization, year)})
+
+
+class OfficeFiscalView(_Base):
+    def get(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
+        if err:
+            return err
+        from carteira import reports
+        month = None
+        if request.query_params.get('mes'):
+            try:
+                month = svc.to_date(request.query_params['mes'] + '-01', 'mês')
+            except svc.FinanceError as exc:
+                return _bad(str(exc))
+        return Response(reports.fiscal(m.organization, month))
+
+
+class AccountantExportView(_Base):
+    """GET ?inicio=&fim= — CSV para o contador (receitas com CPF/CNPJ do pagador e despesas). Exportação auditada."""
+
+    def get(self, request):
+        m, err = self.membership(request, MANAGE_TEAM_ROLES, perm='financeiro.ver')
+        if err:
+            return err
+        from django.http import HttpResponse
+
+        from carteira import reports
+        try:
+            d0, d1 = _period(request)
+        except svc.FinanceError as exc:
+            return _bad(str(exc))
+        if (d1 - d0).days > 400:
+            return _bad('Período máximo de 13 meses.')
+        audit.log('data.export', actor=request.user, organization=m.organization, changes={'tipo': 'pacote_contador',
+                  'inicio': d0.isoformat(), 'fim': d1.isoformat()}, data_categories=['identificacao', 'financeiro'],
+                  legal_basis='obrigacao_legal')
+        resp = HttpResponse(reports.accountant_csv(m.organization, d0, d1), content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = f'attachment; filename="contador-{d0:%Y%m%d}-{d1:%Y%m%d}.csv"'
+        resp['Cache-Control'] = 'no-store'
+        return resp

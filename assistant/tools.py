@@ -36,6 +36,11 @@ class Tool:
         return {'name': self.name, 'description': self.description, 'parameters': self.parameters}
 
 
+def _sees_finance(ctx) -> bool:
+    perms = getattr(ctx, 'perms', None)
+    return ctx.role in {'OWNER', 'ADMIN'} or (perms is not None and 'financeiro.ver' in perms)
+
+
 def _obj(props: dict, required=()) -> dict:
     return {'type': 'object', 'properties': props, 'required': list(required), 'additionalProperties': False}
 
@@ -160,7 +165,7 @@ def calcular_prazo(ctx, data_inicio: str, dias_uteis: int, tribunal: str = '', d
 
 
 def resumo_financeiro(ctx, dias: int = 30):
-    if ctx.role not in {'OWNER', 'ADMIN'}:
+    if not _sees_finance(ctx):
         raise ToolError('Só dono ou administrador do escritório veem o financeiro.')
     from carteira.services import summary
     end = timezone.localdate()
@@ -391,7 +396,7 @@ def criar_oportunidade(ctx, contato_id, titulo, area='', etapa='novo', proxima_a
 
 
 def honorarios_em_aberto(ctx):
-    if ctx.role not in {'OWNER', 'ADMIN'}:
+    if not _sees_finance(ctx):
         raise ToolError('Só dono ou administrador do escritório veem os honorários.')
     from carteira.models import Receivable
     from carteira.services import overdue_days
@@ -565,3 +570,41 @@ def describe(tool: Tool, args: dict, ctx=None) -> str:
             raise ToolError('Parâmetros inválidos para a ferramenta.') from exc
     shown = ', '.join(f'{k}: {v}' for k, v in args.items() if v not in ('', None) and not isinstance(v, (list, dict)))
     return f'{tool.label}' + (f' — {shown}' if shown else '')
+
+
+# Módulo de cada ferramenta (grupo de acesso, CAD-223): consulta pede "<módulo>.ver"; ação pede "<módulo>.editar".
+TOOL_MODULES = {
+    'buscar_contatos': 'contatos', 'criar_contato': 'contatos', 'enviar_mensagem_cliente': 'contatos',
+    'buscar_processos': 'processos', 'publicacoes': 'processos', 'ler_publicacao': 'processos', 'calcular_prazo': 'processos',
+    'marcar_publicacao_revisada': 'processos', 'contexto_do_caso': 'processos',
+    'agenda': 'tarefas', 'criar_tarefa': 'tarefas', 'agenda_google': 'tarefas',
+    'buscar_documentos': 'documentos',
+    'resumo_financeiro': 'financeiro', 'lancar_despesa': 'financeiro', 'honorarios_em_aberto': 'financeiro',
+    'memoria_do_escritorio': 'ia', 'lembrar': 'ia', 'perfil_do_escritorio': 'ia',
+    'gerar_minuta': 'minutas', 'salvar_plano_do_caso': 'minutas',
+    'catalogo_de_automacao': 'automacoes', 'listar_regras': 'automacoes', 'sugestoes_de_automacao': 'automacoes',
+    'criar_regra': 'automacoes', 'ativar_regra': 'automacoes', 'aceitar_sugestao': 'automacoes',
+    'oportunidades': 'funil', 'criar_oportunidade': 'funil',
+    'emails_triados': 'emails',
+}
+MANAGER_EXTRA = {'criar_regra': 'automacoes.gerir', 'ativar_regra': 'automacoes.gerir', 'aceitar_sugestao': 'automacoes.gerir'}
+
+
+def tool_permitted(ctx, tool) -> bool:
+    """Cargo + grupo de acesso. Sem grupo: ferramentas de gestão só para dono/admin (como no CAD-222)."""
+    perms = getattr(ctx, 'perms', None)
+    if ctx.role in {'OWNER', 'ADMIN'}:
+        return True
+    if perms is None:
+        return not tool.managers
+    mod = TOOL_MODULES.get(tool.name)
+    if mod is None:
+        return not tool.managers
+    if f'{mod}.ver' not in perms:
+        return False
+    if tool.action and f'{mod}.editar' not in perms:
+        return False
+    extra = MANAGER_EXTRA.get(tool.name)
+    if tool.managers:
+        return bool(extra and extra in perms)
+    return True
