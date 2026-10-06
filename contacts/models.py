@@ -34,6 +34,7 @@ class Contact(PIIIndexMixin, models.Model):
         MANUAL = 'manual', 'Cadastro manual'
         IMPORT = 'import', 'Importação'
         EXTRACTION = 'extraction', 'Leitura de documento'
+        FORM = 'form', 'Formulário de captação'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='contacts')
     kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.CLIENT, db_index=True)
@@ -55,6 +56,8 @@ class Contact(PIIIndexMixin, models.Model):
     consent_source = models.CharField(max_length=120, blank=True, default='')
     opted_out = models.BooleanField(default=False)
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    # CAD-223: só dia e mês ("MM-DD"), sem o ano — minimização (LGPD art. 6º, III) e basta para o gatilho de aniversário
+    birthday = models.CharField(max_length=5, blank=True, default='', db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

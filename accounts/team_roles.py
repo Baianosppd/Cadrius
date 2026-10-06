@@ -44,7 +44,7 @@ def get_active_membership(user, *, organization=None):
     if user is None or not getattr(user, 'is_authenticated', False):
         return None
 
-    queryset = user.memberships.filter(is_active=True).select_related('organization', 'organization__plan')
+    queryset = user.memberships.filter(is_active=True).select_related('organization', 'organization__plan', 'access_group')
     if organization is not None:
         queryset = queryset.filter(organization=organization)
     return queryset.first()

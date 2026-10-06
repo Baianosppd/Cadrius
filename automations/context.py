@@ -243,11 +243,141 @@ def portal_viewed(org, refs):
     return ctx, f'Portal aberto: {link.contact.name}'[:200]
 
 
+# ----------------------------------------------------------------------------- CAD-223
+def _yes(v) -> str:
+    return 'sim' if v else 'não'
+
+
+def lead_captured(org, refs):
+    from carteira.models import Opportunity
+    from marketing.models import CaptureForm
+    opp = Opportunity.objects.filter(pk=refs.get('opportunity_id'), organization=org).select_related('contact', 'campaign', 'owner').first()
+    if opp is None:
+        return None
+    form = CaptureForm.objects.filter(pk=refs.get('form_id'), organization=org).first()
+    c = opp.contact
+    ctx = {**_base(org), 'oportunidade': {'id': opp.pk, 'titulo': opp.title, 'area': opp.area},
+           'formulario': {'titulo': form.title if form else ''}, 'campanha': {'nome': opp.campaign.name if opp.campaign_id else ''},
+           'consentimento': {'whatsapp': _yes(c.whatsapp_consent), 'email': _yes(c.email_consent)},
+           'cliente': _person(c), 'responsavel': _user(opp.owner if _is_member(org, opp.owner) else None)}
+    return ctx, f'Novo contato pelo formulário: {c.name}'[:200]
+
+
+def survey_answered(org, refs):
+    from marketing.models import SatisfactionSurvey
+    sv = SatisfactionSurvey.objects.filter(pk=refs.get('survey_id'), organization=org, score__isnull=False).select_related('contact').first()
+    if sv is None:
+        return None
+    ctx = {**_base(org), 'pesquisa': {'nota': str(sv.score), 'classificacao': sv.category, 'motivo': sv.reason,
+                                      'tem_comentario': _yes(sv.comment)},
+           'cliente': _person(sv.contact), 'responsavel': {}}
+    return ctx, f'Avaliação {sv.score}/10 — {sv.contact.name}'[:200]
+
+
+def nfse_issued(org, refs):
+    from carteira.models import Receivable
+    from carteira.services import brl
+    rec = Receivable.objects.filter(pk=refs.get('receivable_id'), organization=org).select_related('contact').first()
+    if rec is None:
+        return None
+    ctx = {**_base(org), 'honorario': {'id': rec.pk, 'descricao': rec.description, 'valor': brl(rec.paid_cents or rec.amount_cents)},
+           'nota': {'link': rec.nfse_url, 'status': rec.nfse_status}, 'cliente': _person(rec.contact), 'responsavel': {}}
+    return ctx, f'NFS-e emitida: {rec.description}'[:200]
+
+
+def expense_created(org, refs):
+    from carteira.models import Expense
+    from carteira.services import brl
+    e = Expense.objects.filter(pk=refs.get('expense_id'), organization=org).select_related('contact', 'created_by').first()
+    if e is None:
+        return None
+    ctx = {**_base(org), 'despesa': {'id': e.pk, 'descricao': e.description, 'categoria': e.category, 'valor': brl(e.amount_cents),
+                                     'valor_centavos': str(e.amount_cents), 'reembolsavel': _yes(e.reimbursable)},
+           'cliente': _person(e.contact), 'responsavel': _user(e.created_by if _is_member(org, e.created_by) else None)}
+    return ctx, f'Despesa: {e.description}'[:200]
+
+
+def court_suspension(org, refs):
+    from forense.models import CourtSuspension
+    from research.models import MonitoredCase
+    sp = CourtSuspension.objects.filter(pk=refs.get('suspension_id')).first()
+    if sp is None:
+        return None
+    cases = MonitoredCase.objects.filter(organization=org, is_active=True)
+    if sp.tribunal:
+        cases = cases.filter(tribunal__iexact=sp.tribunal)
+    ctx = {**_base(org), 'suspensao': {'tribunal': sp.tribunal.upper() or 'Nacional', 'tipo': sp.get_kind_display(), 'inicio': br(sp.start),
+                                       'fim': br(sp.end), 'motivo': sp.reason, 'fonte': sp.source_url, 'comarca': sp.comarca},
+           'processos': {'quantidade': str(cases.count())}, 'responsavel': {}}
+    return ctx, f'Suspensão {sp.tribunal.upper() or "nacional"}: {br(sp.start)} a {br(sp.end)}'[:200]
+
+
+def contact_birthday(org, refs):
+    from contacts.models import Contact
+    c = Contact.objects.filter(pk=refs.get('contact_id'), organization=org).first()
+    if c is None:
+        return None
+    return {**_base(org), 'cliente': _person(c), 'responsavel': {}}, f'Aniversário: {c.name}'[:200]
+
+
+def opportunity_stale(org, refs):
+    from carteira.models import Opportunity
+    opp = Opportunity.objects.filter(pk=refs.get('opportunity_id'), organization=org).select_related('contact', 'owner').first()
+    if opp is None:
+        return None
+    days = (timezone.now() - opp.stage_changed_at).days
+    ctx = {**_base(org), 'oportunidade': {'id': opp.pk, 'titulo': opp.title, 'etapa': opp.get_stage_display(), 'dias_parada': str(days),
+                                          'proxima_acao': opp.next_action},
+           'cliente': _person(opp.contact), 'responsavel': _user(opp.owner if _is_member(org, opp.owner) else None)}
+    return ctx, f'Parada há {days} dias: {opp.title}'[:200]
+
+
+def case_stale(org, refs):
+    from research.models import MonitoredCase
+    case = MonitoredCase.objects.filter(pk=refs.get('case_id'), organization=org).select_related('client', 'responsavel').first()
+    if case is None:
+        return None
+    last = case.last_movement_at or case.created_at
+    days = (timezone.now() - last).days
+    ctx = {**_base(org), 'processo': {'id': case.pk, 'cnj': case.cnj, 'tribunal': case.tribunal, 'apelido': case.label or '',
+                                      'ultimo_andamento': br(last), 'dias_parado': str(days)},
+           'cliente': _person(case.client), 'responsavel': _user(case.responsavel if _is_member(org, case.responsavel) else None)}
+    return ctx, f'Sem andamento: {case.label or case.cnj}'[:200]
+
+
+def contract_ending(org, refs):
+    from carteira.models import FeeAgreement
+    ag = FeeAgreement.objects.filter(pk=refs.get('agreement_id'), organization=org).select_related('contact', 'created_by').first()
+    if ag is None:
+        return None
+    last = ag.receivables.filter(status='aberto').order_by('-due_date').first()
+    ctx = {**_base(org), 'contrato': {'id': ag.pk, 'titulo': ag.title, 'tipo': ag.get_kind_display(),
+                                      'ultima_parcela': br(last.due_date) if last else ''},
+           'cliente': _person(ag.contact), 'responsavel': _user(ag.created_by if _is_member(org, ag.created_by) else None)}
+    return ctx, f'Contrato terminando: {ag.title}'[:200]
+
+
+def monthly_goal(org, refs):
+    from carteira.reports import goal
+    from carteira.services import brl
+    g = goal(org)
+    if not g['meta_centavos']:
+        return None
+    ctx = {**_base(org), 'meta': {'valor': brl(g['meta_centavos']), 'recebido': brl(g['recebido_centavos']), 'pct': str(g['pct']),
+                                  'previsto': brl(g['previsto_restante_centavos']), 'atingida': _yes(g['pct'] >= 100)},
+           'responsavel': {}}
+    return ctx, f'Meta do mês: {g["pct"]}%'[:200]
+
+
 BUILDERS = {'document_confirmed': document_confirmed, 'case_movement': case_movement, 'deadline_soon': deadline_soon,
             'contact_created': contact_created, 'schedule': schedule, 'publication_new': publication_new,
             'receivable_due': receivable_due, 'email_received': email_received, 'calendar_event': calendar_event,
             'task_overdue': task_overdue, 'receivable_paid': receivable_paid, 'opportunity_stage': opportunity_stage,
-            'agreement_created': agreement_created, 'document_uploaded': document_uploaded, 'portal_viewed': portal_viewed}
+            'agreement_created': agreement_created, 'document_uploaded': document_uploaded, 'portal_viewed': portal_viewed,
+            'lead_captured': lead_captured, 'survey_answered': survey_answered, 'nfse_issued': nfse_issued,
+            'expense_created': expense_created, 'court_suspension': court_suspension, 'contact_birthday': contact_birthday,
+            'opportunity_stale': opportunity_stale, 'case_stale': case_stale, 'contract_ending': contract_ending,
+            'monthly_goal': monthly_goal}
 
 
 def build(trigger, org, refs):
@@ -290,6 +420,14 @@ def sample_refs(trigger, org) -> dict | None:
         'agreement_created': ('carteira.FeeAgreement', 'organization', lambda o: {'agreement_id': o.pk}),
         'document_uploaded': ('documents.Document', 'organization', lambda o: {'document_id': o.pk}),
         'portal_viewed': ('portal.PortalLink', 'organization', lambda o: {'link_id': o.pk}),
+        'lead_captured': ('carteira.Opportunity', 'organization', lambda o: {'opportunity_id': o.pk}),
+        'survey_answered': ('marketing.SatisfactionSurvey', 'organization', lambda o: {'survey_id': o.pk}),
+        'nfse_issued': ('carteira.Receivable', 'organization', lambda o: {'receivable_id': o.pk}),
+        'expense_created': ('carteira.Expense', 'organization', lambda o: {'expense_id': o.pk}),
+        'contact_birthday': ('contacts.Contact', 'organization', lambda o: {'contact_id': o.pk}),
+        'opportunity_stale': ('carteira.Opportunity', 'organization', lambda o: {'opportunity_id': o.pk}),
+        'case_stale': ('research.MonitoredCase', 'organization', lambda o: {'case_id': o.pk}),
+        'contract_ending': ('carteira.FeeAgreement', 'organization', lambda o: {'agreement_id': o.pk}),
     }
     if trigger in latest:
         from django.apps import apps
@@ -297,8 +435,21 @@ def sample_refs(trigger, org) -> dict | None:
         qs = apps.get_model(label).objects.filter(**{field: org})
         if trigger == 'receivable_paid':
             qs = qs.filter(status='pago')
+        if trigger == 'nfse_issued':
+            qs = qs.exclude(nfse_id='')
+        if trigger == 'survey_answered':
+            qs = qs.filter(score__isnull=False)
+        if trigger == 'lead_captured':
+            qs = qs.filter(contact__source='form')
         obj = qs.order_by('-pk').first()
         return refs(obj) if obj else None
+    if trigger == 'court_suspension':
+        from forense.models import CourtSuspension
+        sp = CourtSuspension.objects.order_by('-pk').first()
+        return {'suspension_id': sp.pk} if sp else None
+    if trigger == 'monthly_goal':
+        from carteira.models import FinanceSettings
+        return {} if FinanceSettings.objects.filter(organization=org, monthly_goal_cents__gt=0).exists() else None
     if trigger == 'task_overdue':
         from tasks.models import UserTask
         t = UserTask.objects.filter(responsavel__memberships__organization=org, completed=False,
@@ -349,4 +500,25 @@ def example(trigger, org) -> tuple[dict, str]:
                                                    'parcelas': '3'}, 'cliente': person},
         'document_uploaded': {**base, 'documento': {'nome': 'procuracao-exemplo.pdf', 'tipo': 'Procuração', 'cliente': 'Maria Exemplo'}},
         'portal_viewed': {**base, 'cliente': person, 'portal': {'acessos': '3'}},
+        'lead_captured': {**base, 'oportunidade': {'titulo': 'Previdenciário — Maria Exemplo', 'area': 'Previdenciário'},
+                          'formulario': {'titulo': 'Fale com o escritório'}, 'campanha': {'nome': 'Aposentadoria 2026'},
+                          'consentimento': {'whatsapp': 'sim', 'email': 'sim'}, 'cliente': person},
+        'survey_answered': {**base, 'pesquisa': {'nota': '6', 'classificacao': 'detrator', 'motivo': 'Contrato concluído',
+                                                 'tem_comentario': 'sim'}, 'cliente': person},
+        'nfse_issued': {**base, 'honorario': {'descricao': 'Parcela 1/3 (exemplo)', 'valor': 'R$ 2.000,00'},
+                        'nota': {'link': 'https://www.asaas.com/nfse/exemplo', 'status': 'AUTHORIZED'}, 'cliente': person},
+        'expense_created': {**base, 'despesa': {'descricao': 'Custas iniciais (exemplo)', 'categoria': 'custas', 'valor': 'R$ 350,00',
+                                                'valor_centavos': '35000', 'reembolsavel': 'sim'}, 'cliente': person},
+        'court_suspension': {**base, 'suspensao': {'tribunal': 'TJSP', 'tipo': 'Suspensão de prazos', 'inicio': br(today), 'fim': br(today),
+                                                   'motivo': 'Portaria de exemplo', 'fonte': 'https://www.tjsp.jus.br/', 'comarca': ''},
+                             'processos': {'quantidade': '4'}},
+        'contact_birthday': {**base, 'cliente': person},
+        'opportunity_stale': {**base, 'oportunidade': {'titulo': 'Revisional de contrato (exemplo)', 'etapa': 'Proposta enviada',
+                                                       'dias_parada': '10', 'proxima_acao': 'Ligar para a cliente'}, 'cliente': person},
+        'case_stale': {**base, 'processo': {'cnj': '0000000-00.2026.8.26.0000', 'tribunal': 'tjsp', 'apelido': 'Exemplo',
+                                            'ultimo_andamento': br(today), 'dias_parado': '90'}, 'cliente': person},
+        'contract_ending': {**base, 'contrato': {'titulo': 'Assessoria mensal (exemplo)', 'tipo': 'Mensal', 'ultima_parcela': br(today)},
+                            'cliente': person},
+        'monthly_goal': {**base, 'meta': {'valor': 'R$ 30.000,00', 'recebido': 'R$ 21.000,00', 'pct': '70', 'previsto': 'R$ 6.000,00',
+                                          'atingida': 'não'}},
     }[trigger], 'Exemplo fictício'

@@ -12,4 +12,5 @@ urlpatterns = [
     path('runs/', api.RunListView.as_view(), name='automation-runs'),
     path('runs/<int:pk>/approve/', api.RunDecisionView.as_view(decision='approve'), name='automation-run-approve'),
     path('runs/<int:pk>/reject/', api.RunDecisionView.as_view(decision='reject'), name='automation-run-reject'),
+    path('conformidade/', api.ComplianceView.as_view(), name='automation-compliance'),            # CAD-223
 ]

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -64,4 +65,19 @@ def clean_contact(data: dict) -> tuple[dict, list[str]]:
         tags = [t for t in re.split(r'[;,]', tags)]
     out['tags'] = sorted({str(t).strip()[:40] for t in tags if str(t).strip()})[:MAX_TAGS]
     out['notes'] = str(data.get('notes') or '')[:2000]
+
+    # CAD-223: aniversário só com dia e mês (aceita DD/MM, DD/MM/AAAA, AAAA-MM-DD ou MM-DD); o ano nunca é guardado
+    raw = str(data.get('birthday') or '').strip()
+    out['birthday'] = ''
+    if raw:
+        day = month = None
+        if m := re.fullmatch(r'(\d{1,2})/(\d{1,2})(?:/\d{2,4})?', raw):
+            day, month = int(m.group(1)), int(m.group(2))
+        elif m := re.fullmatch(r'(?:\d{4}-)?(\d{1,2})-(\d{1,2})', raw):
+            month, day = int(m.group(1)), int(m.group(2))
+        try:
+            date(2024, month or 0, day or 0)                     # 2024 é bissexto: aceita 29/02
+            out['birthday'] = f'{month:02d}-{day:02d}'
+        except (TypeError, ValueError):
+            errors.append('Aniversário inválido (use dia/mês).')
     return out, errors

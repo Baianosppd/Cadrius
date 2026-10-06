@@ -1,5 +1,6 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from accounts import access
 from accounts.team_roles import get_active_membership
 from audit.context import bind_actor
 from privacy import consent
@@ -42,4 +43,5 @@ class SentryJWTAuthentication(JWTAuthentication):
             if not path.startswith(CONSENT_EXEMPT_PREFIXES) and consent.has_pending(user):
                 # LGPD: sem aceite da versão vigente não há acesso a dados (428 + lista do que falta).
                 raise ConsentRequired(consent.pending_documents(user))
+            access.check_request(membership, path, getattr(request, 'method', 'GET'))   # grupo de acesso (CAD-223)
         return result

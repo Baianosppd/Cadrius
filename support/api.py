@@ -169,3 +169,76 @@ class StaffTicketDetailView(APIView):
         except ValueError as exc:
             return _bad(exc)
         return Response({**services.ticket_json(t, staff=True), 'messages': services.messages_json(t, staff=True)})
+
+
+# ----------------------------------------------------------------------------- pedidos de parametrização (CAD-223)
+class CustomizationListView(_Client):
+    """GET: pedidos do escritório (+ áreas e dicas). POST: novo pedido (abre um chamado vinculado)."""
+
+    def get(self, request):
+        from support import customization as cz
+        from support.models import CustomizationRequest
+        m = get_active_membership(request.user)
+        if m is None:
+            return Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
+        qs = CustomizationRequest.objects.filter(ticket__organization=m.organization).select_related('ticket').order_by('-created_at')
+        rows = [r for r in qs[:100] if services.can_see(m, r.ticket)]
+        return Response({'resultados': [cz.request_json(r) for r in rows],
+                         'areas': [{'chave': k, 'rotulo': v, 'dica': cz.HINTS.get(k, '')} for k, v in CustomizationRequest.Area.choices]})
+
+    def post(self, request):
+        from support import customization as cz
+        m = get_active_membership(request.user)
+        if m is None:
+            return Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            r = cz.create(request.user, m, request.data)
+        except ValueError as exc:
+            return _bad(exc)
+        return Response(cz.request_json(r), status=status.HTTP_201_CREATED)
+
+
+class CustomizationDecisionView(_Client):
+    def post(self, request, pk, decision):
+        from support import customization as cz
+        from support.models import CustomizationRequest
+        m = get_active_membership(request.user)
+        r = CustomizationRequest.objects.filter(pk=pk).select_related('ticket').first()
+        if r is None or not services.can_see(m, r.ticket):
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        try:
+            r = cz.client_decide(request.user, m, r, decision)
+        except PermissionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return _bad(exc)
+        return Response(cz.request_json(r))
+
+
+class StaffCustomizationListView(APIView):
+    permission_classes = [IsSupportStaff]
+
+    def get(self, request):
+        from support import customization as cz
+        from support.models import CustomizationRequest
+        qs = CustomizationRequest.objects.select_related('ticket', 'ticket__organization').order_by('-updated_at')
+        if request.query_params.get('etapa') in CustomizationRequest.Stage.values:
+            qs = qs.filter(stage=request.query_params['etapa'])
+        counts = {s: CustomizationRequest.objects.filter(stage=s).count() for s in CustomizationRequest.Stage.values}
+        return Response({'por_etapa': counts, 'resultados': [cz.request_json(r, staff=True) for r in qs[:PAGE]]})
+
+
+class StaffCustomizationDetailView(APIView):
+    permission_classes = [IsSupportStaff]
+
+    def patch(self, request, pk):
+        from support import customization as cz
+        from support.models import CustomizationRequest
+        r = CustomizationRequest.objects.filter(pk=pk).select_related('ticket', 'ticket__organization').first()
+        if r is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        try:
+            r = cz.staff_update(request.user, r, request.data)
+        except ValueError as exc:
+            return _bad(exc)
+        return Response(cz.request_json(r, staff=True))

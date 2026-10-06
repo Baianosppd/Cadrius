@@ -34,8 +34,11 @@ class MeView(APIView):
     permission_classes = [IsBackoffice]
 
     def get(self, request):
-        return Response({'areas': user_areas(request.user), 'email': request.user.email,
-                         'superusuario': request.user.is_superuser})
+        from backoffice.permissions import AREA_CATALOG, user_area_levels
+        return Response({'areas': user_areas(request.user), 'niveis': user_area_levels(request.user), 'email': request.user.email,
+                         'superusuario': request.user.is_superuser,
+                         'catalogo_areas': [{'chave': k, 'rotulo': v['label'], 'total': v['total'], 'consulta': v['consulta']}
+                                            for k, v in AREA_CATALOG.items()]})
 
 
 class OverviewView(APIView):
@@ -66,6 +69,12 @@ class OverviewView(APIView):
         if 'fiscal' in areas:
             _, _, month = fiscal.payments_qs(None, None)
             data['fiscal'] = fiscal.summary(month)
+        if 'ti' in areas or 'suporte' in areas:
+            from automations.governance import platform_overview
+            from support.models import CustomizationRequest
+            data['conformidade'] = platform_overview()                     # CAD-223: só contagens
+            data['parametrizacoes_abertas'] = CustomizationRequest.objects.exclude(
+                stage__in=['entregue', 'recusado', 'cancelado']).count()
         return Response(data)
 
 
@@ -201,7 +210,8 @@ class StaffListView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
         try:
             row = staff.create_staff(request.user, email=request.data.get('email'), first_name=request.data.get('first_name'),
-                                     last_name=request.data.get('last_name'), areas=request.data.get('areas'), reason=reason)
+                                     last_name=request.data.get('last_name'), areas=request.data.get('areas'), reason=reason,
+                                     read_only=request.data.get('consulta'))
         except services.ActionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(row, status=status.HTTP_201_CREATED)
@@ -220,7 +230,8 @@ class StaffDetailView(APIView):
             return Response({'detail': 'Informe o motivo (mínimo 10 caracteres): fica na trilha de auditoria.'},
                             status=status.HTTP_400_BAD_REQUEST)
         try:
-            return Response(staff.update_staff(request.user, user, areas=request.data.get('areas'), reason=reason))
+            return Response(staff.update_staff(request.user, user, areas=request.data.get('areas'), reason=reason,
+                                               read_only=request.data.get('consulta')))
         except services.ActionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 

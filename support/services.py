@@ -29,11 +29,17 @@ def ticket_json(t, *, staff=False) -> dict:
             'page_url': t.page_url, 'created_at': t.created_at, 'updated_at': t.updated_at,
             'first_response_at': t.first_response_at, 'resolved_at': t.resolved_at,
             'opened_by': t.opened_by.email if t.opened_by_id else '',
-            'access_until': grant.expires_at if grant else None}
+            'access_until': grant.expires_at if grant else None,
+            'parametrizacao': _customization(t)}
     if staff:
         data.update({'organization': str(t.organization), 'organization_id': str(t.organization_id),
                      'assigned_to': t.assigned_to.email if t.assigned_to_id else None})
     return data
+
+
+def _customization(t):
+    r = getattr(t, 'customization', None) if t.category == Ticket.Category.CUSTOMIZATION else None
+    return {'id': r.pk, 'etapa': r.stage, 'etapa_label': r.get_stage_display(), 'area_label': r.get_area_display()} if r else None
 
 
 def messages_json(t, *, staff=False) -> list[dict]:

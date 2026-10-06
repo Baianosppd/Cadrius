@@ -47,19 +47,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
     is_staff = serializers.BooleanField(read_only=True)
     mfa_enabled = serializers.SerializerMethodField()
     mfa_required = serializers.SerializerMethodField()
+    acessos = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'initials',
             'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture',
-            'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required', 'must_change_password',
+            'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required', 'must_change_password', 'acessos',
         ]
         read_only_fields = fields
 
     def _membership(self, obj):
         from .team_roles import get_active_membership
         return get_active_membership(obj)
+
+    def get_acessos(self, obj):
+        """CAD-223: null = sem grupo (vale o cargo); senão o grupo e as permissões efetivas."""
+        from accounts import access
+        return access.summary(self._membership(obj))
 
     def get_mfa_enabled(self, obj):
         from accounts import mfa
@@ -168,6 +174,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     creditos_usados = serializers.SerializerMethodField()
     creditos_limite = serializers.IntegerField(source='credit_limit', read_only=True)
+    grupo = serializers.SerializerMethodField()
 
     class Meta:
         model = OrganizationMembership
@@ -181,6 +188,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             'creditos_usados',
             'creditos_limite',
             'joined_at',
+            'grupo',
         ]
         read_only_fields = fields
 
@@ -190,6 +198,10 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return 'ativo' if obj.is_active else 'inativo'
+
+    def get_grupo(self, obj):
+        g = obj.access_group
+        return {'id': g.pk, 'nome': g.name} if g else None
 
     def get_creditos_usados(self, obj):
         used = getattr(obj, 'creditos_usados', None)

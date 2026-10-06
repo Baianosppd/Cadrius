@@ -9,7 +9,9 @@ from __future__ import annotations
 import base64
 import ipaddress
 import logging
+import re
 import socket
+from urllib.parse import quote
 
 import requests
 from django.conf import settings
@@ -135,6 +137,20 @@ def _asaas(creds, method, path, **kw):
     return _check(resp, 'Asaas')
 
 
+def asaas_invoice(creds, *, payment_id, value, description, effective_date, service_code='', service_name='', iss_pct=0) -> dict:
+    """Agenda a NFS-e de uma cobrança no Asaas (CAD-223). O escritório precisa ter a emissão de notas configurada no Asaas
+    (prefeitura, certificado e serviço municipal). Devolve {'id', 'status', 'pdf'}."""
+    body = {'payment': payment_id, 'serviceDescription': description[:500], 'observations': 'Emitida pelo Cadrius.',
+            'value': float(value), 'deductions': 0, 'effectiveDate': effective_date.isoformat(),
+            'taxes': {'retainIss': False, 'iss': float(iss_pct or 0), 'cofins': 0, 'csll': 0, 'inss': 0, 'ir': 0, 'pis': 0}}
+    if service_code:
+        body['municipalServiceCode'] = service_code[:20]
+    if service_name:
+        body['municipalServiceName'] = service_name[:120]
+    inv = _asaas(creds, 'POST', '/invoices', json=body)
+    return {'id': inv.get('id', ''), 'status': inv.get('status', ''), 'pdf': inv.get('pdfUrl') or ''}
+
+
 def asaas_charge(creds, *, contact, value, due_date, description, billing_type='UNDEFINED') -> dict:
     """Garante o cliente no Asaas (pelo CPF/CNPJ) e cria a cobrança. Devolve {'id', 'link', 'boleto', 'status'}."""
     import re
@@ -256,6 +272,53 @@ def test_connection(conn) -> str:
     if app in ('SLACK', 'TEAMS'):
         post_team_message(conn, 'Teste do Cadrius: a conexão com o canal da equipe está funcionando.')
         return 'Mensagem de teste enviada ao canal.'
+    # CAD-223 — chamadas só de leitura
+    if app == 'BREVO':
+        data = _get('https://api.brevo.com/v3/account', 'Brevo', headers={'api-key': str(c.get('api_key') or ''), 'accept': 'application/json'})
+        return f'Conta Brevo de {data.get("companyName") or data.get("email") or "?"} conectada.'
+    if app == 'MAILCHIMP':
+        key = str(c.get('api_key') or '')
+        dc = key.rsplit('-', 1)[-1] if '-' in key else ''
+        if not re.fullmatch(r'us\d{1,3}', dc):
+            raise IntegrationError('A chave do Mailchimp termina com o data center (ex.: -us21).')
+        _get(f'https://{dc}.api.mailchimp.com/3.0/ping', 'Mailchimp', auth=('cadrius', key))
+        return 'Chave do Mailchimp aceita.'
+    if app == 'NFEIO':
+        data = _get(f'https://api.nfe.io/v1/companies/{quote(str(c.get("company_id") or ""), safe="")}', 'NFE.io',
+                    headers={'Authorization': str(c.get('api_key') or '')})
+        company = data.get('companies') or data
+        return f'Empresa {company.get("name") or company.get("federalTaxNumber") or "?"} encontrada na NFE.io.'
+    if app == 'AUTENTIQUE':
+        try:
+            resp = requests.post('https://api.autentique.com.br/v2/graphql', timeout=TIMEOUT, json={'query': '{ me { name email } }'},
+                                 headers={'Authorization': f'Bearer {c.get("token")}'})
+        except requests.RequestException as exc:
+            raise IntegrationError(f'Autentique inacessível ({exc.__class__.__name__}).') from exc
+        data = _check(resp, 'Autentique')
+        if data.get('errors'):
+            raise IntegrationError('Autentique recusou o token.')
+        return f'Conectado como {((data.get("data") or {}).get("me") or {}).get("name", "?")}.'
+    if app == 'OMIE':
+        try:
+            resp = requests.post('https://app.omie.com.br/api/v1/geral/empresas/', timeout=TIMEOUT,
+                                 json={'call': 'ListarEmpresas', 'app_key': str(c.get('app_key') or ''),
+                                       'app_secret': str(c.get('app_secret') or ''), 'param': [{'pagina': 1, 'registros_por_pagina': 1}]})
+        except requests.RequestException as exc:
+            raise IntegrationError(f'Omie inacessível ({exc.__class__.__name__}).') from exc
+        data = _check(resp, 'Omie')
+        if data.get('faultstring'):
+            raise IntegrationError(f'Omie: {str(data["faultstring"])[:120]}')
+        return 'Credenciais do Omie aceitas.'
+    if app == 'ZOOM':
+        try:
+            resp = requests.post('https://zoom.us/oauth/token', timeout=TIMEOUT,
+                                 params={'grant_type': 'account_credentials', 'account_id': str(c.get('account_id') or '')},
+                                 auth=(str(c.get('client_id') or ''), str(c.get('client_secret') or '')))
+        except requests.RequestException as exc:
+            raise IntegrationError(f'Zoom inacessível ({exc.__class__.__name__}).') from exc
+        token = _check(resp, 'Zoom').get('access_token')
+        me = _get('https://api.zoom.us/v2/users/me', 'Zoom', headers={'Authorization': f'Bearer {token}'})
+        return f'Zoom conectado ({me.get("email") or "?"}).'
     raise IntegrationError('Este app não tem teste automático. Use-o numa automação de teste.')
 
 

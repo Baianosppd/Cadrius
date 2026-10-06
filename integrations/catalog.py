@@ -212,13 +212,113 @@ CATALOG = {
                  'No Cadrius, use "Importar dados": as colunas são sugeridas automaticamente e você confere antes de gravar.'],
         'links': [],
     },
+    # ---------------------------------------------------------------- CAD-223
+    'JUDIT': {
+        'label': 'Judit (consulta e monitoramento processual)', 'categoria': 'Pesquisa jurídica', 'novo': True,
+        'uso': 'Consulta de processos por CPF/CNPJ/OAB e monitoramento com aviso por webhook, nos tribunais que o DataJud não cobre '
+               'bem (inclui segredo de justiça quando o escritório tem credencial). Cobrança por volume.',
+        'campos': [{'key': 'api_key', 'label': 'Chave da API (api-key)', 'secret': True, 'required': True}],
+        'guia': ['Solicite acesso em judit.io (plano por volume) e gere a chave no painel.',
+                 'Defina no contrato o escopo de uso: consultas por CPF trazem dados pessoais (finalidade e base legal da LGPD).'],
+        'links': [{'label': 'Documentação Judit', 'url': 'https://docs.judit.io/'}],
+        'validar': 'Sem teste automático: valide uma consulta no ambiente deles antes de ligar automações.',
+    },
+    'JUSBRASIL': {
+        'label': 'Jusbrasil Soluções (monitoramento e due diligence)', 'categoria': 'Pesquisa jurídica', 'novo': True,
+        'uso': 'Para escritórios com contrato Jusbrasil Soluções (antigo Digesto): monitoramento de processos e diários, '
+               'e análise de risco de partes.',
+        'campos': [{'key': 'token', 'label': 'Token da API', 'secret': True, 'required': True}],
+        'guia': ['O token é fornecido pela Jusbrasil Soluções no contrato corporativo (não há cadastro self-service).'],
+        'links': [{'label': 'Jusbrasil Soluções', 'url': 'https://www.jusbrasil.com.br/solucoes'}],
+        'validar': 'Sem teste automático: confirme com o suporte deles o endpoint liberado para o seu contrato.',
+    },
+    'AUTENTIQUE': {
+        'label': 'Autentique (assinatura eletrônica)', 'categoria': 'Documentos', 'novo': True,
+        'uso': 'Assinatura de contratos e procurações com plano gratuito para poucos documentos por mês — boa opção para autônomos.',
+        'campos': [{'key': 'token', 'label': 'Token da API', 'secret': True, 'required': True}],
+        'guia': ['No Autentique: "Configurações" → "API" → gere o token.', 'A API é GraphQL (https://api.autentique.com.br/v2/graphql).'],
+        'links': [{'label': 'Documentação Autentique', 'url': 'https://docs.autentique.com.br/api'}],
+        'validar': 'Teste a conexão e envie um documento de teste para você mesmo antes de usar com clientes.',
+    },
+    'NFEIO': {
+        'label': 'NFE.io (nota fiscal de serviço)', 'categoria': 'Fiscal', 'novo': True,
+        'uso': 'Emissão de NFS-e dos honorários para escritórios que não usam o Asaas, em centenas de prefeituras e no padrão nacional.',
+        'campos': [{'key': 'api_key', 'label': 'Chave da API', 'secret': True, 'required': True},
+                   {'key': 'company_id', 'label': 'ID da empresa na NFE.io', 'required': True}],
+        'guia': ['Em app.nfe.io: "Conta" → "Chaves de acesso" → copie a chave de API.',
+                 'Cadastre a empresa (CNPJ do escritório, certificado A1 e inscrição municipal) e copie o ID dela.'],
+        'links': [{'label': 'API da NFE.io', 'url': 'https://nfe.io/docs/'}],
+        'validar': 'Faça a primeira emissão em homologação; a emissão automática pelo Cadrius com NFE.io está em planejamento '
+                   '(hoje a emissão automática é pelo Asaas).',
+    },
+    'OMIE': {
+        'label': 'Omie (ERP financeiro)', 'categoria': 'Financeiro', 'novo': True,
+        'uso': 'Escritórios que fazem o financeiro no Omie: levar clientes e contas a receber do Cadrius para o ERP.',
+        'campos': [{'key': 'app_key', 'label': 'App Key', 'required': True}, {'key': 'app_secret', 'label': 'App Secret', 'secret': True, 'required': True}],
+        'guia': ['No Omie: "Configurações" → "Integrações" → "Desenvolvedor" → crie um aplicativo e copie App Key e App Secret.'],
+        'links': [{'label': 'Portal do desenvolvedor Omie', 'url': 'https://developer.omie.com.br/'}],
+        'validar': 'Teste a conexão; use o conector de ERP (Gestão → ERP) para mapear quais dados vão para o Omie.',
+    },
+    'BREVO': {
+        'label': 'Brevo (e-mail e newsletter)', 'categoria': 'Marketing', 'novo': True,
+        'uso': 'Newsletter informativa do escritório e e-mails transacionais com melhor entrega que o SMTP comum.',
+        'campos': [{'key': 'api_key', 'label': 'Chave da API (v3)', 'secret': True, 'required': True}],
+        'guia': ['No Brevo: menu do usuário → "SMTP & API" → "Chaves de API" → "Gerar nova chave".',
+                 'Newsletter só para quem consentiu (o Cadrius envia só contatos com e-mail autorizado).'],
+        'links': [{'label': 'API do Brevo', 'url': 'https://developers.brevo.com/'}],
+    },
+    'MAILCHIMP': {
+        'label': 'Mailchimp (newsletter)', 'categoria': 'Marketing', 'novo': True,
+        'uso': 'Escritórios que já mantêm a newsletter no Mailchimp: sincronizar contatos que autorizaram e-mail.',
+        'campos': [{'key': 'api_key', 'label': 'Chave da API (termina em -usNN)', 'secret': True, 'required': True},
+                   {'key': 'list_id', 'label': 'ID da audiência (opcional)'}],
+        'guia': ['No Mailchimp: "Profile" → "Extras" → "API keys" → "Create A Key".'],
+        'links': [{'label': 'API do Mailchimp', 'url': 'https://mailchimp.com/developer/marketing/api/'}],
+    },
+    'RDSTATION': {
+        'label': 'RD Station Marketing', 'categoria': 'Marketing', 'novo': True,
+        'uso': 'Enviar os contatos do formulário de captação como conversão no RD Station (nutrição informativa, sem captação '
+               'mercantil — Provimento OAB 205/2021).',
+        'campos': [{'key': 'api_key', 'label': 'Token público (conversões)', 'secret': True, 'required': True}],
+        'guia': ['No RD Station Marketing: "Perfil" → "Integrações" → "Tokens" → copie o token público.'],
+        'links': [{'label': 'API do RD Station', 'url': 'https://developers.rdstation.com/'}],
+        'validar': 'Sem teste automático (a API de conversões só grava). Envie um contato de teste e confira no RD.',
+    },
+    'ZOOM': {
+        'label': 'Zoom (reuniões e audiências)', 'categoria': 'Comunicação', 'novo': True,
+        'uso': 'Criar o link da reunião com o cliente ao marcar "Reunião" no funil e guardar o link na tarefa.',
+        'campos': [{'key': 'account_id', 'label': 'Account ID', 'required': True},
+                   {'key': 'client_id', 'label': 'Client ID', 'required': True},
+                   {'key': 'client_secret', 'label': 'Client Secret', 'secret': True, 'required': True}],
+        'guia': ['Em marketplace.zoom.us: "Develop" → "Build App" → "Server-to-Server OAuth".',
+                 'Dê os escopos de reunião (meeting:write) e usuário (user:read) e ative o app.'],
+        'links': [{'label': 'API do Zoom', 'url': 'https://developers.zoom.us/docs/api/'}],
+    },
+    'ZENVIA': {
+        'label': 'Zenvia (SMS e WhatsApp oficial)', 'categoria': 'Comunicação', 'novo': True,
+        'uso': 'Alternativa ao Evolution: WhatsApp pela API oficial da Meta e SMS para clientes sem WhatsApp.',
+        'campos': [{'key': 'token', 'label': 'Token da API (X-API-TOKEN)', 'secret': True, 'required': True},
+                   {'key': 'from', 'label': 'Remetente (número ou nome do canal)', 'required': True}],
+        'guia': ['Na Zenvia: "Configurações" → "Tokens e webhooks" → crie um token.',
+                 'O WhatsApp oficial exige modelos de mensagem aprovados pela Meta.'],
+        'links': [{'label': 'API da Zenvia', 'url': 'https://zenvia.github.io/zenvia-openapi-spec/'}],
+        'validar': 'Sem teste automático: envie um SMS de teste para o seu número.',
+    },
+    'BRASILAPI': {
+        'label': 'BrasilAPI (CNPJ e CEP — já ativo)', 'categoria': 'Dados', 'novo': True,
+        'uso': 'Já vem ligado: ao cadastrar uma empresa, o Cadrius busca razão social, situação e endereço na Receita Federal pelo CNPJ.',
+        'campos': [], 'nativo': True,
+        'guia': ['Não precisa conectar nada. Em Contatos, digite o CNPJ e use "Buscar na Receita".'],
+        'links': [{'label': 'BrasilAPI', 'url': 'https://brasilapi.com.br/'}],
+    },
     'WEBHOOK': {
         'label': 'Webhook customizado', 'categoria': 'Dados', 'uso': 'Receber eventos de qualquer sistema que envie webhooks.',
         'campos': [], 'guia': ['Crie a conexão e use a URL gerada no fluxo como destino no sistema de origem.'], 'links': [],
     },
 }
 
-CATEGORIES = ['Comunicação', 'Documentos', 'Financeiro', 'Comercial', 'Pesquisa jurídica', 'Marketing', 'Tarefas', 'ERP jurídico', 'Dados']
+CATEGORIES = ['Comunicação', 'Documentos', 'Financeiro', 'Fiscal', 'Comercial', 'Pesquisa jurídica', 'Marketing', 'Tarefas', 'ERP jurídico',
+              'Dados']
 
 
 def public_catalog() -> list:

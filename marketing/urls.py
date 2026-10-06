@@ -1,6 +1,6 @@
 from django.urls import path
 
-from marketing import api
+from marketing import api, api_leads
 
 urlpatterns = [
     path('ideias/', api.IdeasView.as_view(), name='mkt-ideas'),
@@ -10,6 +10,14 @@ urlpatterns = [
     path('conteudos/<int:pk>/publicar/', api.PiecePublishView.as_view(), name='mkt-piece-publish'),
     path('campanhas/', api.CampaignListView.as_view(), name='mkt-campaigns'),
     path('campanhas/<int:pk>/', api.CampaignDetailView.as_view(), name='mkt-campaign'),
+    path('formularios/', api_leads.FormListView.as_view(), name='mkt-forms'),                      # CAD-223
+    path('formularios/<int:pk>/', api_leads.FormDetailView.as_view(), name='mkt-form'),
+    path('resultados/', api_leads.ResultsView.as_view(), name='mkt-results'),
+]
+
+public_urlpatterns = [
+    path('captacao/<str:token>/', api_leads.PublicFormView.as_view(), name='public-capture'),
+    path('pesquisa/<str:token>/', api_leads.PublicSurveyView.as_view(), name='public-survey'),
 ]
 
 staff_urlpatterns = [

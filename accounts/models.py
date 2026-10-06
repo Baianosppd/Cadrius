@@ -135,6 +135,27 @@ class CustomUser(PIIIndexMixin, AbstractUser):
         return self.email or self.username
 
 
+class AccessGroup(models.Model):
+    """Grupo de acesso do escritório (CAD-223): o dono/admin marca módulos (ver/editar) e permissões extras.
+
+    Catálogo e regras em ``accounts.access``. Apagar o grupo devolve as pessoas ao comportamento do cargo."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='access_groups')
+    name = models.CharField(max_length=60)
+    description = models.CharField(max_length=200, blank=True, default='')
+    permissions = models.JSONField(default=list, blank=True)
+    created_by = models.ForeignKey(CustomUser, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        constraints = [models.UniqueConstraint(fields=['organization', 'name'], name='uniq_access_group_name')]
+
+    def __str__(self):
+        return f'{self.name} ({self.organization_id})'
+
+
 class OrganizationMembership(models.Model):
     """
     Permite que um utilizador pertença a várias organizações com permissões diferentes.
@@ -160,6 +181,7 @@ class OrganizationMembership(models.Model):
         verbose_name="Cota mensal de créditos",
     )
     
+    access_group = models.ForeignKey(AccessGroup, null=True, blank=True, on_delete=models.SET_NULL, related_name='members')  # CAD-223
     is_active = models.BooleanField(default=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 

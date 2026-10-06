@@ -1,4 +1,5 @@
 from django.contrib import admin
+from accounts import access_api
 from assistant.mcp import McpView
 from django.urls import path, re_path, include
 from rest_framework import routers
@@ -24,7 +25,8 @@ from accounts.views import (
 )
 from accounts import mfa_api
 from support.urls import staff_urlpatterns as support_staff_urls
-from marketing.urls import staff_urlpatterns as marketing_staff_urls
+from forense.urls import staff_urlpatterns as forense_staff_urls
+from marketing.urls import public_urlpatterns as marketing_public_urls, staff_urlpatterns as marketing_staff_urls
 from integrations.api import ConnectionDeleteView, ConnectionListCreateView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
@@ -85,6 +87,10 @@ urlpatterns = [
         name='team-member-credits',
     ),
     path('api/v1/teams/credits/', TeamCreditsSummaryView.as_view(), name='team-credits'),
+    path('api/v1/teams/access/catalog/', access_api.AccessCatalogView.as_view(), name='team-access-catalog'),   # CAD-223
+    path('api/v1/teams/access/groups/', access_api.AccessGroupsView.as_view(), name='team-access-groups'),
+    path('api/v1/teams/access/groups/<int:pk>/', access_api.AccessGroupDetailView.as_view(), name='team-access-group'),
+    path('api/v1/teams/members/<uuid:pk>/access/', access_api.MemberAccessView.as_view(), name='team-member-access'),
     path('api/v1/funcionarios/', FuncionariosListView.as_view(), name='funcionarios-list'),
     path('api/v1/documentos/', DocumentListCreateView.as_view(), name='documentos-list'),
     path(
@@ -124,9 +130,11 @@ urlpatterns = [
     path('api/v1/imports/', include('imports.urls')),
     path('api/v1/support/', include('support.urls')),
     path('api/v1/forense/', include('forense.urls')),
+    path('api/v1/backoffice/', include(forense_staff_urls)),                      # calendário forense nacional (CAD-223)
     path('api/v1/publications/', include('publications.urls')),
     path('api/v1/minutas/', include('minutas.urls')),
     path('api/v1/marketing/', include('marketing.urls')),
+    path('api/v1/publico/', include((marketing_public_urls, 'publico'))),          # captação e pesquisa (CAD-223)
     path('api/v1/carteira/', include('carteira.urls')),
     path('api/v1/portal/', include('portal.urls')),
     path('api/v1/backoffice/', include(marketing_staff_urls)),

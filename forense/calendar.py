@@ -69,6 +69,20 @@ class Calendar:
             for h in Holiday.objects.filter(organization=organization):
                 if not h.tribunal or h.tribunal.lower() == self.tribunal:
                     self.custom[(None if h.yearly else h.date.year, h.date.month, h.date.day)] = h.name
+        self._suspensions()
+
+    def _suspensions(self):
+        """Suspensões cadastradas pela Cadrius (CAD-223): nacionais e do tribunal (as de uma comarca só não entram na conta)."""
+        from django.db.models import Q
+
+        from forense.models import CourtSuspension
+        qs = CourtSuspension.objects.filter(comarca='')
+        qs = qs.filter(Q(tribunal='') | Q(tribunal=self.tribunal)) if self.tribunal else qs.filter(tribunal='')
+        for s in qs:
+            day = s.start
+            while day <= s.end:
+                self.custom.setdefault((day.year, day.month, day.day), f'{s.get_kind_display()}: {s.reason}'[:120])
+                day += timedelta(days=1)
 
     def reason(self, day: date) -> str | None:
         """Motivo de o dia NÃO ser útil para prazo (None = dia útil)."""

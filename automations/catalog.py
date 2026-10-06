@@ -89,6 +89,61 @@ TRIGGERS = {
         'label': 'Cliente abriu o portal', 'help': 'No máximo um aviso por hora por cliente.',
         'vars': {'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome', 'portal.acessos': 'Acessos até agora'},
         'destinatarios': []},
+    # ---------------------------------------------------------------- CAD-223
+    T.LEAD_CAPTURED: {
+        'label': 'Contato pelo formulário de captação', 'help': 'Alguém preencheu o formulário do site: vira oportunidade "Novo contato".',
+        'vars': {'oportunidade.titulo': 'Título', 'oportunidade.area': 'Assunto escolhido', 'formulario.titulo': 'Formulário',
+                 'campanha.nome': 'Campanha', 'cliente.nome': 'Nome', 'cliente.primeiro_nome': 'Primeiro nome',
+                 'consentimento.whatsapp': 'Autorizou WhatsApp? (sim/não)', 'consentimento.email': 'Autorizou e-mail? (sim/não)'},
+        'destinatarios': ['cliente']},
+    T.SURVEY_ANSWERED: {
+        'label': 'Cliente respondeu a pesquisa de satisfação', 'help': 'Nota de 0 a 10 (NPS). Detrator = 0 a 6; neutro = 7 e 8; promotor = 9 e 10.',
+        'vars': {'pesquisa.nota': 'Nota (0 a 10)', 'pesquisa.classificacao': 'promotor | neutro | detrator', 'pesquisa.motivo': 'Motivo do envio',
+                 'pesquisa.tem_comentario': 'Deixou comentário? (sim/não)', 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome'},
+        'destinatarios': ['cliente']},
+    T.NFSE_ISSUED: {
+        'label': 'Nota fiscal de honorários emitida', 'help': 'A prefeitura autorizou a NFS-e pedida pelo Cadrius (via Asaas).',
+        'vars': {'honorario.descricao': 'Descrição', 'honorario.valor': 'Valor (R$)', 'nota.link': 'Link da nota (PDF)',
+                 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome'},
+        'destinatarios': ['cliente']},
+    T.EXPENSE_CREATED: {
+        'label': 'Despesa lançada', 'help': 'Inclui as despesas fixas lançadas sozinhas todo mês. Use condições (ex.: categoria).',
+        'vars': {'despesa.descricao': 'Descrição', 'despesa.categoria': 'Categoria (custas, diligencia, pericia, escritorio…)',
+                 'despesa.valor': 'Valor (R$)', 'despesa.valor_centavos': 'Valor em centavos (para comparar)',
+                 'despesa.reembolsavel': 'Cliente reembolsa? (sim/não)', 'cliente.nome': 'Cliente vinculado'},
+        'destinatarios': ['cliente']},
+    T.COURT_SUSPENSION: {
+        'label': 'Suspensão de prazos no tribunal', 'help': 'A Cadrius cadastrou suspensão/indisponibilidade num tribunal onde o '
+                                                           'escritório tem processo. A contagem de prazos do Cadrius já considera.',
+        'vars': {'suspensao.tribunal': 'Tribunal', 'suspensao.tipo': 'Tipo', 'suspensao.inicio': 'Início', 'suspensao.fim': 'Fim',
+                 'suspensao.motivo': 'Motivo', 'suspensao.fonte': 'Link do ato oficial', 'processos.quantidade': 'Processos do escritório ali'},
+        'destinatarios': []},
+    T.CONTACT_BIRTHDAY: {
+        'label': 'Aniversário do cliente', 'help': 'No dia do aniversário (dia e mês do cadastro), a partir das 9h.',
+        'vars': {'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome'},
+        'destinatarios': ['cliente']},
+    T.OPPORTUNITY_STALE: {
+        'label': 'Oportunidade parada no funil', 'help': 'Oportunidade aberta que não muda de etapa há N dias.',
+        'vars': {'oportunidade.titulo': 'Título', 'oportunidade.etapa': 'Etapa', 'oportunidade.dias_parada': 'Dias sem mudar',
+                 'oportunidade.proxima_acao': 'Próxima ação', 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome'},
+        'destinatarios': ['cliente'], 'config': {'dias': 'Dias sem mudar de etapa (3 a 90)'}},
+    T.CASE_STALE: {
+        'label': 'Processo sem andamento', 'help': 'Processo acompanhado sem andamento novo há N dias (bom para cobrar o cartório/'
+                                                   'secretaria ou dar notícia ao cliente).',
+        'vars': {'processo.cnj': 'Nº do processo', 'processo.tribunal': 'Tribunal', 'processo.apelido': 'Apelido',
+                 'processo.ultimo_andamento': 'Data do último andamento', 'processo.dias_parado': 'Dias sem andamento',
+                 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome'},
+        'destinatarios': ['cliente'], 'config': {'dias': 'Dias sem andamento (15 a 365)'}},
+    T.CONTRACT_ENDING: {
+        'label': 'Contrato de honorários terminando', 'help': 'A última parcela em aberto vence em N dias (renovação, fechamento do caso).',
+        'vars': {'contrato.titulo': 'Título', 'contrato.tipo': 'Tipo', 'contrato.ultima_parcela': 'Vencimento da última parcela',
+                 'cliente.nome': 'Cliente', 'cliente.primeiro_nome': 'Primeiro nome'},
+        'destinatarios': ['cliente'], 'config': {'dias': 'Dias antes da última parcela (1 a 60)'}},
+    T.MONTHLY_GOAL: {
+        'label': 'Acompanhamento da meta do mês', 'help': 'No dia escolhido do mês, às 9h: quanto da meta de faturamento já entrou.',
+        'vars': {'meta.valor': 'Meta (R$)', 'meta.recebido': 'Recebido no mês (R$)', 'meta.pct': '% da meta',
+                 'meta.previsto': 'Ainda previsto no mês (R$)', 'meta.atingida': 'Meta atingida? (sim/não)'},
+        'destinatarios': [], 'config': {'dia': 'Dia do mês (1 a 28)'}},
     T.SCHEDULE: {
         'label': 'Agenda', 'help': 'Todo dia (útil) ou toda semana, a partir da hora escolhida.',
         'vars': {'dia_semana': 'Dia da semana'},
@@ -98,7 +153,7 @@ TRIGGERS = {
 
 OPS = {'eq': 'é igual a', 'neq': 'é diferente de', 'contains': 'contém', 'in': 'é um destes', 'exists': 'está preenchido',
        'not_exists': 'está vazio'}
-EXTERNAL = {'send_whatsapp', 'send_email', 'send_message', 'erp_call', 'team_chat'}
+EXTERNAL = {'send_whatsapp', 'send_email', 'send_message', 'erp_call', 'team_chat', 'send_survey'}
 ACTIONS = {
     'create_task': {'label': 'Criar tarefa', 'externo': False,
                     'params': {'titulo': 'Título (aceita variáveis)', 'descricao': 'Descrição', 'prioridade': 'alta | media | baixa',
@@ -112,6 +167,9 @@ ACTIONS = {
                                 'mensagem': 'Mensagem'}},
     'send_email': {'label': 'Enviar e-mail ao contato', 'externo': True,
                    'params': {'destinatario': 'cliente | contato', 'assunto': 'Assunto', 'mensagem': 'Mensagem'}},
+    'send_survey': {'label': 'Pedir avaliação ao cliente (pesquisa de satisfação)', 'externo': True,
+                    'params': {'destinatario': 'cliente', 'canal': 'melhor | whatsapp | email', 'motivo': 'Motivo (ex.: Contrato concluído)',
+                               'mensagem': 'Mensagem (o link da pesquisa entra no fim)'}},
     'team_chat': {'label': 'Avisar no chat da equipe (Slack, Teams ou Telegram)', 'externo': True,
                   'params': {'canal': 'slack | teams | telegram', 'mensagem': 'Mensagem (aceita variáveis)'}},
     'erp_call': {'label': 'Chamar o ERP', 'externo': True,
@@ -164,6 +222,14 @@ def clean_trigger_config(trigger: str, config) -> dict:
         return {'dias_antes': _int(config.get('dias_antes', 1), 'dias_antes', 0, 30)}
     if trigger == T.TASK_OVERDUE:
         return {'dias_atraso': _int(config.get('dias_atraso', 1), 'dias_atraso', 0, 30)}
+    if trigger == T.OPPORTUNITY_STALE:
+        return {'dias': _int(config.get('dias', 7), 'dias', 3, 90)}
+    if trigger == T.CASE_STALE:
+        return {'dias': _int(config.get('dias', 60), 'dias', 15, 365)}
+    if trigger == T.CONTRACT_ENDING:
+        return {'dias': _int(config.get('dias', 15), 'dias', 1, 60)}
+    if trigger == T.MONTHLY_GOAL:
+        return {'dia': _int(config.get('dia', 20), 'dia', 1, 28)}
     if trigger == T.SCHEDULE:
         freq = config.get('frequencia', 'diaria')
         if freq not in ('diaria', 'semanal'):
@@ -251,6 +317,14 @@ def clean_actions(trigger: str, actions) -> list:
                 if canal not in ('melhor', 'whatsapp', 'email'):
                     raise RuleError('Canal: melhor, whatsapp ou email.')
                 params.update(canal=canal, assunto=_text(p, 'assunto', limit=150))
+        elif kind == 'send_survey':
+            if 'cliente' not in TRIGGERS[trigger]['destinatarios']:
+                raise RuleError('Este gatilho não tem cliente vinculado para receber a pesquisa.')
+            canal = p.get('canal', 'melhor')
+            if canal not in ('melhor', 'whatsapp', 'email'):
+                raise RuleError('Canal: melhor, whatsapp ou email.')
+            params = {'destinatario': 'cliente', 'canal': canal, 'motivo': _text(p, 'motivo', limit=120),
+                      'mensagem': _text(p, 'mensagem', required=True, limit=800)}
         elif kind == 'team_chat':
             canal = p.get('canal')
             if canal not in ('slack', 'teams', 'telegram'):
