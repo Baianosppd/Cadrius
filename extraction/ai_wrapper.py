@@ -1,18 +1,11 @@
 # extraction/ai_wrapper.py
-import functools
 import json
 import logging
-import os
 
 from pydantic import BaseModel, ValidationError
 
-# Bibliotecas das IAs
-from google import genai
-from google.genai import types
-from groq import Groq
-from openai import OpenAI
-
 # Importa os schemas definidos por Juliano
+from aigov import llm
 from aigov.sanitize import UNTRUSTED_NOTICE, wrap_untrusted
 
 from .schemas import ServiceOrderSchema
@@ -21,38 +14,6 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRY_ATTEMPTS = 2
 
-
-@functools.lru_cache(maxsize=1)
-def _get_openai_client() -> OpenAI:
-    key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-    if not key:
-        raise RuntimeError(
-            "OPENAI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor OpenAI."
-        )
-    return OpenAI(api_key=key)
-
-
-@functools.lru_cache(maxsize=1)
-def _get_groq_client() -> Groq:
-    key = (os.environ.get("GROQ_API_KEY") or "").strip()
-    if not key:
-        raise RuntimeError(
-            "GROQ_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Groq."
-        )
-    return Groq(api_key=key)
-
-
-@functools.lru_cache(maxsize=1)
-def _get_gemini_client() -> genai.Client:
-    key = (os.environ.get("GEMINI_API_KEY") or "").strip()
-    if not key:
-        raise RuntimeError(
-            "GEMINI_API_KEY não está definida. Configure-a no ambiente ou no .env para usar o provedor Gemini."
-        )
-    return genai.Client(api_key=key)
-  
-  
-  
 
 def extract_fields_from_text(
     text: str, 
@@ -83,15 +44,8 @@ def extract_fields_from_text(
         try:
             logger.info(f"Tentativa {attempt + 1}: Chamando API {provider}...")
             
-            # ROTEADOR DE IA
-            if provider == 'OPENAI':
-                raw_json_output = _call_openai(system_prompt, user_prompt)
-            elif provider == 'GROQ':
-                raw_json_output = _call_groq(system_prompt, user_prompt)
-            elif provider == 'GEMINI':
-                raw_json_output = _call_gemini(system_prompt, user_prompt)
-            else:
-                raise ValueError(f"Provedor de IA desconhecido: {provider}")
+            # ROTEADOR DE IA (CAD-221): todos os provedores passam pela camada única aigov.llm
+            raw_json_output = _call(provider, system_prompt, user_prompt)
 
             # 3. VALIDAÇÃO PYDANTIC (CRÍTICO)
             validated_model = schema.model_validate_json(raw_json_output)
@@ -115,39 +69,26 @@ def extract_fields_from_text(
 
 # --- FUNÇÕES INTERNAS DE CHAMADA ÀS APIS ---
 
+def _call(provider, system_prompt, user_prompt):
+    named = {'OPENAI': _call_openai, 'GROQ': _call_groq, 'GEMINI': _call_gemini}.get(provider)
+    if named:
+        return named(system_prompt, user_prompt)
+    if provider not in llm.PROVIDERS:
+        raise ValueError(f"Provedor de IA desconhecido: {provider}")
+    return llm.complete_json(provider, system_prompt, user_prompt)
+
+
 def _call_openai(system_prompt, user_prompt):
-    response = _get_openai_client().chat.completions.create(
-        model=os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo"),
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        response_format={"type": "json_object"} 
-    )
-    return response.choices[0].message.content
+    return llm.complete_json('OPENAI', system_prompt, user_prompt)
+
 
 def _call_groq(system_prompt, user_prompt):
-    response = _get_groq_client().chat.completions.create(
-        model="llama-3.1-8b-instant", # NOVO: Modelo super-rápido atualizado
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        response_format={"type": "json_object"}
-    )
-    return response.choices[0].message.content
+    return llm.complete_json('GROQ', system_prompt, user_prompt)
+
 
 def _call_gemini(system_prompt, user_prompt):
-    # NOVO: Implementação com a biblioteca moderna google-genai
-    full_prompt = f"{system_prompt}\n\n{user_prompt}"
-    response = _get_gemini_client().models.generate_content(
-        model='gemini-2.5-flash', # <-- BASTA ALTERAR ISTO AQUI PARA A NOVA GERAÇÃO (Ou gemini-2.0-flash)
-        contents=full_prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
-    return response.text
+    return llm.complete_json('GEMINI', system_prompt, user_prompt)
+
 
 # --- MOCK DE TESTE PARA CI/CD ---
 def mock_extract_fields_from_text(text: str, schema: type[BaseModel], **kwargs) -> dict | None:

@@ -137,6 +137,13 @@ def plan_step(org, rule, action, ctx) -> dict:
                                f'(ou saiu da lista, ou não tem {"telefone" if channel == "whatsapp" else "e-mail"}).'}
         step['dados'] = data
         step['detalhe'] = f'{"WhatsApp" if channel == "whatsapp" else "E-mail"} para {contact.name}.'
+    elif kind == 'team_chat':
+        conn = _team_connection(org, p['canal'])
+        names = {'slack': 'Slack', 'teams': 'Teams', 'telegram': 'Telegram'}
+        if conn is None:
+            return {**step, 'status': 'bloqueado', 'detalhe': f'Nenhuma conexão de {names[p["canal"]]} ativa (Integrações).'}
+        step['dados'] = {'conexao_id': conn.pk, 'mensagem': render(p['mensagem'], ctx)[:1000]}
+        step['detalhe'] = f'Aviso no {names[p["canal"]]} ({conn.name}).'
     else:   # erp_call
         from erp.models import ErpConnector
 
@@ -158,6 +165,13 @@ def _whatsapp_connection(org):
     from integrations.models import AppConnection
 
     return (AppConnection.objects.filter(app_name='WHATSAPP', is_active=True, user__memberships__organization=org,
+                                         user__memberships__is_active=True).order_by('-pk').first())
+
+
+def _team_connection(org, canal):
+    from integrations.models import AppConnection
+
+    return (AppConnection.objects.filter(app_name=canal.upper(), is_active=True, user__memberships__organization=org,
                                          user__memberships__is_active=True).order_by('-pk').first())
 
 
@@ -216,6 +230,17 @@ def perform(org, rule, run, step, index) -> dict:
             audit.log('message.sent', actor_type='system', organization=org, target=contact,
                       changes={'canal': channel, 'regra': rule.pk, 'execucao': run.pk},
                       data_categories=['contato'], legal_basis='consentimento')
+            return {**step, 'status': 'feito'}
+        if step['tipo'] == 'team_chat':
+            from integrations.models import AppConnection
+            from integrations.services import post_team_message
+
+            conn = AppConnection.objects.filter(pk=d.get('conexao_id'), is_active=True, user__memberships__organization=org).first()
+            if conn is None:
+                raise ValueError('Conexão do chat da equipe removida ou desativada.')
+            post_team_message(conn, d['mensagem'])
+            audit.log('integration.call', actor_type='system', organization=org, target=conn,
+                      changes={'app': conn.app_name, 'regra': rule.pk, 'execucao': run.pk}, legal_basis='execucao_contrato')
             return {**step, 'status': 'feito'}
         if step['tipo'] == 'erp_call':
             from erp import engine as erp_engine

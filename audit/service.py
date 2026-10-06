@@ -57,6 +57,7 @@ ACTIONS = frozenset({
     'finance.expense_deleted', 'finance.webhook_configured',
     'portal.link_created', 'portal.link_revoked', 'portal.viewed',
     'fiscal.nfse_requested', 'fiscal.nfse_canceled', 'fiscal.obligation_done',
+    'assistant.action', 'auth.password.temp_set', 'auth.password.forced_change', 'security.ip_blocked', 'security.ip_unblocked',
 })
 
 

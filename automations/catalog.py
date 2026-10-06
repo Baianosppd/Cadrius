@@ -55,7 +55,7 @@ TRIGGERS = {
 
 OPS = {'eq': 'é igual a', 'neq': 'é diferente de', 'contains': 'contém', 'in': 'é um destes', 'exists': 'está preenchido',
        'not_exists': 'está vazio'}
-EXTERNAL = {'send_whatsapp', 'send_email', 'erp_call'}
+EXTERNAL = {'send_whatsapp', 'send_email', 'erp_call', 'team_chat'}
 ACTIONS = {
     'create_task': {'label': 'Criar tarefa', 'externo': False,
                     'params': {'titulo': 'Título (aceita variáveis)', 'descricao': 'Descrição', 'prioridade': 'alta | media | baixa',
@@ -66,6 +66,8 @@ ACTIONS = {
                       'params': {'destinatario': 'cliente | contato', 'mensagem': 'Mensagem'}},
     'send_email': {'label': 'Enviar e-mail ao contato', 'externo': True,
                    'params': {'destinatario': 'cliente | contato', 'assunto': 'Assunto', 'mensagem': 'Mensagem'}},
+    'team_chat': {'label': 'Avisar no chat da equipe (Slack, Teams ou Telegram)', 'externo': True,
+                  'params': {'canal': 'slack | teams | telegram', 'mensagem': 'Mensagem (aceita variáveis)'}},
     'erp_call': {'label': 'Chamar o ERP', 'externo': True,
                  'params': {'conector_id': 'Conector', 'operacao': 'Operação', 'dados': 'Campos (aceitam variáveis)'}},
 }
@@ -193,6 +195,11 @@ def clean_actions(trigger: str, actions) -> list:
             params = {'destinatario': dest, 'mensagem': _text(p, 'mensagem', required=True, limit=1000)}
             if kind == 'send_email':
                 params['assunto'] = _text(p, 'assunto', required=True, limit=150)
+        elif kind == 'team_chat':
+            canal = p.get('canal')
+            if canal not in ('slack', 'teams', 'telegram'):
+                raise RuleError('Canal: slack, teams ou telegram.')
+            params = {'canal': canal, 'mensagem': _text(p, 'mensagem', required=True, limit=1000)}
         else:   # erp_call
             dados = p.get('dados') or {}
             if not isinstance(dados, dict) or len(dados) > 30 or not all(isinstance(v, str) and len(v) <= 500 for v in dados.values()):

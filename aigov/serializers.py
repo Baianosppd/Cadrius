@@ -7,18 +7,24 @@ from workflows.models import ExecutionLog
 class PolicySerializer(serializers.ModelSerializer):
     requires_execution_review = serializers.SerializerMethodField()
     autonomy_choices = serializers.SerializerMethodField()
+    providers = serializers.SerializerMethodField()
 
     class Meta:
         model = AIGovernancePolicy
         fields = ['ai_enabled', 'autonomy_level', 'allowed_providers', 'daily_ai_request_limit',
-                  'max_actions_per_ai_workflow', 'updated_at', 'requires_execution_review', 'autonomy_choices']
-        read_only_fields = ['updated_at', 'requires_execution_review', 'autonomy_choices']
+                  'max_actions_per_ai_workflow', 'updated_at', 'requires_execution_review', 'autonomy_choices', 'providers']
+        read_only_fields = ['updated_at', 'requires_execution_review', 'autonomy_choices', 'providers']
 
     def get_requires_execution_review(self, obj) -> bool:
         return obj.requires_execution_review()
 
     def get_autonomy_choices(self, obj) -> list:
         return [{'value': v, 'label': l} for v, l in AIGovernancePolicy.Autonomy.choices]
+
+    def get_providers(self, obj) -> list:
+        """Catálogo de provedores (configurado, gratuito, se treina com dados, região) — nunca a chave."""
+        from aigov import llm
+        return llm.catalog(obj.allowed_providers or [])
 
     def validate_allowed_providers(self, value):
         invalid = [p for p in value if p not in DEFAULT_PROVIDERS]

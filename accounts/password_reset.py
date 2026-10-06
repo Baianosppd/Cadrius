@@ -135,7 +135,8 @@ class PasswordResetConfirmView(APIView):
             return Response({'new_password': list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(data['new_password'])
-        user.save(update_fields=['password'])
+        user.must_change_password = False           # a pessoa definiu a própria senha pelo link
+        user.save(update_fields=['password', 'must_change_password'])
         # Encerra todas as sessões: quem tinha a senha antiga (ou um refresh roubado) perde o acesso.
         for outstanding in OutstandingToken.objects.filter(user=user):
             BlacklistedToken.objects.get_or_create(token=outstanding)

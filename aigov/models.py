@@ -1,7 +1,9 @@
 from django.db import models
 from django.utils import timezone
 
-DEFAULT_PROVIDERS = ['OPENAI', 'GEMINI', 'GROQ']
+# Escritórios novos nascem com todos os provedores permitidos; o roteador (aigov.llm) ainda bloqueia, para dado de
+# cliente, os planos gratuitos que treinam com os dados. Escritórios existentes mantêm a própria lista.
+DEFAULT_PROVIDERS = ['ANTHROPIC', 'OPENAI', 'GEMINI', 'MARITACA', 'MISTRAL', 'GROQ', 'OPENROUTER', 'OLLAMA']
 
 
 class AIGovernancePolicy(models.Model):
@@ -20,7 +22,7 @@ class AIGovernancePolicy(models.Model):
     organization = models.OneToOneField('accounts.Organization', on_delete=models.CASCADE, related_name='ai_policy')
     ai_enabled = models.BooleanField(default=True, help_text='Kill switch do escritório.')
     autonomy_level = models.CharField(max_length=24, choices=Autonomy.choices, default=Autonomy.SUPERVISED)
-    allowed_providers = models.JSONField(default=list, help_text='Provedores permitidos: OPENAI, GEMINI, GROQ.')
+    allowed_providers = models.JSONField(default=list, help_text='Provedores permitidos (chaves de aigov.llm.PROVIDERS).')
     daily_ai_request_limit = models.PositiveIntegerField(default=500)
     max_actions_per_ai_workflow = models.PositiveSmallIntegerField(default=5)
     updated_at = models.DateTimeField(auto_now=True)
@@ -63,6 +65,8 @@ class AIActionLog(models.Model):
         TRIAGE = 'triage', 'Triagem de publicação'
         DRAFT = 'draft', 'Minuta'
         MARKETING = 'marketing', 'Conteúdo de marketing'
+        ASSISTANT = 'assistant', 'Assistente (conversa e comandos)'
+        WRITING = 'writing', 'Escrita (corrigir, reescrever, resumir)'
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     organization_id = models.UUIDField(null=True, db_index=True)

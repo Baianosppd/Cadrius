@@ -160,12 +160,14 @@ def extract_text(data: bytes, kind: str) -> tuple[str, bool]:
 
 
 # ----------------------------------------------------------------------------- IA
-def pick_provider(policy) -> str:
-    allowed = [p for p in PROVIDER_ORDER if p in (policy.allowed_providers or [])]
-    configured = [p for p in allowed if os.environ.get(KEY_ENV[p], '').strip()]
-    if not configured:
+def pick_provider(policy, *, sensitive: bool = True) -> str:
+    """1º provedor permitido pelo escritório, configurado e seguro para o dado (CAD-221: camada aigov.llm)."""
+    from aigov import llm
+
+    found = llm.candidates(policy.allowed_providers or [], sensitive=sensitive)
+    if not found:
         raise Skip('Nenhum provedor de IA permitido e configurado para este escritório.')
-    return configured[0]
+    return found[0]
 
 
 def _few_shot(organization, masked: str) -> str:

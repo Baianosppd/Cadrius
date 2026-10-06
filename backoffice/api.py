@@ -15,13 +15,14 @@ from aigov.guard import set_global_switch
 from backoffice import fiscal, services, staff
 from backoffice.permissions import IsBackoffice, IsFiscal, IsTI, user_areas
 from billing import entitlements as ent
+from audit import service as audit
 from core.pii import filter_by_term
 
 PAGE = 50
 STATES = ('trialing', 'active', 'past_due', 'restricted', 'suspended', 'canceled')
 FINANCE_ACTIONS = {'extend_trial', 'grant_credits'}
 TI_ACTIONS = {'deactivate', 'activate'}
-USER_ACTIONS = {'unlock', 'deactivate', 'activate', 'revoke_sessions', 'send_password_reset', 'reset_mfa'}
+USER_ACTIONS = {'unlock', 'deactivate', 'activate', 'revoke_sessions', 'send_password_reset', 'reset_mfa', 'temp_password'}
 
 
 def _reason(request, minimum=10):
@@ -164,7 +165,9 @@ class UserActionView(APIView):
             result = services.user_action(request.user, user, action, reason)
         except services.ActionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({**result, 'usuario': services.user_row(user)})
+        response = Response({**result, 'usuario': services.user_row(user)})
+        response['Cache-Control'] = 'no-store'          # a senha temporária aparece uma vez e não fica em cache
+        return response
 
 
 class AISwitchView(APIView):
@@ -361,3 +364,81 @@ class FiscalObligationDoneView(APIView):
         except services.ActionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'proximos': obligations.upcoming()})
+
+
+# ----------------------------------------------------------------------------- cibersegurança (CAD-221)
+class CyberView(APIView):
+    """GET /api/v1/backoffice/cyber/ — painel de cibersegurança e monitoramento (TI)."""
+    permission_classes = [IsTI]
+
+    def get(self, request):
+        from backoffice import cyber
+        response = Response(cyber.snapshot())
+        response['Cache-Control'] = 'no-store'
+        return response
+
+
+class BlockedIPView(APIView):
+    """POST bloqueia IP/faixa (motivo obrigatório, prazo opcional em horas); DELETE <id> remove."""
+    permission_classes = [IsTI]
+
+    def post(self, request):
+        from datetime import timedelta
+
+        from audit import ipblock
+        from audit.context import client_ip
+        from audit.models import BlockedIP
+        reason = _reason(request)
+        if reason is None:
+            return Response({'detail': 'Informe o motivo (mínimo 10 caracteres).'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            net = ipblock.parse(request.data.get('rede') or '')
+        except ValueError:
+            return Response({'detail': 'IP ou faixa inválido (ex.: 203.0.113.7 ou 203.0.113.0/24).'}, status=status.HTTP_400_BAD_REQUEST)
+        if net.num_addresses > (256 if net.version == 4 else 2 ** 64):
+            return Response({'detail': 'Faixa grande demais (máximo /24 em IPv4 ou /64 em IPv6).'}, status=status.HTTP_400_BAD_REQUEST)
+        if net.is_private or net.is_loopback or ipblock.match_network(client_ip(request), net):
+            return Response({'detail': 'Não é possível bloquear rede interna nem o seu próprio IP.'}, status=status.HTTP_400_BAD_REQUEST)
+        hours = request.data.get('horas')
+        expires = None
+        if hours not in (None, '', 0, '0'):
+            try:
+                expires = timezone.now() + timedelta(hours=max(1, min(int(hours), 24 * 365)))
+            except (TypeError, ValueError):
+                return Response({'detail': 'Prazo inválido (horas).'}, status=status.HTTP_400_BAD_REQUEST)
+        block, created = BlockedIP.objects.update_or_create(
+            network=str(net), defaults={'reason': reason[:255], 'created_by': str(request.user.pk), 'expires_at': expires})
+        ipblock.invalidate()
+        audit.log('security.ip_blocked', actor=request.user, reason=reason[:255],
+                  changes={'rede': str(net), 'expira_em': expires.isoformat() if expires else None, 'novo': created})
+        return Response({'id': block.pk, 'rede': block.network}, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk):
+        from audit import ipblock
+        from audit.models import BlockedIP
+        block = BlockedIP.objects.filter(pk=pk).first()
+        if block is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        network = block.network
+        block.delete()
+        ipblock.invalidate()
+        audit.log('security.ip_unblocked', actor=request.user, changes={'rede': network})
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AlertReviewView(APIView):
+    """POST {status: ack|resolved|false_positive} — triagem de alerta de anomalia direto do painel."""
+    permission_classes = [IsTI]
+
+    def post(self, request, pk):
+        from audit.models import AnomalyAlert
+        alert = AnomalyAlert.objects.filter(pk=pk).first()
+        new = request.data.get('status')
+        if alert is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if new not in ('ack', 'resolved', 'false_positive'):
+            return Response({'detail': 'Status inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        alert.status, alert.reviewed_by, alert.reviewed_at = new, str(request.user.pk), timezone.now()
+        alert.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
+        audit.log('anomaly.reviewed', actor=request.user, target=alert, changes={'status': new})
+        return Response({'id': alert.pk, 'status': alert.status})

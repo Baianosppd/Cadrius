@@ -85,7 +85,7 @@ def _ai(org, user, channel, theme, brief, scope):
         if scope == 'escritorio':
             from billing.credit_weights import credits_for
             from billing.credits import check_credit_available, consume_credit
-            provider = pick_provider(get_policy(org))
+            provider = pick_provider(get_policy(org))   # conteúdo do escritório leva o perfil dele: tratado como sigiloso
             weight = credits_for('marketing_content')
             if weight:
                 ok, msg = check_credit_available(org, user_id=getattr(user, 'pk', None))
@@ -98,8 +98,9 @@ def _ai(org, user, channel, theme, brief, scope):
         else:
             if not global_ai_enabled():
                 raise Skip('IA desativada na plataforma.')
-            import os
-            provider = next((p for p in ('GROQ', 'GEMINI', 'OPENAI') if os.environ.get(f'{p}_API_KEY', '').strip()), None)
+            from aigov import llm
+            # Conteúdo institucional da Cadrius: sem dado de cliente, pode usar planos gratuitos
+            provider = next(iter(llm.candidates(None, sensitive=False)), None)
             if not provider:
                 raise Skip('Nenhum provedor de IA configurado.')
             result = extract_fields_from_text(text, ContentSchema, prompt, provider=provider)

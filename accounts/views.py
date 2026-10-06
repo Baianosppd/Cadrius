@@ -138,7 +138,8 @@ class ChangePasswordView(APIView):
         serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        audit_service.log('auth.password.change', actor=request.user)
+        audit_service.log('auth.password.forced_change' if serializer.was_forced else 'auth.password.change', actor=request.user,
+                          data_categories=['credenciais'])
         return Response(
             {'detail': 'Senha alterada com sucesso.'},
             status=status.HTTP_200_OK,

@@ -61,10 +61,13 @@ def bind_actor(user, organization=None, auth_method: str = '') -> None:
 
 
 def client_ip(request) -> str | None:
-    """IP do cliente atrás do Traefik (X-Forwarded-For; o último salto confiável é o proxy)."""
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if forwarded:
-        return forwarded.split(',')[0].strip() or None
+    """IP do cliente atrás do Traefik. O 1º item do X-Forwarded-For é escrito pelo próprio cliente (falsificável); o confiável é
+    o que o NOSSO proxy acrescentou: o N-ésimo a partir do fim, com N = AXES_PROXY_COUNT (1 = só o Traefik). CAD-221."""
+    from django.conf import settings
+    forwarded = [p.strip() for p in request.META.get('HTTP_X_FORWARDED_FOR', '').split(',') if p.strip()]
+    count = int(getattr(settings, 'AXES_IPWARE_PROXY_COUNT', 1) or 0)
+    if forwarded and count > 0:
+        return forwarded[-count] if len(forwarded) >= count else forwarded[0]
     return request.META.get('REMOTE_ADDR') or None
 
 

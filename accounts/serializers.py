@@ -53,7 +53,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'initials',
             'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture',
-            'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required',
+            'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required', 'must_change_password',
         ]
         read_only_fields = fields
 
@@ -148,8 +148,10 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         user = self.context['request'].user
+        self.was_forced = user.must_change_password
         user.set_password(self.validated_data['new_password'])
-        user.save(update_fields=['password'])
+        user.must_change_password = False
+        user.save(update_fields=['password', 'must_change_password'])
         return user
 
 class TeamMemberSerializer(serializers.ModelSerializer):

@@ -38,11 +38,13 @@ supabase
 # --- IA ---
 pydantic
 openai
+anthropic
 groq
 google-genai
 
 # --- Observabilidade ---
 sentry-sdk
+psutil  # métricas do servidor na tela de Cibersegurança (CAD-221)
 
 # --- Ferramentas de build (a imagem base traz um setuptools antigo com jaraco.context/wheel vulneráveis embutidos) ---
 setuptools>=84

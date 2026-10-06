@@ -159,6 +159,7 @@ INSTALLED_APPS = [
     'marketing',  # conteúdo, calendário e campanhas — escritório e Cadrius (CAD-174)
     'carteira',  # funil, contratos de honorários e financeiro do escritório (CAD-175)
     'portal',  # portal do cliente por link seguro (CAD-175)
+    'assistant',  # assistente de IA com conversa, ferramentas e ações confirmadas (CAD-221)
     'brain',  # Motor Cadrius: memória, aprendizado, regras e autonomia (CAD-165)
     'tasks', # Módulo de Tarefas Agendadas e Background Jobs
     'workflows',  #  Motor de Automação
@@ -175,6 +176,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',              
     'django.middleware.security.SecurityMiddleware',
+    'audit.ipblock.BlockedIPMiddleware',                  # IPs bloqueados pela TI (CAD-221)
     'csp.middleware.CSPMiddleware',                       
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
