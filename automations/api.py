@@ -177,7 +177,7 @@ class RuleShortcutView(_Base):
             return Response(status=status.HTTP_404_NOT_FOUND)
         if rule.trigger != Rule.Trigger.SHORTCUT:
             return Response({'detail': 'Só regras com o gatilho "Atalho" têm link.'}, status=status.HTTP_400_BAD_REQUEST)
-        url = shortcuts.rotate(rule)
+        url = shortcuts.rotate(rule, request)
         audit.log('automation.shortcut_rotated', actor=request.user, organization=m.organization, target=rule)
         return Response({'url': url, 'aviso': 'Guarde este link: ele não aparece de novo. Gerar outro invalida este.'})
 

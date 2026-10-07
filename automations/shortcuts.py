@@ -26,17 +26,20 @@ def _hash(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
-def url_for(rule, key: str) -> str:
+def url_for(rule, key: str, request=None) -> str:
+    path = f'/api/v1/publico/atalho/{rule.pk}/{key}/'
     base = (getattr(settings, 'API_PUBLIC_URL', '') or '').rstrip('/')
-    return f'{base}/api/v1/publico/atalho/{rule.pk}/{key}/'
+    if base:
+        return f'{base}{path}'
+    return request.build_absolute_uri(path) if request is not None else path
 
 
-def rotate(rule) -> str:
+def rotate(rule, request=None) -> str:
     """Gera uma chave nova (a anterior deixa de valer) e devolve a URL completa — mostrada uma única vez."""
     key = secrets.token_urlsafe(32)
     rule.shortcut_key_hash = _hash(key)
     rule.save(update_fields=['shortcut_key_hash', 'updated_at'])
-    return url_for(rule, key)
+    return url_for(rule, key, request)
 
 
 def check(rule, key: str) -> bool:

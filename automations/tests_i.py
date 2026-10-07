@@ -43,7 +43,7 @@ class Base(TestCase):
 
 class CatalogTests(Base):
     def test_25_gatilhos_e_modelos_novos_simulam(self):
-        self.assertEqual(len(catalog.TRIGGERS), 25)
+        self.assertEqual(len(catalog.TRIGGERS), 26)   # +1 no CAD-226 (atalho)
         for key in NEW_TEMPLATES:
             out = engine.simulate(self.rule(key, enabled=False))
             self.assertIn('passos', out, key)
