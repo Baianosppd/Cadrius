@@ -166,4 +166,7 @@ class OfficeProfile(models.Model):
     signature = models.TextField(blank=True, default='')        # assinatura padrão das minutas
     social = models.JSONField(default=dict, blank=True)         # {"instagram": "@...", "site": "https://..."}
     auto_stats = models.JSONField(default=dict, blank=True)     # calculado: tribunais, tipos de documento, volumes
+    # CAD-226: visual padrão dos e-mails do escritório (integrations/email_layout.py)
+    email_layout = models.CharField(max_length=12, default='moderno', blank=True)
+    brand_color = models.CharField(max_length=7, default='#1d4ed8', blank=True)
     updated_at = models.DateTimeField(auto_now=True)

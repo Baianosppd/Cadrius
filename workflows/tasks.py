@@ -263,15 +263,13 @@ def _send_workflow_email(data: dict, org, workflow: Workflow) -> dict:
 
     Só envia para quem é da equipe do escritório ou para contato que autorizou e-mail (LGPD): o resto é recusado.
     """
-    from django.conf import settings
     from django.core.exceptions import ValidationError
-    from django.core.mail import send_mail
     from django.core.validators import validate_email
 
     from automations import messaging
     from contacts.models import Contact
     from core.pii import blind_index
-    from integrations.services import send_office_email
+    from integrations import email_layout
 
     to = str(data.get("to") or data.get("email") or "").strip().lower()
     subject = str(data.get("subject") or data.get("assunto") or f"Aviso de {org}")[:200]
@@ -287,8 +285,7 @@ def _send_workflow_email(data: dict, org, workflow: Workflow) -> dict:
         organization=org, is_active=True, user__email__iexact=to
     ).exists()
     if is_member:
-        if not send_office_email(org, subject, body, [to]):
-            send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [to], fail_silently=False)
+        email_layout.send(org, subject, body, [to], user=workflow.approved_by)
         return {"channel": "email", "recipient": "equipe"}
 
     contact = Contact.objects.filter(organization=org, email_bidx=blind_index("contact.email", to, "text")).first()
@@ -297,7 +294,7 @@ def _send_workflow_email(data: dict, org, workflow: Workflow) -> dict:
             "Destinatário não é da equipe nem contato do escritório: o Cadrius só envia e-mail a quem autorizou (LGPD)."
         )
     try:
-        messaging.deliver(org, contact, "email", body, subject, origin={"workflow_id": workflow.pk})
+        messaging.deliver(org, contact, "email", body, subject, origin={"workflow_id": workflow.pk}, user=workflow.approved_by)
     except messaging.Blocked as exc:
         raise ValueError(str(exc))
     return {"channel": "email", "recipient": "contato"}

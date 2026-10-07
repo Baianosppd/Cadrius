@@ -111,7 +111,7 @@ class LeadAndSurveyTests(Base):
                                   due_date=timezone.localdate() + timedelta(days=1))
         self.rule('pesquisa_contrato_concluido')
         now = timezone.localtime().replace(hour=10)
-        with mock.patch('integrations.services.send_office_email', return_value=True) as send:
+        with mock.patch('integrations.email_layout.send', return_value='escritorio') as send:
             out = engine.tick(now=now)
         self.assertEqual(out['diarios'], 1)
         self.assertIn('/pesquisa/', send.call_args.args[2])
@@ -133,7 +133,7 @@ class DailyTriggerTests(Base):
         for key, tc in (('funil_parado', None), ('processo_parado', None), ('meta_mes_equipe', {'dia': today.day})):
             self.rule(key, **({'trigger_config': tc} if tc else {}))
         self.rule('aniversario_cliente')
-        with mock.patch('integrations.services.send_office_email', return_value=True) as send, \
+        with mock.patch('integrations.email_layout.send', return_value='escritorio') as send, \
                 mock.patch('django.utils.timezone.localdate', return_value=today):
             out = engine.tick(now=now)
             again = engine.tick(now=now)

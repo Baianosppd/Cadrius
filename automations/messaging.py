@@ -12,8 +12,6 @@ from __future__ import annotations
 import re
 from datetime import datetime, time, timedelta
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.utils import timezone
 
 from audit import service as audit
@@ -77,7 +75,8 @@ def next_business_moment(now=None) -> datetime:
     return candidate
 
 
-def deliver(org, contact, channel: str, message: str, subject: str = '', *, origin: dict | None = None) -> str:
+def deliver(org, contact, channel: str, message: str, subject: str = '', *, origin: dict | None = None, user=None,
+            layout: str = '') -> str:
     """Envia agora pelo canal (já escolhido com ``pick_channel``). Devolve o canal usado."""
     channel = pick_channel(org, contact, channel)            # confere de novo na hora do envio (consentimento pode mudar)
     if channel == 'whatsapp':
@@ -86,12 +85,10 @@ def deliver(org, contact, channel: str, message: str, subject: str = '', *, orig
         base_url, api_key, instance = _evolution_credentials_from_connection(whatsapp_connection(org), org)
         WhatsAppEvolutionExecutor(base_url=base_url, api_key=api_key).send(instance, {'number': digits_phone(contact.phone), 'text': message})
     else:
-        footer = (f'\n\n—\nVocê recebe esta mensagem porque autorizou o contato de {org}. '
+        footer = (f'Você recebe esta mensagem porque autorizou o contato de {org}. '
                   'Para não receber mais, responda a este e-mail pedindo a remoção.')
-        from integrations.services import send_office_email
-        subj = subject or f'Aviso de {org}'
-        if not send_office_email(org, subj, message + footer, [contact.email]):
-            send_mail(subj, message + footer, settings.DEFAULT_FROM_EMAIL, [contact.email], fail_silently=False)
+        from integrations import email_layout                # CAD-226: visual do escritório + assinatura de quem envia
+        email_layout.send(org, subject or f'Aviso de {org}', message, [contact.email], user=user, layout=layout, footer=footer)
     audit.log('message.sent', actor_type='system', organization=org, target=contact, changes={'canal': channel, **(origin or {})},
               data_categories=['contato'], legal_basis='consentimento')
     return channel

@@ -89,14 +89,21 @@ def smtp_backend(creds) -> EmailBackend:
                         timeout=TIMEOUT, fail_silently=False)
 
 
-def send_office_email(org, subject, body, to: list) -> bool:
-    """Envia pelo SMTP do escritório, se configurado. Devolve False quando não há SMTP (o chamador usa o remetente do Cadrius)."""
+def office_sender(org):
+    """(remetente, conexão SMTP) do escritório, ou None quando não há SMTP configurado."""
     conn = org_connection(org, 'SMTP')
     if conn is None:
-        return False
+        return None
     creds = conn.credentials or {}
-    backend = smtp_backend(creds)
-    sender = (creds.get('from_email') or creds.get('username') or settings.DEFAULT_FROM_EMAIL).strip()
+    return (creds.get('from_email') or creds.get('username') or settings.DEFAULT_FROM_EMAIL).strip(), smtp_backend(creds)
+
+
+def send_office_email(org, subject, body, to: list) -> bool:
+    """Envia pelo SMTP do escritório, se configurado. Devolve False quando não há SMTP (o chamador usa o remetente do Cadrius)."""
+    office = office_sender(org)
+    if office is None:
+        return False
+    sender, backend = office
     EmailMessage(subject, body, sender, to, connection=backend).send(fail_silently=False)
     return True
 

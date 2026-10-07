@@ -164,9 +164,10 @@ ACTIONS = {
                       'params': {'destinatario': 'cliente | contato', 'mensagem': 'Mensagem'}},
     'send_message': {'label': 'Avisar o cliente (melhor canal autorizado)', 'externo': True,
                      'params': {'destinatario': 'cliente | contato', 'canal': 'melhor | whatsapp | email', 'assunto': 'Assunto (e-mail)',
-                                'mensagem': 'Mensagem'}},
+                                'mensagem': 'Mensagem', 'visual': 'Visual do e-mail: padrao | moderno | classico | simples'}},
     'send_email': {'label': 'Enviar e-mail ao contato', 'externo': True,
-                   'params': {'destinatario': 'cliente | contato', 'assunto': 'Assunto', 'mensagem': 'Mensagem'}},
+                   'params': {'destinatario': 'cliente | contato', 'assunto': 'Assunto', 'mensagem': 'Mensagem',
+                              'visual': 'Visual do e-mail: padrao | moderno | classico | simples'}},
     'send_survey': {'label': 'Pedir avaliação ao cliente (pesquisa de satisfação)', 'externo': True,
                     'params': {'destinatario': 'cliente', 'canal': 'melhor | whatsapp | email', 'motivo': 'Motivo (ex.: Contrato concluído)',
                                'mensagem': 'Mensagem (o link da pesquisa entra no fim)'}},
@@ -312,6 +313,11 @@ def clean_actions(trigger: str, actions) -> list:
             params = {'destinatario': dest, 'mensagem': _text(p, 'mensagem', required=True, limit=1000)}
             if kind == 'send_email':
                 params['assunto'] = _text(p, 'assunto', required=True, limit=150)
+            if kind in ('send_email', 'send_message') and p.get('visual') not in (None, '', 'padrao'):
+                from integrations.email_layout import LAYOUTS
+                if p['visual'] not in LAYOUTS:
+                    raise RuleError(f'Visual do e-mail: padrao, {", ".join(LAYOUTS)}.')
+                params['visual'] = p['visual']
             if kind == 'send_message':
                 canal = p.get('canal', 'melhor')
                 if canal not in ('melhor', 'whatsapp', 'email'):

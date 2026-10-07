@@ -448,19 +448,20 @@ def honorarios_em_aberto(ctx):
              'vencimento': r.due_date.isoformat(), 'dias_atraso': overdue_days(r), 'link': '/financas'} for r in rows]
 
 
-def enviar_mensagem_cliente(ctx, contato_id, mensagem, canal='melhor', assunto=''):
+def enviar_mensagem_cliente(ctx, contato_id, mensagem, canal='melhor', assunto='', visual=''):
     from automations import messaging
     from contacts.models import Contact
     contact = Contact.objects.filter(organization=ctx.org, pk=contato_id).first()
     try:
         used = messaging.deliver(ctx.org, contact, canal if canal in ('melhor', 'whatsapp', 'email') else 'melhor', mensagem[:2000],
-                                 assunto[:150], origin={'origem': 'assistente', 'usuario': str(ctx.user.pk)})
+                                 assunto[:150], origin={'origem': 'assistente', 'usuario': str(ctx.user.pk)},
+                                 user=ctx.user, layout=visual or '')
     except messaging.Blocked as exc:
         raise ToolError(str(exc)) from exc
     return {'mensagem': f'Mensagem enviada a {contact.name} por {messaging.CHANNEL_LABEL[used]}.', 'link': f'/contatos?abrir={contact.pk}'}
 
 
-def _preview_mensagem(ctx, contato_id, mensagem='', canal='melhor', assunto=''):
+def _preview_mensagem(ctx, contato_id, mensagem='', canal='melhor', assunto='', visual=''):
     from automations import messaging
     from contacts.models import Contact
     contact = Contact.objects.filter(organization=ctx.org, pk=contato_id).first()
@@ -469,7 +470,12 @@ def _preview_mensagem(ctx, contato_id, mensagem='', canal='melhor', assunto=''):
     except messaging.Blocked as exc:
         return f'Não dá para enviar: {exc}'
     hours = '' if messaging.business_hours() else ' Atenção: fora do horário comercial.'
-    return f'Vai por {messaging.CHANNEL_LABEL[ch]} para {contact.name}: "{mensagem[:300]}".{hours}'
+    look = ''
+    if ch == 'email':
+        from integrations.email_layout import LAYOUTS, office_style
+        name = visual if visual in LAYOUTS else office_style(ctx.org)[0]
+        look = f' E-mail no visual "{LAYOUTS[name].split(" (")[0]}", com a sua assinatura.'
+    return f'Vai por {messaging.CHANNEL_LABEL[ch]} para {contact.name}: "{mensagem[:300]}".{hours}{look}'
 
 
 def emails_triados(ctx, categoria='', dias=7):
@@ -590,8 +596,11 @@ TOOLS: dict[str, Tool] = {t.name: t for t in [
          criar_oportunidade, action=True, label='Nova oportunidade'),
     Tool('honorarios_em_aberto', 'Parcelas de honorários em aberto/atrasadas (dono/admin).', _obj({}), honorarios_em_aberto,
          label='Honorários em aberto'),
-    Tool('enviar_mensagem_cliente', 'PROPÕE enviar mensagem ao contato (contato_id) pelo canal autorizado: melhor | whatsapp | email.',
-         _obj({'contato_id': INT, 'mensagem': S, 'canal': S, 'assunto': S}, ['contato_id', 'mensagem']), enviar_mensagem_cliente,
+    Tool('enviar_mensagem_cliente', 'PROPÕE enviar mensagem ao contato (contato_id) pelo canal autorizado: melhor | whatsapp | email. '
+         'E-mail sai no visual do escritório com a assinatura de quem confirma; visual = moderno | classico | simples '
+         '(vazio = padrão do escritório). Escreva o e-mail com saudação, parágrafos curtos e fecho cordial, sem assinatura '
+         '(ela entra sozinha).',
+         _obj({'contato_id': INT, 'mensagem': S, 'canal': S, 'assunto': S, 'visual': S}, ['contato_id', 'mensagem']), enviar_mensagem_cliente,
          action=True, label='Enviar mensagem', preview=_preview_mensagem),
     Tool('emails_triados', 'E-mails recebidos e já classificados (categoria: intimacao, cliente, agenda, financeiro, comercial, '
          'documento, marketing, outro).', _obj({'categoria': S, 'dias': INT}), emails_triados, label='E-mails'),

@@ -57,14 +57,14 @@ class MessagingTests(Base):
                                         due_date=timezone.localdate(), status='pago', paid_cents=200000, paid_at=timezone.localdate())
         rule = self.rule('pagamento_agradecimento')
         with mock.patch.object(messaging, 'business_hours', return_value=False), \
-                mock.patch('integrations.services.send_office_email', return_value=True) as send:
+                mock.patch('integrations.email_layout.send', return_value='escritorio') as send:
             run = engine.execute(rule.pk, {'receivable_id': rec.pk}, 'paid-test')
         send.assert_not_called()
         self.assertEqual(run.status, RuleRun.Status.SCHEDULED)
         self.assertEqual(run.steps[0]['status'], 'agendado')
         from django_q.models import Schedule
         sched = Schedule.objects.get(func='automations.engine.resume_step')
-        with mock.patch('integrations.services.send_office_email', return_value=True) as send:
+        with mock.patch('integrations.email_layout.send', return_value='escritorio') as send:
             engine.resume_step(run.pk, 0)
         send.assert_called_once()
         run.refresh_from_db()
@@ -192,7 +192,7 @@ class CalendarTests(Base):
                                      start=tomorrow.replace(hour=14), contact=self.maria)
         self.rule('agenda_audiencia_cliente')
         with mock.patch.object(messaging, 'business_hours', return_value=True), \
-                mock.patch('integrations.services.send_office_email', return_value=True) as send:
+                mock.patch('integrations.email_layout.send', return_value='escritorio') as send:
             out = engine.tick(now=now)
         self.assertEqual(out['calendar'], 1)
         self.assertIn('Lembrete', send.call_args.args[1])
