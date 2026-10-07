@@ -265,7 +265,7 @@ def catalogo_de_automacao(ctx):
 def listar_regras(ctx):
     from automations.models import Rule
     return [{'id': r.pk, 'nome': r.name, 'gatilho': r.get_trigger_display(), 'ligada': r.enabled, 'execucoes': r.run_count,
-             'link': '/automacao?aba=regras'} for r in Rule.objects.filter(organization=ctx.org).order_by('-updated_at')[:30]]
+             'link': f'/automacao?aba=regras&regra={r.pk}'} for r in Rule.objects.filter(organization=ctx.org).order_by('-updated_at')[:30]]
 
 
 def sugestoes_de_automacao(ctx):
@@ -303,7 +303,8 @@ def criar_regra(ctx, nome, gatilho, acoes, condicoes=None, configuracao=None, de
     rule = Rule.objects.create(organization=ctx.org, created_by=ctx.user, enabled=False, **body)
     audit.log('automation.rule_created', actor=ctx.user, organization=ctx.org, target=rule,
               changes={'trigger': rule.trigger, 'actions': [a['type'] for a in rule.actions], 'origem': 'assistente'})
-    return {'id': rule.pk, 'mensagem': f'Regra "{rule.name}" criada desligada. Simule e ligue em Automações.', 'link': '/automacao?aba=regras'}
+    return {'id': rule.pk, 'mensagem': f'Regra "{rule.name}" criada desligada. Abra para ver o fluxo, simule e ligue.',
+            'link': f'/automacao?aba=regras&regra={rule.pk}'}
 
 
 def _preview_ativar(ctx, id, ligar=True):
@@ -332,7 +333,8 @@ def ativar_regra(ctx, id, ligar=True):
     rule.save(update_fields=['enabled', 'updated_at'])
     audit.log('automation.rule_enabled' if ligar else 'automation.rule_disabled', actor=ctx.user, organization=ctx.org, target=rule,
               changes={'origem': 'assistente'})
-    return {'id': rule.pk, 'mensagem': f'Regra "{rule.name}" {"ligada" if ligar else "desligada"}.', 'link': '/automacao?aba=regras'}
+    return {'id': rule.pk, 'mensagem': f'Regra "{rule.name}" {"ligada" if ligar else "desligada"}.',
+            'link': f'/automacao?aba=regras&regra={rule.pk}'}
 
 
 def aceitar_sugestao(ctx, id):
@@ -346,7 +348,7 @@ def aceitar_sugestao(ctx, id):
     except suggestions.SuggestionError as exc:
         raise ToolError(str(exc)) from exc
     return {'id': getattr(rule, 'pk', None), 'mensagem': f'Sugestão "{sug.title}" virou regra desligada. Simule e ligue.',
-            'link': '/automacao?aba=regras'}
+            'link': f'/automacao?aba=regras&regra={rule.pk}' if getattr(rule, 'pk', None) else '/automacao?aba=regras'}
 
 
 def lembrar(ctx, texto, titulo=''):
