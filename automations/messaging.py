@@ -25,9 +25,12 @@ class Blocked(Exception):
 
 
 def whatsapp_connection(org):
+    """Conexão de WhatsApp do escritório. A do "WhatsApp do escritório" (hospedada pelo Cadrius) vem antes de qualquer
+    conexão manual: uma conexão manual antiga ou de teste não pode desviar os envios para outra instância (CAD-229)."""
     from integrations.models import AppConnection
-    return (AppConnection.objects.filter(app_name='WHATSAPP', is_active=True, user__memberships__organization=org,
-                                         user__memberships__is_active=True).order_by('-pk').first())
+    conns = list(AppConnection.objects.filter(app_name='WHATSAPP', is_active=True, user__memberships__organization=org,
+                                              user__memberships__is_active=True).order_by('-pk').distinct()[:20])
+    return next((c for c in conns if (c.credentials or {}).get('hosted')), conns[0] if conns else None)
 
 
 def digits_phone(raw: str) -> str:

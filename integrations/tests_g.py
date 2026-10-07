@@ -84,3 +84,20 @@ class ConnectionTests(TestCase):
         self.assertEqual(done['status'], 'feito')
         send.assert_called_once()
         self.assertIn('0001', send.call_args.args[1])
+
+
+class EvolutionManualConnectionTests(TestCase):
+    """CAD-229: instância inexistente na Evolution (404) vira uma orientação, não "respondeu 404"."""
+
+    def test_instancia_inexistente_orienta_usar_o_whatsapp_do_escritorio(self):
+        owner = make_user('dono@x.com', make_org(), role='OWNER')
+        conn = AppConnection.objects.create(user=owner, name='wpp', app_name='WHATSAPP',
+                                            credentials={'instance_name': 'escritorio', 'api_key': 'k'})
+        with mock.patch('integrations.services.requests.get', return_value=mock.Mock(status_code=404, json=lambda: {})):
+            with self.assertRaises(IntegrationError) as ctx:
+                test_connection(conn)
+        self.assertIn('"escritorio" não existe', str(ctx.exception))
+        self.assertIn('WhatsApp do escritório', str(ctx.exception))
+        ok = mock.Mock(status_code=200, json=lambda: {'instance': {'state': 'open'}})
+        with mock.patch('integrations.services.requests.get', return_value=ok):
+            self.assertIn('open', test_connection(conn))
