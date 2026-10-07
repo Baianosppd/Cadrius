@@ -173,7 +173,7 @@ def discover(org, user, text: str = '', topics=None) -> dict:
                 catalog.clean_rule(rule)
             except catalog.RuleError:
                 continue
-            digest = hashlib.sha1(_plain(rule['name']).encode()).hexdigest()[:10]
+            digest = hashlib.sha256(_plain(rule['name']).encode()).hexdigest()[:10]
             picks.append((f'{KEY_PREFIX}semanal:{digest}', rule['name'][:160],
                           str(item.get('motivo') or 'Você contou que faz isso toda semana.')[:300], {'rule': rule}))
 

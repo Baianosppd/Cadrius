@@ -41,7 +41,7 @@ class MarketingImageTests(APITestCase):
         return f'/api/v1/marketing/conteudos/{self.piece.pk}/imagem/'
 
     def test_sem_ia_de_imagem_faz_arte_da_marca_e_link_publico_funciona(self):
-        with mock.patch.dict(os.environ, NO_KEYS):
+        with mock.patch.dict(os.environ, NO_KEYS), mock.patch('marketing.images.providers', return_value=[]):
             res = self.c.post(self.url(), {}, format='json')
         self.assertEqual(res.status_code, 200, res.content)
         body = res.json()
@@ -88,7 +88,7 @@ class MarketingImageTests(APITestCase):
         self.assertEqual(res['imagem_origem'], 'gemini')
 
     def test_editar_mantem_url_gerada(self):
-        with mock.patch.dict(os.environ, NO_KEYS):
+        with mock.patch.dict(os.environ, NO_KEYS), mock.patch('marketing.images.providers', return_value=[]):
             url = self.c.post(self.url(), {}, format='json').json()['imagem_url']
         res = self.c.patch(f'/api/v1/marketing/conteudos/{self.piece.pk}/', {'imagem_url': url, 'texto': 'Novo'}, format='json')
         self.assertEqual(res.status_code, 200, res.content)
