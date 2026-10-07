@@ -16,7 +16,12 @@ TIMEOUT = 15
 
 
 class GoogleAuthError(Exception):
-    """Token revogado/expirado (invalid_grant) ou credenciais do app inválidas: o usuário precisa reconectar."""
+    """Token revogado/expirado (invalid_grant) ou credenciais do app inválidas: o usuário precisa reconectar.
+    ``code`` traz o código de erro do Google (invalid_client, redirect_uri_mismatch, invalid_grant…), sem segredos."""
+
+    def __init__(self, message='', code=''):
+        super().__init__(message)
+        self.code = code
 
 
 class GoogleRetryable(Exception):
@@ -32,7 +37,11 @@ def exchange_code(client_id, client_secret, code, redirect_uri, verifier):
                                           'client_id': client_id, 'client_secret': client_secret, 'code_verifier': verifier},
                          timeout=TIMEOUT)
     if resp.status_code != 200:
-        raise GoogleAuthError(f'token endpoint {resp.status_code}')
+        try:
+            code = str(resp.json().get('error', ''))[:40]
+        except ValueError:
+            code = ''
+        raise GoogleAuthError(f'token endpoint {resp.status_code} {code}', code=code)
     return resp.json()
 
 

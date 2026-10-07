@@ -34,8 +34,11 @@ class WhatsAppEvolutionExecutor:
             "Content-Type": "application/json",
             "apikey": self.api_key,
         }
+        # Evolution v2 (a que o Cadrius hospeda) lê "text" na raiz; a v1 lia "textMessage.text". Mandamos os dois (CAD-225).
         body = {
             "number": number,
+            "text": str(text),
+            "delay": 1500,
             "options": {
                 "delay": 1500,
                 "presence": "composing",

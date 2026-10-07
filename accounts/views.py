@@ -224,6 +224,17 @@ class MemberCreditLimitView(APIView):
         return Response(TeamMemberSerializer(membership).data)
 
 
+def _ai_usage_by_kind(organization):
+    """Pedidos à IA no mês, por atividade (sem conteúdo): ajuda a entender onde os créditos foram."""
+    from django.db.models import Count
+    from aigov.models import AIActionLog
+    month = current_billing_month()
+    labels = dict(AIActionLog.Kind.choices)
+    rows = (AIActionLog.objects.filter(organization_id=organization.pk, success=True, created_at__date__gte=month)
+            .values('kind').annotate(n=Count('id')).order_by('-n'))
+    return [{'atividade': r['kind'], 'rotulo': labels.get(r['kind'], r['kind']), 'pedidos': r['n']} for r in rows]
+
+
 class TeamCreditsSummaryView(APIView):
     """
     GET /api/v1/teams/credits/
@@ -251,6 +262,7 @@ class TeamCreditsSummaryView(APIView):
             'creditos_distribuidos': distribuidos,
             'creditos_nao_distribuidos': max(total - distribuidos, 0),
             'creditos_avulsos': purchased_credits_balance(organization),
+            'uso_por_atividade': _ai_usage_by_kind(organization),          # CAD-225
         })
 
 

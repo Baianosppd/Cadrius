@@ -28,6 +28,7 @@ from support.urls import staff_urlpatterns as support_staff_urls
 from forense.urls import staff_urlpatterns as forense_staff_urls
 from marketing.urls import public_urlpatterns as marketing_public_urls, staff_urlpatterns as marketing_staff_urls
 from integrations.api import ConnectionDeleteView, ConnectionListCreateView
+from integrations.api_whatsapp import WhatsAppPublicPairView
 from core.views import health_check, readiness_check, DashboardStatsView, ActivitiesView, SyncHistoryView
 from documents.views import (
     ClientDocumentCreateView,
@@ -134,7 +135,9 @@ urlpatterns = [
     path('api/v1/publications/', include('publications.urls')),
     path('api/v1/minutas/', include('minutas.urls')),
     path('api/v1/marketing/', include('marketing.urls')),
-    path('api/v1/publico/', include((marketing_public_urls, 'publico'))),          # captação e pesquisa (CAD-223)
+    path('api/v1/publico/', include((marketing_public_urls, 'publico'))),
+    path('api/v1/publico/whatsapp/<str:token>/', WhatsAppPublicPairView.as_view(),
+         name='whatsapp-public-pair'),                                                # CAD-225          # captação e pesquisa (CAD-223)
     path('api/v1/carteira/', include('carteira.urls')),
     path('api/v1/portal/', include('portal.urls')),
     path('api/v1/backoffice/', include(marketing_staff_urls)),

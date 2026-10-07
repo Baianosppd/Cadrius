@@ -102,6 +102,9 @@ def ai_triage(organization, user, text: str):
     except Exception:  # noqa: BLE001 — triagem pela IA é um extra; a leitura local já existe
         logger.exception('Falha na triagem por IA')
         return None
+    if result:
+        from billing.credits import charge
+        charge(organization, 'triage', user_id=getattr(user, 'pk', None))      # CAD-225
     return {**result, 'origem': provider} if result else None
 
 

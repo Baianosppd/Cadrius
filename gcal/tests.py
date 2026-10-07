@@ -11,7 +11,6 @@ from rest_framework.test import APITestCase
 from audit.models import AuditEvent
 from cadrius.tests_security import make_org, make_user
 from gcal import google_api as g
-from gcal.api import STATE_COOKIE
 from gcal.models import GoogleCalendarApp, GoogleCalendarLink, TaskEventMap
 from gcal import sync
 from tasks.models import UserTask
@@ -253,10 +252,12 @@ class ApiTests(APITestCase):
         self.assertEqual(q['scope'], [g.SCOPE])
         self.assertEqual((q['access_type'], q['code_challenge_method']), (['offline'], ['S256']))
         self.assertEqual(q['redirect_uri'], ['https://api.example.com/api/v1/integrations/google-calendar/callback/'])
-        cookie = resp.cookies[STATE_COOKIE].value
-        verifier = signing.loads(cookie, salt='cadrius.gcal')['v']
-        self.client.force_authenticate(None)          # (logout() limpa os cookies do cliente de teste)
-        self.client.cookies[STATE_COOKIE] = cookie
+        from django.core.cache import cache
+        from gcal.api import _pending_key
+        nonce = signing.loads(q['state'][0], salt='cadrius.gcal')['n']
+        verifier = cache.get(_pending_key(nonce))['v']
+        self.client.force_authenticate(None)
+        self.client.cookies.clear()                   # CAD-225: não depende de cookie (o navegador descartava)
         with mock.patch('gcal.google_api.exchange_code', return_value={'refresh_token': 'rt-1', 'access_token': 'a'}) as ex:
             cb = self.client.get(self.base + 'callback/', {'state': q['state'][0], 'code': 'abc'})
         self.assertEqual(cb['Location'], 'https://app.example.com/integracoes?gcal=ok')
@@ -267,24 +268,28 @@ class ApiTests(APITestCase):
         self.assertTrue(AuditEvent.objects.filter(action='connection.created').exists())
 
     def test_callback_recusa_state_invalido_negado_e_sem_refresh_token(self):
-        q, resp = self.connect()
-        cookie = resp.cookies[STATE_COOKIE].value
         self.client.force_authenticate(None)
 
-        def callback(params, with_cookie=True):
-            self.client.cookies.clear()
-            if with_cookie:                      # o callback apaga o cookie (uso único): recoloca a cada chamada
-                self.client.cookies[STATE_COOKIE] = cookie
+        def callback(params):
             return self.client.get(self.base + 'callback/', params)['Location']
 
-        good = {'state': q['state'][0], 'code': 'x'}
+        def fresh():                                  # o state é de uso único: cada tentativa começa uma conexão nova
+            q, _ = self.connect()
+            self.client.force_authenticate(None)
+            return {'state': q['state'][0], 'code': 'x'}
+
         self.assertTrue(callback({'state': 'forjado', 'code': 'x'}).endswith('gcal=state_invalid'))
         self.assertTrue(callback({'error': 'access_denied'}).endswith('gcal=denied'))
         with mock.patch('gcal.google_api.exchange_code', return_value={'access_token': 'a'}):
-            self.assertTrue(callback(good).endswith('gcal=no_refresh_token'))
+            self.assertTrue(callback(fresh()).endswith('gcal=no_refresh_token'))
         with mock.patch('gcal.google_api.exchange_code', side_effect=g.GoogleAuthError('x')):
-            self.assertTrue(callback(good).endswith('gcal=code_rejected'))
-        self.assertTrue(callback(good, with_cookie=False).endswith('gcal=state_invalid'))
+            self.assertTrue(callback(fresh()).endswith('gcal=code_rejected'))
+        with mock.patch('gcal.google_api.exchange_code', side_effect=g.GoogleAuthError('x', code='redirect_uri_mismatch')):
+            self.assertTrue(callback(fresh()).endswith('gcal=redirect_mismatch'))
+        used = fresh()
+        with mock.patch('gcal.google_api.exchange_code', return_value={'access_token': 'a'}):
+            callback(used)
+        self.assertTrue(callback(used).endswith('gcal=state_invalid'))          # repetir o mesmo retorno é recusado
         self.assertFalse(GoogleCalendarLink.objects.exists())
 
     def test_desconectar_revoga_e_apaga_e_remover_o_app_desconecta_todos(self):

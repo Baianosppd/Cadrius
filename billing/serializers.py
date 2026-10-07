@@ -30,6 +30,7 @@ def current_plan_payload(organization):
         .exclude(pk=plan.pk)
         .order_by('price_brl', 'id')
     )
+    from billing.credits import usage_summary
     from billing.entitlements import (ai_enabled, effective_max_users, effective_monthly_credits, effective_status,
                                       purchased_credits_balance)
     return {
@@ -41,6 +42,7 @@ def current_plan_payload(organization):
             'creditos_mensais': effective_monthly_credits(organization),
             'usuarios_maximos': effective_max_users(organization),
             'creditos_avulsos': purchased_credits_balance(organization),
+            **usage_summary(organization),            # CAD-225: quanto já foi usado no mês
         },
         'plano': SubscriptionPlanSerializer(plan).data,
         'status': 'ativo' if organization.is_active else 'inativo',

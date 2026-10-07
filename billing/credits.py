@@ -128,3 +128,26 @@ def consume_credit(organization, user_id=None, amount=1):
             member_usage.credits_used += amount
             member_usage.save(update_fields=["credits_used"])
     return True, ""
+
+
+def charge(organization, operation: str, user_id=None):
+    """CAD-225: cobra o peso da operação (CreditWeight). Peso 0 não cobra. Devolve (ok, mensagem)."""
+    from billing.credit_weights import credits_for
+    weight = credits_for(operation)
+    if not weight:
+        return True, ""
+    return consume_credit(organization, user_id=user_id, amount=weight)
+
+
+def usage_summary(organization, now=None):
+    """CAD-225: uso do mês para as telas (Perfil, banner do teste, Equipe)."""
+    from billing.entitlements import effective_monthly_credits
+    month = current_billing_month()
+    total = effective_monthly_credits(organization, now)
+    used = organization_credits_used(organization, month)
+    avulsos = _purchased_available(organization, now)
+    return {
+        'creditos_usados_mes': used,
+        'creditos_restantes_plano': max(total - used, 0),
+        'creditos_restantes': max(total - used, 0) + avulsos,
+    }
