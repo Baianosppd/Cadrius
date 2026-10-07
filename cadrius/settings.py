@@ -337,6 +337,8 @@ MICROSOFT_CLIENT_ID = env('MICROSOFT_CLIENT_ID', default='')
 MICROSOFT_CLIENT_SECRET = env('MICROSOFT_CLIENT_SECRET', default='')
 MICROSOFT_TENANT = env('MICROSOFT_TENANT', default='common')
 API_PUBLIC_URL = env('API_PUBLIC_URL', default='')  # ex.: https://api.cadrius.ia.br (base do redirect_uri do OAuth)
+# CAD-227: avisos no relógio (ntfy). Pode ser o público (https://ntfy.sh) ou um ntfy próprio do Cadrius.
+NTFY_BASE_URL = env('NTFY_BASE_URL', default='https://ntfy.sh')
 
 # --- E-mail transacional (recuperação de senha, convites, avisos). CAD-115/CAD-155 ---
 # Sem EMAIL_HOST: em DEBUG imprime no console; em produção NÃO envia (backend 'dummy') para o link nunca ir parar nos logs.

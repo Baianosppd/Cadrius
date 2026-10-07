@@ -30,7 +30,8 @@ def rule_json(rule: Rule) -> dict:
 
 
 def run_json(run: RuleRun) -> dict:
-    return {'id': run.pk, 'regra': {'id': run.rule_id, 'nome': run.rule.name}, 'gatilho': run.trigger, 'status': run.status,
+    from automations.voice import code_for
+    return {'codigo_relogio': code_for(run) if run.status == RuleRun.Status.PENDING else '', 'id': run.pk, 'regra': {'id': run.rule_id, 'nome': run.rule.name}, 'gatilho': run.trigger, 'status': run.status,
             'status_label': run.get_status_display(), 'titulo': run.title, 'passos': run.steps, 'criada_em': run.created_at,
             'decidido_por': (run.decided_by.get_full_name() or run.decided_by.email) if run.decided_by else None,
             'decidido_em': run.decided_at, 'observacao': run.decision_note}
@@ -257,3 +258,126 @@ class ComplianceView(_Base):
             return err
         from automations import governance
         return Response(governance.report(m.organization))
+
+
+# ----------------------------------------------------------------------------- CAD-227: relógio e voz
+def device_json(d) -> dict:
+    return {'id': d.pk, 'nome': d.name, 'tipo': d.kind, 'tipo_label': d.get_kind_display(), 'aprova': d.can_approve,
+            'avisos': d.notify, 'ntfy_topico': d.ntfy_topic, 'criado_em': d.created_at, 'ultimo_uso': d.last_used_at}
+
+
+def _voice_urls(request, key: str, device) -> dict:
+    from django.conf import settings
+    base = (getattr(settings, 'API_PUBLIC_URL', '') or '').rstrip('/') or request.build_absolute_uri('/').rstrip('/')
+    ntfy = (getattr(settings, 'NTFY_BASE_URL', '') or 'https://ntfy.sh').rstrip('/')
+    return {'url_voz': f'{base}/api/v1/publico/voz/{key}/', 'chave': key,
+            'url_avisos': f'{ntfy}/{device.ntfy_topic}' if device.ntfy_topic else ''}
+
+
+class DeviceListView(_Base):
+    """GET → meus aparelhos. POST {nome, tipo, aprova, avisos} → cria e devolve a chave UMA vez."""
+
+    def get(self, request):
+        from automations.models import PersonalDevice
+        m, err = self.membership(request)
+        if err:
+            return err
+        rows = PersonalDevice.objects.filter(organization=m.organization, user=request.user, revoked_at__isnull=True)
+        return Response({'aparelhos': [device_json(d) for d in rows], 'pode_aprovar': m.role in engine_approver_roles(),
+                         'pendentes': RuleRun.objects.filter(organization=m.organization, status=RuleRun.Status.PENDING).count(),
+                         'tipos': [{'id': k, 'label': v} for k, v in PersonalDevice.Kind.choices]})
+
+    def post(self, request):
+        from automations import voice
+        m, err = self.membership(request)
+        if err:
+            return err
+        d = request.data
+        from automations.models import PersonalDevice
+        if PersonalDevice.objects.filter(user=request.user, organization=m.organization, revoked_at__isnull=True).count() >= 10:
+            return Response({'detail': 'Limite de 10 aparelhos. Remova um que não usa mais.'}, status=status.HTTP_400_BAD_REQUEST)
+        wants_approve = bool(d.get('aprova'))
+        if wants_approve and m.role not in engine_approver_roles():
+            return Response({'detail': 'O seu cargo não aprova envios.'}, status=status.HTTP_403_FORBIDDEN)
+        device, key = voice.create_device(m.organization, request.user, name=str(d.get('nome') or ''), kind=str(d.get('tipo') or ''),
+                                          can_approve=wants_approve, notify=bool(d.get('avisos')))
+        return Response({**device_json(device), **_voice_urls(request, key, device),
+                         'aviso': 'Guarde a chave agora: ela não aparece de novo.'}, status=status.HTTP_201_CREATED)
+
+
+class DeviceDetailView(_Base):
+    def delete(self, request, pk):
+        from automations.models import PersonalDevice
+        from django.utils import timezone
+        m, err = self.membership(request)
+        if err:
+            return err
+        d = PersonalDevice.objects.filter(pk=pk, user=request.user, organization=m.organization, revoked_at__isnull=True).first()
+        if d is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        d.revoked_at = timezone.now()
+        d.save(update_fields=['revoked_at'])
+        audit.log('device.revoked', actor=request.user, organization=m.organization, target=d)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DeviceTestView(_Base):
+    """POST {texto, aparelho_id?} — experimenta um comando na tela. Leitura roda de verdade; ações só dizem o que fariam."""
+
+    def post(self, request):
+        from automations import voice
+        from automations.models import PersonalDevice
+        m, err = self.membership(request)
+        if err:
+            return err
+        d = PersonalDevice.objects.filter(pk=request.data.get('aparelho_id'), user=request.user, revoked_at__isnull=True).first()
+        if d is None:   # sem aparelho: testa como se fosse um aparelho que aprova (se o cargo deixa)
+            d = PersonalDevice(organization=m.organization, user=request.user, name='teste',
+                               can_approve=m.role in engine_approver_roles())
+        return Response(voice.handle(d, str(request.data.get('texto') or '')[:500], dry_run=True))
+
+
+def engine_approver_roles():
+    return APPROVER_ROLES
+
+
+def _voice_text(request) -> str:
+    data = request.data if isinstance(request.data, dict) else {}
+    text = data.get('texto') or data.get('text') or data.get('comando') or request.query_params.get('texto') or ''
+    if not text and isinstance(request.data, str):
+        text = request.data
+    return str(text)[:500]
+
+
+class PublicVoiceView(APIView):
+    """POST /api/v1/publico/voz/<chave>/ {texto} → {ok, fala}. Chamado pelo relógio, Siri, Alexa, Google ou botão."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = []
+
+    def post(self, request, key):
+        from django.utils import timezone
+        from automations import voice
+        device = voice.device_for(key)
+        if device is None:
+            return Response({'ok': False, 'fala': 'Aparelho não reconhecido. Cadastre de novo em Cadrius → Relógio e voz.'},
+                            status=status.HTTP_404_NOT_FOUND)
+        if voice.throttled(device):
+            return Response({'ok': False, 'fala': 'Muitos comandos seguidos. Espere um minuto.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        type(device).objects.filter(pk=device.pk).update(last_used_at=timezone.now())
+        out = voice.handle(device, _voice_text(request))
+        audit.log('device.command', actor=device.user, organization=device.organization,
+                  changes={'acao': out.get('acao'), 'ok': out.get('ok'), 'aparelho': device.pk})
+        return Response(out)
+
+
+class PublicWatchDecisionView(APIView):
+    """POST /api/v1/publico/relogio/decidir/<token>/ — botões "Aprovar"/"Recusar" do aviso no relógio (vale 24 h)."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = []
+
+    def post(self, request, token):
+        from automations import voice
+        out = voice.decide_by_token(token)
+        return Response(out, status=status.HTTP_200_OK if out.get('ok') else status.HTTP_400_BAD_REQUEST)
