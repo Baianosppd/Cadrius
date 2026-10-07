@@ -33,6 +33,7 @@ def piece_json(p, full=True):
             'criado_em': p.created_at, 'atualizado_em': p.updated_at}
     if full:
         data.update(texto=p.body, hashtags=p.hashtags, sugestao_imagem=p.image_hint, imagem_url=p.image_url,
+                    imagem_origem=p.image_source,
                     texto_final=services.full_text(p))
     return data
 
@@ -160,9 +161,10 @@ class PieceDetailView(_Scoped):
             p.hashtags, changed = [str(t).strip().lstrip('#').replace(' ', '')[:40] for t in d['hashtags'] if str(t).strip()][:8], True
         if 'imagem_url' in d:
             url = str(d['imagem_url'] or '').strip()
-            if url and not url.startswith('https://'):
-                return Response({'detail': 'A imagem precisa ser uma URL https pública.'}, status=status.HTTP_400_BAD_REQUEST)
-            p.image_url = url[:500]
+            if url != p.image_url:                       # a gerada pelo Cadrius (CAD-226) já foi validada
+                if url and not url.startswith('https://'):
+                    return Response({'detail': 'A imagem precisa ser uma URL https pública.'}, status=status.HTTP_400_BAD_REQUEST)
+                p.image_url, p.image_source = url[:500], ''
         if 'agendado_para' in d:
             when = parse_datetime(str(d['agendado_para'] or '')) if d['agendado_para'] else None
             if d['agendado_para'] and when is None:
@@ -227,6 +229,53 @@ class PiecePublishView(PieceDetailView):
         return Response(piece_json(p))
 
 
+class PieceImageView(PieceDetailView):
+    """CAD-226: POST {modo: 'ia' | 'marca'} → gera a imagem do conteúdo e devolve o conteúdo com a URL pública."""
+
+    def post(self, request, pk):
+        from marketing import images
+        org, err = self.ctx(request, 'write')
+        if err:
+            return err
+        p = self._get(org, pk)
+        if p is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        mode = 'marca' if request.data.get('modo') == 'marca' else 'ia'
+        if request.data.get('sugestao_imagem'):
+            p.image_hint = str(request.data['sugestao_imagem']).strip()[:500]
+            p.save(update_fields=['image_hint', 'updated_at'])
+        try:
+            p, notice = images.generate(p, request.user, mode=mode, request=request)
+        except images.ImageError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_402_PAYMENT_REQUIRED)
+        audit.log('marketing.image_generated', actor=request.user, organization=org, target=p,
+                  changes={'origem': p.image_source, 'modo': mode})
+        return Response({**piece_json(p), 'aviso': notice})
+
+
+class PublicImageView(APIView):
+    """Imagem do conteúdo por link assinado (o Instagram busca a imagem por URL pública)."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        from django.core import signing
+        from django.core.files.storage import default_storage
+        from django.http import FileResponse, Http404
+        from marketing import images
+        try:
+            data = images.read_token(token)
+        except signing.BadSignature as exc:
+            raise Http404 from exc
+        p = ContentPiece.objects.filter(pk=data.get('p'), image_file=data.get('f')).only('image_file').first()
+        if p is None or not p.image_file or not default_storage.exists(p.image_file):
+            raise Http404
+        resp = FileResponse(default_storage.open(p.image_file, 'rb'), content_type='image/png')
+        resp['Cache-Control'] = 'public, max-age=86400'
+        resp['X-Content-Type-Options'] = 'nosniff'
+        return resp
+
+
 class CampaignListView(_Scoped):
     def get(self, request):
         org, err = self.ctx(request)
@@ -286,6 +335,10 @@ class StaffPieceDetailView(StaffMixin, PieceDetailView):
 
 
 class StaffPiecePublishView(StaffMixin, PiecePublishView):
+    pass
+
+
+class StaffPieceImageView(StaffMixin, PieceImageView):
     pass
 
 

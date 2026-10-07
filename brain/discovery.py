@@ -106,7 +106,7 @@ def _ask_ai(org, user, text: str, topics: list[str]):
     providers = llm.candidates(get_policy(org).allowed_providers, sensitive=True, profile='automacao', org=org)
     if not providers:
         return None
-    ok, _ = charge(org, 'assistant', user_id=getattr(user, 'pk', None))
+    ok, _ = charge(org, 'automation_draft', user_id=getattr(user, 'pk', None))
     if not ok:
         return None
     catalog = '\n'.join(f'- {k}: {t["name"]}. {t["description"]}' for k, t in TEMPLATES.items())

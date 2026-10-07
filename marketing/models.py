@@ -61,6 +61,8 @@ class ContentPiece(models.Model):
     hashtags = models.JSONField(default=list, blank=True)
     image_hint = models.CharField(max_length=500, blank=True, default='')    # sugestão de imagem/arte
     image_url = models.URLField(max_length=500, blank=True, default='')      # imagem pública (Instagram exige)
+    image_file = models.CharField(max_length=300, blank=True, default='')    # CAD-226: imagem gerada (armazenamento do Cadrius)
+    image_source = models.CharField(max_length=10, blank=True, default='')   # openai | gemini | marca
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True)
     scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True)
     published_at = models.DateTimeField(null=True, blank=True)

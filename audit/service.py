@@ -51,7 +51,7 @@ ACTIONS = frozenset({
     'draft.created', 'draft.updated', 'draft.deleted', 'draft.exported', 'draft.template_saved',
     'automation.suggestion_decided', 'automation.discovery', 'brain.profile_updated', 'connection.tested', 'signature.requested', 'billing.charge_created',
     'marketing.content_created', 'marketing.content_updated', 'marketing.content_deleted', 'marketing.content_published',
-    'marketing.campaign_saved',
+    'marketing.campaign_saved', 'marketing.image_generated',
     'crm.opportunity_saved', 'crm.stage_changed', 'crm.agreement_created', 'crm.agreement_canceled', 'crm.success_registered',
     'finance.receivable_saved', 'finance.receivable_paid', 'finance.receivable_reopened', 'finance.expense_created',
     'finance.expense_deleted', 'finance.webhook_configured',
