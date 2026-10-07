@@ -97,11 +97,30 @@ class ConversationListView(_Base):
         conv = Conversation.objects.create(organization=ctx.org, user=ctx.user, mode=mode, **fields)
         text = request.data.get('mensagem')
         if text:
+            text, derr = with_document(ctx, str(text), request.data.get('documento_id'))
+            if derr:
+                conv.delete()
+                return derr
             try:
                 engine.ask(ctx, conv, str(text))
             except engine.AssistantError as exc:
                 return Response({'detail': str(exc), 'conversa': conv_json(conv, True)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(conv_json(conv, True), status=status.HTTP_201_CREATED)
+
+
+def with_document(ctx, text: str, doc_id):
+    """CAD-226: documento escolhido na tela → marcador no fim da mensagem (a IA lê com ``ler_documento``). Devolve (texto, erro)."""
+    if not doc_id:
+        return text, None
+    from assistant.tools import TOOLS, tool_permitted
+    from documents.models import Document
+    if not tool_permitted(ctx, TOOLS['ler_documento']):
+        return text, Response({'detail': 'O seu acesso não libera Documentos.'}, status=status.HTTP_403_FORBIDDEN)
+    doc = Document.objects.filter(organization=ctx.org, pk=doc_id).only('pk', 'nome').first() if str(doc_id).isdigit() else None
+    if doc is None:
+        return text, Response({'detail': 'Documento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+    name = doc.nome.replace('"', "'").replace(']', ')')[:120]
+    return f'{text}\n\n[documento:{doc.pk} "{name}"]', None
 
 
 class ConversationDetailView(_Base):
@@ -121,8 +140,13 @@ class ConversationDetailView(_Base):
         conv = self.conv(ctx, pk)
         if not conv:
             return Response({'detail': 'Conversa não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        text = str(request.data.get('mensagem') or '')
+        if text.strip():
+            text, derr = with_document(ctx, text, request.data.get('documento_id'))
+            if derr:
+                return derr
         try:
-            engine.ask(ctx, conv, str(request.data.get('mensagem') or ''))
+            engine.ask(ctx, conv, text)
         except engine.AssistantError as exc:
             return Response({'detail': str(exc), 'conversa': conv_json(conv, True)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(conv_json(conv, True))

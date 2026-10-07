@@ -98,6 +98,12 @@ def _system(ctx: Ctx, conv=None, query: str = '') -> str:
     if conv is not None and conv.mode == 'caso':
         caso = conv.case.cnj if conv.case_id else (conv.title or 'em análise')
         text += CASE_MODE.format(caso=caso, pid=f' (processo_id={conv.case_id})' if conv.case_id else ' se houver processo')
+    recent = list(conv.messages.filter(role=Message.Role.USER).order_by('-created_at')[:HISTORY]) if conv is not None and conv.pk else []
+    if '[documento:' in (query or '') or any('[documento:' in (m.content or '') for m in recent):   # conteúdo é cifrado: confere aqui
+        text += ('\nQuando uma mensagem terminar com [documento:ID "nome"], a pessoa escolheu esse documento: chame ler_documento(id=ID) '
+                 'antes de responder e baseie a resposta nele. Para "extrair", devolva os dados organizados (partes, números, datas, '
+                 'valores, prazos, pedidos). Para "planejar", monte um plano de ação com etapas, responsáveis sugeridos e datas, e '
+                 'ofereça criar as tarefas ou salvar o plano em Minutas.')
     if settings_.use_memory and query:
         text += _memory_block(ctx, query)
     return text
