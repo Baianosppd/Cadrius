@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 import hashlib
 import secrets
 from datetime import timedelta
@@ -9,6 +10,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core import signing
+from django.core.cache import cache
 from django.http import HttpResponseRedirect
 from django.utils import timezone
 from django.views import View
@@ -22,9 +24,17 @@ from gcal import google_api as g
 from gcal.models import ExternalEvent, GoogleCalendarApp, GoogleCalendarLink
 from gcal.sync import pull_link
 
-STATE_COOKIE = 'cadrius_gcal'
+logger = logging.getLogger(__name__)
+
 STATE_MAX_AGE = 600
 SALT = 'cadrius.gcal'
+# CAD-225: o "state" do OAuth fica no servidor (cache, uso único), e não num cookie. O cookie era gravado numa
+# chamada da tela (app-teste → api-teste) sem credenciais e o navegador o descartava: todo retorno virava "state_invalid".
+PENDING_KEY = 'gcal:oauth:{}'
+
+
+def _pending_key(nonce: str) -> str:
+    return PENDING_KEY.format(hashlib.sha256(nonce.encode()).hexdigest())
 
 
 def redirect_uri(request=None) -> str:
@@ -135,23 +145,22 @@ class GCalConnectView(APIView):
         app = GoogleCalendarApp.objects.filter(organization=membership.organization, enabled=True).first() if membership else None
         if app is None:
             return Response({'detail': 'O escritório ainda não configurou o app do Google.'}, status=status.HTTP_400_BAD_REQUEST)
-        state, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
+        nonce, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
+        state = signing.dumps({'n': nonce}, salt=SALT)
+        cache.set(_pending_key(nonce), {'u': str(request.user.pk), 'a': app.pk, 'v': verifier}, STATE_MAX_AGE)
         params = {'client_id': app.client_id, 'redirect_uri': redirect_uri(request), 'response_type': 'code', 'scope': g.SCOPE,
                   'access_type': 'offline', 'prompt': 'consent', 'include_granted_scopes': 'true', 'state': state,
                   'code_challenge': _pkce(verifier), 'code_challenge_method': 'S256'}
-        cookie = signing.dumps({'u': str(request.user.pk), 'a': app.pk, 's': state, 'v': verifier}, salt=SALT)
-        response = Response({'authorization_url': f'{g.AUTH_URL}?{urlencode(params)}'})
-        response.set_cookie(STATE_COOKIE, cookie, max_age=STATE_MAX_AGE, httponly=True, samesite='Lax', secure=not settings.DEBUG)
-        return response
+        return Response({'authorization_url': f'{g.AUTH_URL}?{urlencode(params)}'})
 
 
 class GCalCallbackView(View):
-    """GET público (o Google redireciona o navegador): confere state/cookie, troca o code com as credenciais do escritório e guarda o refresh token."""
+    """GET público (o Google redireciona o navegador): confere o state (assinado + pendente no servidor, uso único), troca o code
+    com as credenciais do escritório e guarda o refresh token."""
     http_method_names = ['get']
 
     def _back(self, result):
         response = HttpResponseRedirect(f"{settings.FRONTEND_URL}/integracoes?gcal={result}")
-        response.delete_cookie(STATE_COOKIE)
         response['Referrer-Policy'] = 'no-referrer'
         return response
 
@@ -159,10 +168,12 @@ class GCalCallbackView(View):
         if request.GET.get('error'):
             return self._back('denied')
         try:
-            data = signing.loads(request.COOKIES.get(STATE_COOKIE, ''), salt=SALT, max_age=STATE_MAX_AGE)
-        except signing.BadSignature:
+            nonce = signing.loads(request.GET.get('state', ''), salt=SALT, max_age=STATE_MAX_AGE)['n']
+        except (signing.BadSignature, KeyError, TypeError):
             return self._back('state_invalid')
-        if not secrets.compare_digest(str(data.get('s')), request.GET.get('state', '')) or not request.GET.get('code'):
+        data = cache.get(_pending_key(nonce))
+        cache.delete(_pending_key(nonce))                    # uso único
+        if not data or not request.GET.get('code'):
             return self._back('state_invalid')
         app = GoogleCalendarApp.objects.filter(pk=data['a'], enabled=True).select_related('organization').first()
         from django.contrib.auth import get_user_model
@@ -171,8 +182,10 @@ class GCalCallbackView(View):
             return self._back('state_invalid')
         try:
             tokens = g.exchange_code(app.client_id, app.client_secret, request.GET['code'], redirect_uri(request), data['v'])
-        except g.GoogleAuthError:
-            return self._back('code_rejected')
+        except g.GoogleAuthError as exc:
+            logger.warning('Google Agenda: troca do código recusada (%s)', str(exc)[:120])
+            reason = {'redirect_uri_mismatch': 'redirect_mismatch', 'invalid_grant': 'code_expired'}.get(getattr(exc, 'code', ''), 'code_rejected')
+            return self._back(reason)
         refresh = tokens.get('refresh_token')
         if not refresh:
             return self._back('no_refresh_token')   # o Google só devolve na 1ª autorização: revogue o acesso e conecte de novo

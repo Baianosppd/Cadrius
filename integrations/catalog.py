@@ -16,6 +16,8 @@ CATALOG = {
             {'key': 'base_url', 'label': 'URL do servidor Evolution', 'placeholder': 'https://wpp.seudominio.com'},
         ],
         'guia': [
+            'Mais fácil: use o cartão "WhatsApp do escritório" no topo desta tela (sem servidor, só o número e o celular). '
+            'Este formulário é para quem já tem uma Evolution API própria.',
             'No painel da sua Evolution API, abra "Instâncias" e copie o nome da instância conectada ao número do escritório.',
             'Em "Configurações" → "API Key", copie a chave (global ou da instância).',
             'Se a Evolution é hospedada por você, informe a URL pública dela (https://…). Sem URL, usamos o servidor do Cadrius.',

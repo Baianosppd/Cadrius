@@ -137,6 +137,8 @@ def triage_email(email_id) -> str | None:
             pass
         result['summary'] = (ai.get('resumo') or '')[:1000]
         method = 'ia'
+        from billing.credits import charge
+        charge(org, 'triage', user_id=em.mailbox.user_id)                     # CAD-225
     tri = EmailTriage.objects.create(email=em, organization=org, category=result['category'], urgency=result['urgency'],
                                      summary=result.get('summary', '') or em.subject[:300], suggested_action=result['suggested_action'],
                                      due_date=result['due_date'], contact=contact, method=method)

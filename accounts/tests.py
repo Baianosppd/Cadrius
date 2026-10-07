@@ -639,6 +639,7 @@ class TeamCreditsTests(APITestCase):
             'creditos_distribuidos': 40,
             'creditos_nao_distribuidos': 60,
             'creditos_avulsos': 0,
+            'uso_por_atividade': [],                 # CAD-225: pedidos à IA no mês (aqui nenhum)
         })
 
 class UserProfileContextTests(APITestCase):
