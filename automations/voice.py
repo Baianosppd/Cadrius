@@ -171,6 +171,7 @@ def handle(device, text: str, *, dry_run: bool = False) -> dict:
         if dry_run:
             return {'ok': True, 'acao': 'aprovar' if approve else 'recusar', 'fala': f'(teste) {"Aprovaria" if approve else "Recusaria"} {_describe(run)}.'}
         from automations import engine
+        desc = _describe(run)                                 # antes de decidir: depois os passos já não estão "aguardando"
         try:
             if approve:
                 engine.approve(run, user)
@@ -181,7 +182,7 @@ def handle(device, text: str, *, dry_run: bool = False) -> dict:
         audit.log('device.decision', actor=user, organization=org, target=run.rule,
                   changes={'execucao': run.pk, 'decisao': 'aprovada' if approve else 'recusada', 'aparelho': device.pk})
         return {'ok': True, 'acao': 'aprovar' if approve else 'recusar',
-                'fala': f'{"Aprovado" if approve else "Recusado"}: {_describe(run)}.'}
+                'fala': f'{"Aprovado" if approve else "Recusado"}: {desc}.'}
 
     if re.search(r'\b(pendenc\w*|aprovac\w*|aguardando|aprovar)\b', norm):
         runs = pending_runs(org)

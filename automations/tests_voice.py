@@ -81,6 +81,7 @@ class VoiceTests(TestCase):
         with mock.patch('integrations.email_layout.send', return_value='cadrius') as send:
             r = self.say(d['url_voz'], f'aprovar {" ".join(code)}').json()           # "4 8 2 1" ditado
         self.assertTrue(r['ok'], r)
+        self.assertIn('mensagem ao cliente', r['fala'])
         send.assert_called_once()
         run.refresh_from_db()
         self.assertEqual((run.status, run.decided_by), (RuleRun.Status.SUCCESS, self.owner))
