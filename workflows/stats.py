@@ -3,6 +3,8 @@ from django.db.models import Sum
 
 from .models import ExecutionLog, Workflow
 
+MINUTES_PER_STEP = 3
+
 
 def automation_stats_for_organization(organization) -> dict:
     """
@@ -31,8 +33,17 @@ def automation_stats_for_organization(organization) -> dict:
     )["total"] or 0
     tempo_economizado = int(total_ms // (1000 * 60 * 60))
 
+    # CAD-227: as Regras do escritório também são automações (antes o topo mostrava 0 com regra ligada).
+    # Tempo economizado = estimativa de 3 minutos de trabalho manual por passo feito (não o tempo de máquina).
+    from automations.models import Rule, RuleRun
+    regras_ativas = Rule.objects.filter(organization=organization, enabled=True).count()
+    runs = RuleRun.objects.filter(organization=organization).exclude(status=RuleRun.Status.SKIPPED)
+    passos = sum(1 for r in runs.only("steps")[:5000] for st in (r.steps or []) if st.get("status") == "feito")
+    minutos = (passos + total_execucoes) * MINUTES_PER_STEP
+
     return {
-        "automacoes_ativas": automacoes_ativas,
-        "total_execucoes": total_execucoes,
+        "automacoes_ativas": automacoes_ativas + regras_ativas,
+        "total_execucoes": total_execucoes + runs.count(),
         "tempo_economizado": tempo_economizado,
+        "tempo_economizado_min": minutos,
     }
