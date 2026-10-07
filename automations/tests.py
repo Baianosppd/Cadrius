@@ -107,7 +107,7 @@ class ApiFlowTests(Base):
         self.assertTrue(res.json()['desligada_para_simular'])
         self.assertFalse(res.json()['ativa'])
         self.assertTrue(AuditEvent.objects.filter(action='automation.rule_enabled').exists())
-        self.assertEqual(len(self.c.get('/api/v1/automations/catalog/').json()['gatilhos']), 25)   # +8 no CAD-222, +10 no CAD-223
+        self.assertEqual(len(self.c.get('/api/v1/automations/catalog/').json()['gatilhos']), 26)   # +8 no CAD-222, +10 no CAD-223, +1 no CAD-226
         self.assertEqual(len(self.c.get('/api/v1/automations/templates/').json()), len(TEMPLATES))
 
     def test_permissoes_e_isolamento(self):

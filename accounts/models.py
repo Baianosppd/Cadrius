@@ -119,6 +119,9 @@ class CustomUser(PIIIndexMixin, AbstractUser):
     )
     # CAD-221: senha temporária definida pela TI → a API só libera /auth/* até a pessoa trocar a senha
     must_change_password = models.BooleanField(default=False, verbose_name="Trocar senha no próximo acesso")
+    # CAD-226: assinatura dos e-mails (texto + imagem opcional da assinatura/logo, como data URL PNG/JPEG de até 200 KB)
+    email_signature = EncryptedTextField(blank=True, default='')
+    email_signature_image = models.TextField(blank=True, default='')
 
     @property
     def organization(self):

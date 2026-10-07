@@ -10,6 +10,13 @@ T = Rule.Trigger
 
 COMMON_VARS = {'escritorio.nome': 'Nome do escritório', 'hoje': 'Data de hoje', 'responsavel.nome': 'Responsável'}
 TRIGGERS = {
+    T.SHORTCUT: {
+        'label': 'Atalho (relógio, celular ou voz)',
+        'help': 'Quando alguém aciona o link secreto da regra: atalho do Apple Watch/iPhone, botão do Android/Wear OS, Alexa ou '
+                'Google pelo IFTTT. Bom para "cheguei ao fórum", "acabou a audiência", "me lembre de ligar para o cliente".',
+        'vars': {'atalho.texto': 'Texto ditado ou enviado (opcional)', 'atalho.origem': 'De onde veio (relógio, celular…)',
+                 'atalho.quando': 'Data e hora do acionamento', 'atalho.pessoa': 'Quem criou o atalho'},
+        'destinatarios': []},
     T.DOCUMENT_CONFIRMED: {
         'label': 'Documento confirmado', 'help': 'Quando alguém (ou a autonomia) confirma a leitura de um documento.',
         'vars': {'documento.nome': 'Nome do arquivo', 'documento.tipo': 'Tipo do documento', 'processo.cnj': 'Nº do processo lido',
@@ -164,9 +171,10 @@ ACTIONS = {
                       'params': {'destinatario': 'cliente | contato', 'mensagem': 'Mensagem'}},
     'send_message': {'label': 'Avisar o cliente (melhor canal autorizado)', 'externo': True,
                      'params': {'destinatario': 'cliente | contato', 'canal': 'melhor | whatsapp | email', 'assunto': 'Assunto (e-mail)',
-                                'mensagem': 'Mensagem'}},
+                                'mensagem': 'Mensagem', 'visual': 'Visual do e-mail: padrao | moderno | classico | simples'}},
     'send_email': {'label': 'Enviar e-mail ao contato', 'externo': True,
-                   'params': {'destinatario': 'cliente | contato', 'assunto': 'Assunto', 'mensagem': 'Mensagem'}},
+                   'params': {'destinatario': 'cliente | contato', 'assunto': 'Assunto', 'mensagem': 'Mensagem',
+                              'visual': 'Visual do e-mail: padrao | moderno | classico | simples'}},
     'send_survey': {'label': 'Pedir avaliação ao cliente (pesquisa de satisfação)', 'externo': True,
                     'params': {'destinatario': 'cliente', 'canal': 'melhor | whatsapp | email', 'motivo': 'Motivo (ex.: Contrato concluído)',
                                'mensagem': 'Mensagem (o link da pesquisa entra no fim)'}},
@@ -312,6 +320,11 @@ def clean_actions(trigger: str, actions) -> list:
             params = {'destinatario': dest, 'mensagem': _text(p, 'mensagem', required=True, limit=1000)}
             if kind == 'send_email':
                 params['assunto'] = _text(p, 'assunto', required=True, limit=150)
+            if kind in ('send_email', 'send_message') and p.get('visual') not in (None, '', 'padrao'):
+                from integrations.email_layout import LAYOUTS
+                if p['visual'] not in LAYOUTS:
+                    raise RuleError(f'Visual do e-mail: padrao, {", ".join(LAYOUTS)}.')
+                params['visual'] = p['visual']
             if kind == 'send_message':
                 canal = p.get('canal', 'melhor')
                 if canal not in ('melhor', 'whatsapp', 'email'):

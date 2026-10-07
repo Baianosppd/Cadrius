@@ -90,7 +90,7 @@ class HyperautomationTests(Base):
                                              text('Preparei.')])
         act = res.data['acoes'][0]
         self.assertIn('e-mail', act['resumo'])
-        with mock.patch('integrations.services.send_office_email', return_value=True) as send:
+        with mock.patch('integrations.email_layout.send', return_value='escritorio') as send:
             out = self.c.post(f'{BASE}actions/{act["id"]}/decide/', {'decisao': 'confirmar'}, format='json')
         send.assert_called_once()
         self.assertEqual(out.data['acoes'][0]['status'], 'done')

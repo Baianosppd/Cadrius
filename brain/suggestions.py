@@ -164,7 +164,8 @@ def refresh(org, notify=True) -> list:
     keys = {f[0] for f in found}
     created = []
     with transaction.atomic():
-        AutomationSuggestion.objects.filter(organization=org, status=S.OPEN).exclude(key__in=keys).delete()   # o padrão sumiu ou já há regra
+        (AutomationSuggestion.objects.filter(organization=org, status=S.OPEN).exclude(key__in=keys)
+         .exclude(key__startswith='entrevista:').delete())   # as da entrevista (CAD-226) não vêm dos detectores   # o padrão sumiu ou já há regra
         for key, title, reason, evidence, payload in found:
             s = AutomationSuggestion.objects.filter(organization=org, key=key).first()
             if s is None:
@@ -210,6 +211,7 @@ def accept(suggestion: AutomationSuggestion, user):
         clean = catalog.clean_rule(data)
     except catalog.RuleError as exc:
         raise SuggestionError(str(exc)) from exc
+    clean.pop('description', None)              # modelos prontos trazem a própria descrição: vale a da sugestão
     with transaction.atomic():
         rule = Rule.objects.create(organization=suggestion.organization, created_by=user, template_key=key, enabled=False,
                                    description=f'Sugerida pela IA: {suggestion.title}'[:500], **clean)

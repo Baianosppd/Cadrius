@@ -120,7 +120,8 @@ def plan_step(org, rule, action, ctx) -> dict:
     elif kind in ('send_message', 'send_survey'):
         from automations import messaging
         contact = _contact(org, ctx, p['destinatario'])
-        data = {'mensagem': render(p['mensagem'], ctx)[:1000], 'assunto': render(p.get('assunto', ''), ctx)[:150], 'canal': p['canal']}
+        data = {'mensagem': render(p['mensagem'], ctx)[:1000], 'assunto': render(p.get('assunto', ''), ctx)[:150], 'canal': p['canal'],
+                'visual': p.get('visual', '')}
         if kind == 'send_survey':                       # CAD-223: o link único da pesquisa é criado na hora do envio
             data.update(assunto=f'Sua opinião sobre {org.name}'[:150], motivo=render(p.get('motivo', ''), ctx)[:120])
         if contact is None:
@@ -148,6 +149,7 @@ def plan_step(org, rule, action, ctx) -> dict:
         data = {'contato_id': contact.pk, 'nome': contact.name, 'mensagem': render(p['mensagem'], ctx)[:1000]}
         if channel == 'email':
             data['assunto'] = render(p['assunto'], ctx)[:150]
+            data['visual'] = p.get('visual', '')
         if not contact.can_receive(channel):
             return {**step, 'status': 'bloqueado', 'dados': data,
                     'detalhe': f'{contact.name} não autorizou {"WhatsApp" if channel == "whatsapp" else "e-mail"} '
@@ -230,7 +232,7 @@ def perform(org, rule, run, step, index, force=False) -> dict:
                 survey = leads.create_survey(org, contact, d.get('motivo', ''))
                 text = f'{text}\n\n{leads.survey_link(survey)}'
             used = messaging.deliver(org, contact, wanted, text, d.get('assunto', ''),
-                                     origin={'regra': rule.pk, 'execucao': run.pk})
+                                     origin={'regra': rule.pk, 'execucao': run.pk}, user=rule.created_by, layout=d.get('visual', ''))
             return {**step, 'status': 'feito', 'resultado': {'canal': used}}
         if step['tipo'] == 'team_chat':
             from integrations.models import AppConnection

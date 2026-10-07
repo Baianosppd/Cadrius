@@ -245,6 +245,32 @@ class SuggestionsView(APIView):
         return Response({'novas': len(created), **self.get(request).data})
 
 
+class DiscoveryView(APIView):
+    """CAD-226 — "Fale sobre seu processo". GET → temas da entrevista. POST {texto, temas[]} (dono/admin) → sugestões."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from brain import discovery
+        return Response({'temas': [{'id': k, 'label': v[0]} for k, v in discovery.TOPICS.items()]})
+
+    def post(self, request):
+        from brain import discovery
+        org, m = _ctx(request)
+        if org is None:
+            return _no_org()
+        if m.role not in MANAGE_TEAM_ROLES:
+            return _forbidden()
+        text = str(request.data.get('texto') or '')
+        topics = request.data.get('temas') or []
+        if not isinstance(topics, list):
+            topics = []
+        if len(text.strip()) < 10 and not topics:
+            return Response({'detail': 'Conte um pouco do seu dia a dia ou marque ao menos um tema.'}, status=status.HTTP_400_BAD_REQUEST)
+        result = discovery.discover(org, request.user, text, [str(t) for t in topics[:10]])
+        return Response({'origem': result['origem'], 'temas': result['temas'],
+                         'sugestoes': [suggestion_payload(s) for s in result['sugestoes']]})
+
+
 class SuggestionDecideView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     decision = 'accept'

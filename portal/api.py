@@ -11,7 +11,6 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
-from django.core.mail import send_mail
 from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -99,14 +98,13 @@ class LinksView(APIView):
             if not contact.can_receive('email'):
                 sent = 'sem_consentimento'
             else:
-                from integrations.services import send_office_email
+                from integrations import email_layout
                 subject = f'{m.organization}: acompanhe seu processo'
                 body = (f'Olá, {contact.name.split()[0]}!\n\nPreparamos um acesso para você acompanhar seu(s) processo(s) e honorários:\n'
                         f'{url}\n\nO link é pessoal, vale até {timezone.localtime(link.expires_at):%d/%m/%Y} e não deve ser '
-                        f'compartilhado.\n\n{m.organization}')
+                        'compartilhado.')
                 try:
-                    if not send_office_email(m.organization, subject, body, [contact.email]):
-                        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [contact.email])
+                    email_layout.send(m.organization, subject, body, [contact.email], user=request.user)
                     sent = 'email'
                 except Exception:  # noqa: BLE001 — o link existe; a equipe pode copiar e enviar
                     sent = 'falhou'

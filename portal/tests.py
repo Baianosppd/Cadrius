@@ -90,6 +90,6 @@ class PortalTests(APITestCase):
     def test_sem_consentimento_nao_envia(self):
         self.cli.email_consent = False
         self.cli.save()
-        with mock.patch('integrations.services.send_office_email') as send:
+        with mock.patch('integrations.email_layout.send') as send:
             self.assertEqual(self.create(enviar_email=True).json()['envio'], 'sem_consentimento')
         send.assert_not_called()

@@ -369,6 +369,18 @@ def monthly_goal(org, refs):
     return ctx, f'Meta do mês: {g["pct"]}%'[:200]
 
 
+def shortcut(org, refs):
+    """CAD-226: atalho acionado pelo relógio/celular/voz. refs = {texto, origem, quando, pessoa}."""
+    from django.contrib.auth import get_user_model
+    texto = str(refs.get('texto') or '').strip()[:500]
+    user = get_user_model().objects.filter(pk=refs['user_id']).first() if refs.get('user_id') else None
+    owner = _user(user) if _is_member(org, user) else {}      # tarefas e avisos vão para quem criou o atalho
+    ctx = {**_base(org), 'atalho': {'texto': texto, 'origem': str(refs.get('origem') or 'atalho')[:40],
+                                    'quando': str(refs.get('quando') or ''), 'pessoa': owner.get('nome', '')},
+           'responsavel': owner}
+    return ctx, (f'Atalho: {texto}' if texto else 'Atalho acionado')[:200]
+
+
 BUILDERS = {'document_confirmed': document_confirmed, 'case_movement': case_movement, 'deadline_soon': deadline_soon,
             'contact_created': contact_created, 'schedule': schedule, 'publication_new': publication_new,
             'receivable_due': receivable_due, 'email_received': email_received, 'calendar_event': calendar_event,
@@ -377,7 +389,7 @@ BUILDERS = {'document_confirmed': document_confirmed, 'case_movement': case_move
             'lead_captured': lead_captured, 'survey_answered': survey_answered, 'nfse_issued': nfse_issued,
             'expense_created': expense_created, 'court_suspension': court_suspension, 'contact_birthday': contact_birthday,
             'opportunity_stale': opportunity_stale, 'case_stale': case_stale, 'contract_ending': contract_ending,
-            'monthly_goal': monthly_goal}
+            'monthly_goal': monthly_goal, 'shortcut': shortcut}
 
 
 def build(trigger, org, refs):
@@ -387,6 +399,8 @@ def build(trigger, org, refs):
 
 def sample_refs(trigger, org) -> dict | None:
     """Referências do evento real mais recente do escritório, para a simulação usar dados de verdade quando houver."""
+    if trigger == 'shortcut':
+        return None                                       # o atalho não deixa rastro: a simulação usa o exemplo
     if trigger == 'document_confirmed':
         from documents.models import DocumentExtraction
         ex = DocumentExtraction.objects.filter(document__organization=org, status=DocumentExtraction.Status.CONFIRMED).order_by('-reviewed_at').first()
@@ -475,6 +489,8 @@ def example(trigger, org) -> tuple[dict, str]:
                           'dias_uteis_restantes': '3'},
         'contact_created': {**base, 'contato': person},
         'schedule': base,
+        'shortcut': {**base, 'atalho': {'texto': 'Ligar para a Maria sobre a audiência', 'origem': 'relógio',
+                                        'quando': timezone.localtime().strftime('%d/%m/%Y %H:%M'), 'pessoa': 'Responsável (exemplo)'}},
         'publication_new': {**base, 'publicacao': {'ato': 'Sentença', 'tipo': 'Intimação', 'tribunal': 'TJSP', 'orgao': '1ª Vara Cível',
                                                    'providencia': 'Avaliar recurso.'},
                             'processo': {'cnj': '0000000-00.2026.8.26.0000'},
