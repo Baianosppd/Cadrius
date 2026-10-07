@@ -42,6 +42,8 @@ class Rule(models.Model):
         CASE_STALE = 'case_stale', 'Processo sem andamento'
         CONTRACT_ENDING = 'contract_ending', 'Contrato de honorários terminando'
         MONTHLY_GOAL = 'monthly_goal', 'Acompanhamento da meta do mês'
+        # CAD-226: relógio, celular ou assistente de voz chamam uma URL secreta da regra
+        SHORTCUT = 'shortcut', 'Atalho (relógio, celular ou voz)'
 
     organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='automation_rules')
     name = models.CharField(max_length=120)
@@ -58,6 +60,7 @@ class Rule(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_run_at = models.DateTimeField(null=True, blank=True)
+    shortcut_key_hash = models.CharField(max_length=64, blank=True, default='')   # CAD-226: SHA-256 da chave do atalho (a chave só aparece 1 vez)
     run_count = models.PositiveIntegerField(default=0)
 
     class Meta:

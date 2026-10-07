@@ -10,6 +10,13 @@ T = Rule.Trigger
 
 COMMON_VARS = {'escritorio.nome': 'Nome do escritório', 'hoje': 'Data de hoje', 'responsavel.nome': 'Responsável'}
 TRIGGERS = {
+    T.SHORTCUT: {
+        'label': 'Atalho (relógio, celular ou voz)',
+        'help': 'Quando alguém aciona o link secreto da regra: atalho do Apple Watch/iPhone, botão do Android/Wear OS, Alexa ou '
+                'Google pelo IFTTT. Bom para "cheguei ao fórum", "acabou a audiência", "me lembre de ligar para o cliente".',
+        'vars': {'atalho.texto': 'Texto ditado ou enviado (opcional)', 'atalho.origem': 'De onde veio (relógio, celular…)',
+                 'atalho.quando': 'Data e hora do acionamento', 'atalho.pessoa': 'Quem criou o atalho'},
+        'destinatarios': []},
     T.DOCUMENT_CONFIRMED: {
         'label': 'Documento confirmado', 'help': 'Quando alguém (ou a autonomia) confirma a leitura de um documento.',
         'vars': {'documento.nome': 'Nome do arquivo', 'documento.tipo': 'Tipo do documento', 'processo.cnj': 'Nº do processo lido',

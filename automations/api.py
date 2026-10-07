@@ -25,7 +25,8 @@ def rule_json(rule: Rule) -> dict:
             'acoes': rule.actions, 'exige_aprovacao': rule.require_approval, 'modelo': rule.template_key,
             'simulada': rule.simulated, 'execucoes': rule.run_count, 'ultima_execucao': rule.last_run_at,
             'criada_em': rule.created_at, 'atualizada_em': rule.updated_at,
-            'pendentes': rule.runs.filter(status=RuleRun.Status.PENDING).count()}
+            'pendentes': rule.runs.filter(status=RuleRun.Status.PENDING).count(),
+            'atalho_configurado': bool(rule.shortcut_key_hash)}
 
 
 def run_json(run: RuleRun) -> dict:
@@ -161,6 +162,53 @@ class RuleEnableView(_Base):
         audit.log('automation.rule_enabled' if on else 'automation.rule_disabled', actor=request.user, organization=m.organization,
                   target=rule, changes={'exige_aprovacao': rule.require_approval})
         return Response(rule_json(rule))
+
+
+class RuleShortcutView(_Base):
+    """CAD-226: POST gera (ou troca) o link secreto do atalho. A URL completa aparece só nesta resposta."""
+
+    def post(self, request, pk):
+        from automations import shortcuts
+        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        if err:
+            return err
+        rule = self.rule(m, pk)
+        if rule is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if rule.trigger != Rule.Trigger.SHORTCUT:
+            return Response({'detail': 'Só regras com o gatilho "Atalho" têm link.'}, status=status.HTTP_400_BAD_REQUEST)
+        url = shortcuts.rotate(rule)
+        audit.log('automation.shortcut_rotated', actor=request.user, organization=m.organization, target=rule)
+        return Response({'url': url, 'aviso': 'Guarde este link: ele não aparece de novo. Gerar outro invalida este.'})
+
+
+class PublicShortcutView(APIView):
+    """POST /api/v1/publico/atalho/<regra>/<chave>/ {texto?, origem?} — chamado pelo relógio, celular ou assistente de voz."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = []
+
+    def post(self, request, rule_id, key):
+        from automations import shortcuts
+        from core.queue import QueueUnavailable
+        rule = Rule.objects.filter(pk=rule_id, trigger=Rule.Trigger.SHORTCUT).select_related('organization').first()
+        if rule is None or not shortcuts.check(rule, key):
+            return Response({'ok': False, 'mensagem': 'Atalho inválido.'}, status=status.HTTP_404_NOT_FOUND)
+        if not rule.enabled or not rule.organization.is_active:
+            return Response({'ok': False, 'mensagem': f'A regra "{rule.name}" está desligada no Cadrius.'}, status=status.HTTP_409_CONFLICT)
+        if shortcuts.throttled(rule):
+            return Response({'ok': False, 'mensagem': 'Muitos acionamentos em sequência. Espere um minuto.'},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+        data = request.data if isinstance(request.data, dict) else {}
+        texto = str(data.get('texto') or data.get('text') or '')
+        try:
+            shortcuts.fire(rule, texto, str(data.get('origem') or data.get('source') or ''))
+        except QueueUnavailable:
+            return Response({'ok': False, 'mensagem': 'O Cadrius não conseguiu receber agora. Tente de novo.'},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        audit.log('automation.shortcut_fired', actor_type='system', organization=rule.organization, target=rule,
+                  changes={'texto_chars': len(texto)})
+        return Response({'ok': True, 'mensagem': f'Feito: {rule.name}.'})
 
 
 class RunListView(_Base):
