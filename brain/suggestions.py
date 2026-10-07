@@ -164,7 +164,8 @@ def refresh(org, notify=True) -> list:
     keys = {f[0] for f in found}
     created = []
     with transaction.atomic():
-        AutomationSuggestion.objects.filter(organization=org, status=S.OPEN).exclude(key__in=keys).delete()   # o padrão sumiu ou já há regra
+        (AutomationSuggestion.objects.filter(organization=org, status=S.OPEN).exclude(key__in=keys)
+         .exclude(key__startswith='entrevista:').delete())   # as da entrevista (CAD-226) não vêm dos detectores   # o padrão sumiu ou já há regra
         for key, title, reason, evidence, payload in found:
             s = AutomationSuggestion.objects.filter(organization=org, key=key).first()
             if s is None:
