@@ -37,6 +37,13 @@ class DiscoveryTests(APITestCase):
         self.assertTrue(all(s['chave'].startswith('entrevista:') for s in body['sugestoes']))
         self.assertTrue(any('perder prazo' in s['motivo'] for s in body['sugestoes']))
         self.assertTrue(any(s['modelo'] == 'regua_lembrete' for s in body['sugestoes']))
+        # aceitar sugestão de modelo pronto cria a regra desligada (antes dava 500: descrição duplicada)
+        tpl = next(s for s in body['sugestoes'] if s['modelo'])
+        accepted = self.c.post(f'/api/v1/brain/suggestions/{tpl["id"]}/accept/')
+        self.assertEqual(accepted.status_code, 200, accepted.content)
+        rule = Rule.objects.get(pk=accepted.json()['regra_id'])
+        self.assertEqual((rule.enabled, rule.template_key), (False, tpl['modelo']))
+        self.assertTrue(rule.description.startswith('Sugerida pela IA'))
         # os detectores não apagam as sugestões da entrevista
         suggestions.refresh(self.org, notify=False)
         self.assertEqual(AutomationSuggestion.objects.filter(organization=self.org, key__startswith='entrevista:').count(),

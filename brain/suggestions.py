@@ -211,6 +211,7 @@ def accept(suggestion: AutomationSuggestion, user):
         clean = catalog.clean_rule(data)
     except catalog.RuleError as exc:
         raise SuggestionError(str(exc)) from exc
+    clean.pop('description', None)              # modelos prontos trazem a própria descrição: vale a da sugestão
     with transaction.atomic():
         rule = Rule.objects.create(organization=suggestion.organization, created_by=user, template_key=key, enabled=False,
                                    description=f'Sugerida pela IA: {suggestion.title}'[:500], **clean)
