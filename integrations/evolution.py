@@ -49,8 +49,33 @@ class WhatsAppEvolutionExecutor:
         }
 
         response = requests.post(endpoint, json=body, headers=headers, timeout=10)
-        response.raise_for_status()
+        if response.status_code >= 400:
+            raise WhatsAppSendError(_friendly_error(response, number))
         return response.json()
+
+
+class WhatsAppSendError(Exception):
+    """Falha de envio com motivo legível (vai para a execução da regra, sem dados da mensagem)."""
+
+
+def _friendly_error(response, number) -> str:
+    """Traduz a resposta de erro da Evolution em algo que o escritório entende (CAD-229)."""
+    try:
+        detail = response.json()
+    except ValueError:
+        detail = {}
+    raw = str(detail)[:300]
+    code = response.status_code
+    logger.warning("Evolution recusou o envio (%s)", code)   # sem o corpo: ele traz o número do cliente
+    if "'exists': False" in raw or '"exists": false' in raw:
+        return f"O número final {str(number)[-4:]} não tem WhatsApp. Confira o telefone do contato."
+    if code in (401, 403):
+        return "O servidor de WhatsApp recusou a chave de acesso (EVOLUTION_API_GLOBAL_KEY)."
+    if code == 404:
+        return "O WhatsApp do escritório não está conectado neste servidor. Conecte de novo em Integrações."
+    if "Connection Closed" in raw or "not connected" in raw.lower() or "close" in raw.lower():
+        return "O WhatsApp do escritório está desconectado. Reconecte em Integrações (QR code ou código)."
+    return f"O servidor de WhatsApp recusou o envio ({code})."
 
 
 def send_whatsapp_message(instance_name, number, message_text):

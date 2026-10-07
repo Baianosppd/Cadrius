@@ -249,13 +249,24 @@ def test_connection(conn) -> str:
         data = _get('https://api.clickup.com/api/v2/user', 'ClickUp', headers={'Authorization': str(c.get('token') or '')})
         return f'Conectado como {(data.get("user") or {}).get("username", "?")}.'
     if app == 'WHATSAPP':
+        if c.get('hosted'):                                # WhatsApp do escritório: servidor e chave do Cadrius
+            c = {**c, 'base_url': '', 'api_key': settings.EVOLUTION_API_GLOBAL_KEY}
         base = (c.get('base_url') or settings.EVOLUTION_API_BASE_URL).rstrip('/')
         if c.get('base_url'):
             try:
                 validate_outbound_url(base)
             except UnsafeURLError as exc:
                 raise IntegrationError(str(exc)) from exc
-        data = _get(f'{base}/instance/connectionState/{c.get("instance_name")}', 'Evolution API', headers={'apikey': str(c.get('api_key') or '')})
+        try:
+            data = _get(f'{base}/instance/connectionState/{c.get("instance_name")}', 'Evolution API',
+                        headers={'apikey': str(c.get('api_key') or '')})
+        except IntegrationError as exc:
+            if 'respondeu 404' not in str(exc):
+                raise
+            # 404 = a instância com esse nome não existe nessa Evolution (o caso comum: o nome foi inventado no formulário)
+            raise IntegrationError(
+                f'A instância "{c.get("instance_name")}" não existe nesse servidor Evolution. Para usar o WhatsApp do Cadrius, '
+                'remova esta conexão e use o cartão "WhatsApp do escritório" no topo da tela (só o número e o celular).') from exc
         state = (data.get('instance') or {}).get('state') or data.get('state') or '?'
         return f'Instância encontrada (estado: {state}).'
     if app == 'D4SIGN':

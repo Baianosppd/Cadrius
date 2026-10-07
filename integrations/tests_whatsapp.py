@@ -72,6 +72,34 @@ class WhatsAppHostedTests(APITestCase):
         self.assertEqual(self.client.post('/api/v1/integrations/whatsapp/desconectar/').status_code, 204)
         self.assertIsNone(whatsapp_connection(self.org))
 
+    def test_conexao_do_escritorio_vence_conexao_manual_mais_nova(self):
+        """CAD-229: uma conexão manual criada depois (teste, nome de instância errado) não desvia os envios."""
+        from integrations.models import AppConnection
+        self.client.force_authenticate(self.owner)
+        self.client.post('/api/v1/integrations/whatsapp/conectar/', {'numero': '11988887777'}, format='json')
+        self.evo.state = 'open'
+        self.client.get('/api/v1/integrations/whatsapp/')
+        hosted = whatsapp_connection(self.org)
+        AppConnection.objects.create(user=self.owner, name='manual', app_name='WHATSAPP',
+                                     credentials={'instance_name': 'inventada', 'api_key': 'x'})
+        self.assertEqual(whatsapp_connection(self.org).pk, hosted.pk)
+
+    def test_envio_recusado_vira_motivo_legivel(self):
+        from integrations.evolution import WhatsAppEvolutionExecutor, WhatsAppSendError
+        cases = [
+            (400, {'response': {'message': [{'exists': False, 'number': '5511988887777'}]}}, 'não tem WhatsApp'),
+            (404, {'response': {'message': ['The "x" instance does not exist']}}, 'não está conectado'),
+            (401, {'error': 'Unauthorized'}, 'chave de acesso'),
+            (500, {'response': {'message': ['Connection Closed']}}, 'desconectado'),
+        ]
+        for code, body, expected in cases:
+            resp = mock.Mock(status_code=code, json=lambda b=body: b)
+            with mock.patch('integrations.evolution.requests.post', return_value=resp):
+                with self.assertRaises(WhatsAppSendError) as ctx:
+                    WhatsAppEvolutionExecutor(base_url='http://evolution:8080', api_key='k').send(
+                        'cadrius-x', {'number': '5511988887777', 'text': 'oi'})
+            self.assertIn(expected, str(ctx.exception))
+
     def test_link_publico_mostra_codigo_sem_login_e_expira(self):
         self.client.force_authenticate(self.owner)
         link = self.client.post('/api/v1/integrations/whatsapp/link/', {'numero': '11988887777'}, format='json').data['link']
