@@ -114,7 +114,7 @@ services:
   # WhatsApp (Evolution API) — opcional: docker compose --profile whatsapp up -d
   evolution-api:
     profiles: ["whatsapp"]
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.3.7
     restart: unless-stopped
     logging: *logging
     environment:
