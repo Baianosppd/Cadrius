@@ -49,7 +49,7 @@ ACTIONS = frozenset({
     'automation.rule_disabled', 'automation.run_approved', 'automation.run_rejected',
     'publication.captured', 'publication.reviewed', 'publication.watch_added', 'publication.watch_removed',
     'draft.created', 'draft.updated', 'draft.deleted', 'draft.exported', 'draft.template_saved',
-    'automation.suggestion_decided', 'automation.discovery', 'automation.shortcut_rotated', 'automation.shortcut_fired', 'brain.profile_updated', 'connection.tested', 'signature.requested', 'billing.charge_created',
+    'automation.suggestion_decided', 'automation.discovery', 'automation.shortcut_rotated', 'automation.shortcut_fired', 'device.created', 'device.revoked', 'device.command', 'device.decision', 'brain.profile_updated', 'connection.tested', 'signature.requested', 'billing.charge_created',
     'marketing.content_created', 'marketing.content_updated', 'marketing.content_deleted', 'marketing.content_published',
     'marketing.campaign_saved', 'marketing.image_generated',
     'crm.opportunity_saved', 'crm.stage_changed', 'crm.agreement_created', 'crm.agreement_canceled', 'crm.success_registered',

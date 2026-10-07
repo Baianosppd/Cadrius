@@ -16,7 +16,7 @@ TRIGGERS = {
                 'Google pelo IFTTT. Bom para "cheguei ao fórum", "acabou a audiência", "me lembre de ligar para o cliente".',
         'vars': {'atalho.texto': 'Texto ditado ou enviado (opcional)', 'atalho.origem': 'De onde veio (relógio, celular…)',
                  'atalho.quando': 'Data e hora do acionamento', 'atalho.pessoa': 'Quem criou o atalho'},
-        'destinatarios': []},
+        'destinatarios': [], 'config': {'frases': 'Frases de voz que disparam a regra (separe por vírgula), ex.: cheguei ao fórum'}},
     T.DOCUMENT_CONFIRMED: {
         'label': 'Documento confirmado', 'help': 'Quando alguém (ou a autonomia) confirma a leitura de um documento.',
         'vars': {'documento.nome': 'Nome do arquivo', 'documento.tipo': 'Tipo do documento', 'processo.cnj': 'Nº do processo lido',
@@ -224,6 +224,11 @@ def _int(value, key, lo, hi) -> int:
 
 def clean_trigger_config(trigger: str, config) -> dict:
     config = config if isinstance(config, dict) else {}
+    if trigger == T.SHORTCUT:                     # CAD-227: frases de voz que disparam a regra ("cheguei ao fórum")
+        raw = config.get('frases', [])
+        raw = raw.split(',') if isinstance(raw, str) else raw if isinstance(raw, list) else []
+        frases = [str(f).strip()[:60] for f in raw if len(str(f).strip()) >= 3][:5]
+        return {'frases': frases} if frases else {}
     if trigger == T.DEADLINE_SOON:
         return {'dias_antes': _int(config.get('dias_antes', 3), 'dias_antes', 1, 30)}
     if trigger == T.CALENDAR_EVENT:

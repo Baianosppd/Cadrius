@@ -10,6 +10,9 @@ urlpatterns = [
     path('rules/<int:pk>/simulate/', api.RuleSimulateView.as_view(), name='automation-rule-simulate'),
     path('rules/<int:pk>/enable/', api.RuleEnableView.as_view(), name='automation-rule-enable'),
     path('rules/<int:pk>/atalho/', api.RuleShortcutView.as_view(), name='automation-rule-shortcut'),           # CAD-226
+    path('aparelhos/', api.DeviceListView.as_view(), name='automation-devices'),                               # CAD-227
+    path('aparelhos/<int:pk>/', api.DeviceDetailView.as_view(), name='automation-device'),
+    path('aparelhos/testar/', api.DeviceTestView.as_view(), name='automation-device-test'),
     path('runs/', api.RunListView.as_view(), name='automation-runs'),
     path('runs/<int:pk>/approve/', api.RunDecisionView.as_view(decision='approve'), name='automation-run-approve'),
     path('runs/<int:pk>/reject/', api.RunDecisionView.as_view(decision='reject'), name='automation-run-reject'),

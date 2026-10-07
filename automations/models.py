@@ -104,3 +104,34 @@ class RuleRun(models.Model):
     class Meta:
         ordering = ['-created_at']
         constraints = [models.UniqueConstraint(fields=['rule', 'dedupe_key'], name='uniq_rule_run_dedupe')]
+
+
+class PersonalDevice(models.Model):
+    """CAD-227: relógio, celular ou assistente de voz de UMA pessoa. A chave (mostrada uma vez) autentica os comandos de voz
+    e, se ``can_approve``, as aprovações pelo relógio. O banco guarda só o SHA-256 da chave."""
+
+    class Kind(models.TextChoices):
+        APPLE = 'apple', 'Apple Watch / iPhone (Siri)'
+        WEAR = 'wear', 'Android / Wear OS'
+        ALEXA = 'alexa', 'Alexa'
+        GOOGLE = 'google', 'Google Assistente'
+        OTHER = 'outro', 'Outro (botão, NFC, automação)'
+
+    organization = models.ForeignKey('accounts.Organization', on_delete=models.CASCADE, related_name='personal_devices')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='personal_devices')
+    name = models.CharField(max_length=60)
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.APPLE)
+    key_hash = models.CharField(max_length=64, unique=True)
+    can_approve = models.BooleanField(default=False)
+    notify = models.BooleanField(default=False)                     # avisos de aprovação pendente (ntfy)
+    ntfy_topic = models.CharField(max_length=60, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def active(self) -> bool:
+        return self.revoked_at is None

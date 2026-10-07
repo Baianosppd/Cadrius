@@ -352,6 +352,12 @@ def execute(rule_id, refs, dedupe_key, now=None):
     run.save(update_fields=['steps', 'status'])
     Rule.objects.filter(pk=rule.pk).update(last_run_at=timezone.now(), run_count=F('run_count') + 1)
     _notify_outcome(org, rule, run)
+    if run.status == S.PENDING:                          # CAD-227: aviso no relógio com Aprovar/Recusar
+        try:
+            from automations import voice
+            voice.notify_pending(run)
+        except Exception:  # noqa: BLE001 — aviso no relógio nunca derruba a execução
+            logger.exception('Falha ao avisar os aparelhos da execução %s', run.pk)
     return run
 
 
