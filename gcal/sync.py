@@ -31,7 +31,8 @@ def _access_token(link: GoogleCalendarLink) -> str:
     token = cache.get(key)
     if token:
         return token
-    token, ttl = g.refresh_access_token(link.app.client_id, link.app.client_secret, link.refresh_token)
+    cid, secret = link.app.credentials()                 # CAD-230: app do escritório ou o da plataforma
+    token, ttl = g.refresh_access_token(cid, secret, link.refresh_token)
     cache.set(key, token, max(ttl - 120, 60))
     return token
 

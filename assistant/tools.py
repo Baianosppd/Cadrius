@@ -300,7 +300,13 @@ def catalogo_de_automacao(ctx):
                           'destinatarios': g['destinatarios'], 'config': g['config']} for g in c['gatilhos']],
             'acoes': [{'id': a['id'], 'label': a['label'], 'params': a['params']} for a in c['acoes']],
             'operadores': [o['id'] for o in c['operadores']],
-            'dica': 'Condição: {"field": "email.categoria", "op": "eq", "value": "intimacao"}. Textos aceitam {{variavel}}.'}
+            'processamento': c['processamento'],
+            'dica': 'Condição: {"field": "email.categoria", "op": "eq", "value": "intimacao"}. Textos aceitam {{variavel}}. '
+                    'Para contas, use um passo "calcular" ANTES (nome + expressao; vírgula decimal, argumentos com ";") e '
+                    'depois {{calc.<nome>}}; para listas/somatórios, um passo "tabela" e {{tabela.<nome>.texto}}, .total, '
+                    '.quantidade. Qualquer passo aceita "somente_se": {"field": "calc.<nome>_valor", "op": "gt", "value": "100"}. '
+                    '"google_planilha" grava linhas (colunas "Cliente={{cliente.nome}}; Valor={{calc.x}}" ou uma tabela) e '
+                    '"google_evento" cria compromisso no Google Agenda.'}
 
 
 def listar_regras(ctx):
@@ -489,15 +495,95 @@ def emails_triados(ctx, categoria='', dias=7):
              'contato': t.contact.name if t.contact_id else '', 'recebido': t.email.received_at.isoformat()} for t in qs[:20]]
 
 
-def agenda_google(ctx, dias=14, tipo=''):
-    from gcal.models import ExternalEvent
+def agenda_google(ctx, dias=14, tipo='', atualizar=False):
+    from gcal.models import ExternalEvent, GoogleCalendarLink
+    link = GoogleCalendarLink.objects.select_related('app', 'user').filter(user=ctx.user, status='active').first()
+    if link is None:
+        raise ToolError('O Google Agenda desta pessoa não está conectado (Integrações → Google).')
+    try:                                                   # CAD-230: traz o que mudou no Google antes de responder
+        from gcal.events import pull_external
+        pull_external(link, force=bool(atualizar))
+    except Exception:  # noqa: BLE001 — sem rede com o Google, responde com o que já foi trazido
+        logger.info('agenda_google: sem atualizar do Google agora', exc_info=True)
+    start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
     until = timezone.now() + timedelta(days=max(1, min(int(dias or 14), 120)))
-    qs = ExternalEvent.objects.filter(organization=ctx.org, cancelled=False, start__gte=timezone.now(), start__lte=until,
+    qs = ExternalEvent.objects.filter(organization=ctx.org, cancelled=False, start__gte=start, start__lte=until,
                                       link__user=ctx.user).select_related('case', 'contact')
     if tipo:
         qs = qs.filter(kind=tipo)
     return [{'id': e.pk, 'titulo': e.title, 'tipo': e.get_kind_display(), 'inicio': timezone.localtime(e.start).strftime('%Y-%m-%d %H:%M'),
              'processo': e.case.cnj if e.case_id else '', 'cliente': e.contact.name if e.contact_id else ''} for e in qs[:30]]
+
+
+def _when(data, hora):
+    day = _date(data)
+    if not hora:
+        return timezone.make_aware(datetime.combine(day, time(9, 0))), True
+    try:
+        hh, mm = (int(x) for x in str(hora).split(':')[:2])
+        return timezone.make_aware(datetime.combine(day, time(hh, mm))), False
+    except (ValueError, TypeError) as exc:
+        raise ToolError('Hora inválida: use HH:MM.') from exc
+
+
+def criar_evento_google(ctx, titulo, data, hora='', duracao_min=60, local='', descricao='', convidados=None,
+                        avisar_convidados=False, lembrete_min=None):
+    from gcal import write
+    inicio, dia_inteiro = _when(data, hora)
+    try:
+        ev = write.create_event(ctx.user, ctx.org, titulo=titulo, inicio=inicio, duracao_min=duracao_min, local=local,
+                                descricao=descricao, convidados=convidados or [], avisar_convidados=bool(avisar_convidados),
+                                lembrete_min=lembrete_min, dia_inteiro=dia_inteiro)
+    except write.CalendarWriteError as exc:
+        raise ToolError(str(exc)) from exc
+    return {'id': ev.pk, 'mensagem': f'Compromisso {write.event_summary(ev)} criado no seu Google Agenda.', 'link': '/agenda'}
+
+
+def alterar_evento_google(ctx, id, data='', hora='', duracao_min=None, titulo='', local=None, descricao=None, cancelar=False):
+    from gcal import write
+    try:
+        if cancelar:
+            ev = write.cancel_event(ctx.user, ctx.org, int(id))
+            return {'id': ev.pk, 'mensagem': f'Compromisso {write.event_summary(ev)} cancelado no Google Agenda.'}
+        inicio = None
+        if data or hora:
+            current = write._own_event(ctx.user, ctx.org, int(id))
+            local_start = timezone.localtime(current.start)
+            inicio, _ = _when(data or local_start.date().isoformat(), hora or local_start.strftime('%H:%M'))
+        ev = write.update_event(ctx.user, ctx.org, int(id), titulo=titulo or None, inicio=inicio, duracao_min=duracao_min,
+                                local=local, descricao=descricao)
+    except write.CalendarWriteError as exc:
+        raise ToolError(str(exc)) from exc
+    return {'id': ev.pk, 'mensagem': f'Compromisso atualizado: {write.event_summary(ev)}.', 'link': '/agenda'}
+
+
+def exportar_para_planilha(ctx, titulo, colunas=None, linhas=None):
+    from gcal import workspace
+    if not linhas:
+        raise ToolError('Não há linhas para exportar.')
+    try:
+        f = workspace.create_sheet(ctx.user, titulo, colunas or [], linhas)
+    except workspace.WorkspaceError as exc:
+        raise ToolError(str(exc)) from exc
+    return {'mensagem': f'Planilha "{titulo}" criada no seu Google Drive com {len(linhas)} linha(s).', 'link': f.url}
+
+
+def criar_documento_google(ctx, titulo, conteudo='', minuta_id=None):
+    from gcal import workspace
+    if minuta_id:
+        from minutas.models import Draft
+        draft = Draft.objects.filter(organization=ctx.org, pk=minuta_id).first()
+        if draft is None:
+            raise ToolError('Minuta não encontrada neste escritório.')
+        conteudo = draft.content
+        titulo = titulo or draft.title
+    if not (conteudo or '').strip():
+        raise ToolError('Informe o texto do documento.')
+    try:
+        f = workspace.create_doc(ctx.user, titulo, conteudo)
+    except workspace.WorkspaceError as exc:
+        raise ToolError(str(exc)) from exc
+    return {'mensagem': f'Documento "{titulo}" criado no seu Google Docs.', 'link': f.url}
 
 
 def contexto_do_caso(ctx, processo_id):
@@ -576,7 +662,8 @@ TOOLS: dict[str, Tool] = {t.name: t for t in [
     Tool('sugestoes_de_automacao', 'Automações que a IA do escritório sugere com base no que a equipe faz repetidamente.',
          _obj({}), sugestoes_de_automacao, label='Sugestões de automação'),
     Tool('criar_regra', 'PROPÕE criar regra de automação (nasce desligada). gatilho = id do catálogo; acoes = lista de '
-         '{"type", "params"}; condicoes = lista de {"field", "op", "value"}; configuracao conforme o gatilho.',
+         '{"type", "params", "somente_se"?} em ordem (calcular/tabela antes de quem usa o resultado); condicoes = lista de '
+         '{"field", "op", "value"}; configuracao conforme o gatilho.',
          _obj({'nome': S, 'gatilho': S, 'acoes': ARR, 'condicoes': ARR, 'configuracao': OBJ, 'descricao': S}, ['nome', 'gatilho', 'acoes']),
          criar_regra, action=True, label='Criar automação', managers=True, preview=_preview_regra),
     Tool('ativar_regra', 'PROPÕE ligar (ligar=true) ou desligar uma regra pelo id. Mostra a simulação antes da confirmação.',
@@ -604,8 +691,27 @@ TOOLS: dict[str, Tool] = {t.name: t for t in [
          action=True, label='Enviar mensagem', preview=_preview_mensagem),
     Tool('emails_triados', 'E-mails recebidos e já classificados (categoria: intimacao, cliente, agenda, financeiro, comercial, '
          'documento, marketing, outro).', _obj({'categoria': S, 'dias': INT}), emails_triados, label='E-mails'),
-    Tool('agenda_google', 'Compromissos trazidos do Google Agenda da pessoa (tipo: prazo, audiencia, reuniao, pericia, outro).',
-         _obj({'dias': INT, 'tipo': S}), agenda_google, label='Agenda Google'),
+    Tool('agenda_google', 'Compromissos do Google Agenda da pessoa, de hoje em diante (tipo: prazo, audiencia, reuniao, pericia, '
+         'outro). Traz do Google o que mudou antes de responder; atualizar=true força buscar agora. O id serve para alterar/cancelar.',
+         _obj({'dias': INT, 'tipo': S, 'atualizar': B}), agenda_google, label='Agenda Google'),
+    Tool('criar_evento_google', 'PROPÕE criar um compromisso DIRETO no Google Agenda da pessoa (precisa de confirmação). '
+         'Use para reunião, audiência, atendimento etc. data AAAA-MM-DD; hora HH:MM (vazio = dia inteiro); duracao_min padrão 60; '
+         'convidados = lista de e-mails; avisar_convidados=true só se a pessoa pedir para mandar o convite.',
+         _obj({'titulo': S, 'data': S, 'hora': S, 'duracao_min': INT, 'local': S, 'descricao': S,
+               'convidados': {'type': 'array', 'items': S}, 'avisar_convidados': B, 'lembrete_min': INT}, ['titulo', 'data']),
+         criar_evento_google, action=True, label='Criar no Google Agenda'),
+    Tool('alterar_evento_google', 'PROPÕE mudar ou cancelar um compromisso do Google Agenda pelo id (de agenda_google). '
+         'Informe só o que muda: data, hora, duracao_min, titulo, local, descricao; cancelar=true apaga o evento.',
+         _obj({'id': INT, 'data': S, 'hora': S, 'duracao_min': INT, 'titulo': S, 'local': S, 'descricao': S, 'cancelar': B}, ['id']),
+         alterar_evento_google, action=True, label='Alterar no Google Agenda'),
+    Tool('exportar_para_planilha', 'PROPÕE criar uma planilha no Google Planilhas da pessoa com os dados (precisa de confirmação). '
+         'Use quando ela pedir para exportar/levar para planilha uma lista (contatos, honorários, prazos, cálculo). '
+         'colunas = cabeçalho; linhas = lista de listas na mesma ordem das colunas.',
+         _obj({'titulo': S, 'colunas': {'type': 'array', 'items': S}, 'linhas': {'type': 'array', 'items': {'type': 'array', 'items': S}}},
+              ['titulo', 'linhas']), exportar_para_planilha, action=True, label='Exportar para Google Planilhas'),
+    Tool('criar_documento_google', 'PROPÕE criar um Google Docs com o texto (ou com o conteúdo de uma minuta pelo minuta_id). '
+         'Precisa de confirmação.', _obj({'titulo': S, 'conteudo': S, 'minuta_id': INT}, ['titulo']), criar_documento_google,
+         action=True, label='Criar no Google Docs'),
     Tool('contexto_do_caso', 'Tudo que o Cadrius sabe de um processo acompanhado (andamentos, publicações, cliente). Use no modo '
          'estratégia de caso.', _obj({'processo_id': INT}, ['processo_id']), contexto_do_caso, label='Contexto do caso'),
     Tool('salvar_plano_do_caso', 'PROPÕE salvar o plano estratégico do caso em Minutas (texto em tópicos, com [COMPLETAR] onde '
@@ -633,6 +739,8 @@ TOOL_MODULES = {
     'buscar_processos': 'processos', 'publicacoes': 'processos', 'ler_publicacao': 'processos', 'calcular_prazo': 'processos',
     'marcar_publicacao_revisada': 'processos', 'contexto_do_caso': 'processos',
     'agenda': 'tarefas', 'criar_tarefa': 'tarefas', 'agenda_google': 'tarefas',
+    'criar_evento_google': 'tarefas', 'alterar_evento_google': 'tarefas',
+    'exportar_para_planilha': 'documentos', 'criar_documento_google': 'documentos',
     'buscar_documentos': 'documentos', 'ler_documento': 'documentos',
     'resumo_financeiro': 'financeiro', 'lancar_despesa': 'financeiro', 'honorarios_em_aberto': 'financeiro',
     'memoria_do_escritorio': 'ia', 'lembrar': 'ia', 'perfil_do_escritorio': 'ia',

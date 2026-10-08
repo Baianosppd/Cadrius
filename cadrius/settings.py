@@ -333,6 +333,11 @@ CREDIT_PACK_VALIDITY_DAYS = 365
 # --- SSO (CAD-105): Google e Microsoft. Client id/secret vazios = login social desligado ---
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default='')
 GOOGLE_CLIENT_SECRET = env('GOOGLE_CLIENT_SECRET', default='')
+# CAD-230: app OAuth do Cadrius para "Conectar Google" (Agenda + Planilhas/Documentos criados pelo Cadrius) sem o escritório
+# criar app no Google Cloud. Vazio = usa o do login com Google (GOOGLE_CLIENT_ID/SECRET).
+GOOGLE_WORKSPACE_CLIENT_ID = env('GOOGLE_WORKSPACE_CLIENT_ID', default='')
+GOOGLE_WORKSPACE_CLIENT_SECRET = env('GOOGLE_WORKSPACE_CLIENT_SECRET', default='')
+GOOGLE_DOCS_SHEETS_ENABLED = env.bool('GOOGLE_DOCS_SHEETS_ENABLED', default=True)
 MICROSOFT_CLIENT_ID = env('MICROSOFT_CLIENT_ID', default='')
 MICROSOFT_CLIENT_SECRET = env('MICROSOFT_CLIENT_SECRET', default='')
 MICROSOFT_TENANT = env('MICROSOFT_TENANT', default='common')

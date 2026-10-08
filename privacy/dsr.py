@@ -78,6 +78,9 @@ def anonymize_user(user, *, handled_by='') -> None:
 
     if user.profile_picture:
         user.profile_picture.delete(save=False)
+    if user.cover_image:                                   # CAD-230: capa do perfil também é dado da pessoa
+        user.cover_image.delete(save=False)
+    user.cover_caption = ''
     user.email = f'anon-{ref}@anonimizado.invalid'
     user.username = f'anon-{ref}'
     user.first_name = user.last_name = ''

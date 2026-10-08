@@ -117,6 +117,10 @@ class CustomUser(PIIIndexMixin, AbstractUser):
         blank=True, 
         verbose_name="Foto de Perfil"
     )
+    # CAD-230: capa do perfil (imagem enviada ou um fundo pronto) e uma frase curta sobre o escritório / o que a pessoa gosta
+    cover_image = models.ImageField(upload_to='users/covers/', null=True, blank=True, verbose_name="Capa do perfil")
+    cover_preset = models.CharField(max_length=20, blank=True, default='')
+    cover_caption = models.CharField(max_length=140, blank=True, default='')
     # CAD-221: senha temporária definida pela TI → a API só libera /auth/* até a pessoa trocar a senha
     must_change_password = models.BooleanField(default=False, verbose_name="Trocar senha no próximo acesso")
     # CAD-226: assinatura dos e-mails (texto + imagem opcional da assinatura/logo, como data URL PNG/JPEG de até 200 KB)

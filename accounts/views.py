@@ -2,6 +2,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -126,6 +127,56 @@ class UpdateUserProfileView(generics.UpdateAPIView):
         audit_service.log('user.updated', actor=request.user, changes={'fields': sorted(serializer.validated_data)},
                           data_categories=['identificacao', 'contato'], legal_basis='contrato')
         return Response(UserProfileSerializer(instance).data)
+
+
+class ProfileImageView(APIView):
+    """POST/DELETE /api/v1/auth/profile/imagem/<foto|capa>/ — foto e capa do perfil (CAD-230)."""
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, kind):
+        from accounts import profile_images
+        try:
+            profile_images.save(request.user, kind, request.FILES.get('arquivo') or request.FILES.get('profile_picture'))
+        except profile_images.ImageError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        audit_service.log('user.updated', actor=request.user, changes={'fields': [f'imagem:{kind}']},
+                          data_categories=['identificacao'], legal_basis='consentimento')
+        return Response(UserProfileSerializer(request.user).data)
+
+    def delete(self, request, kind):
+        from accounts import profile_images
+        try:
+            profile_images.remove(request.user, kind)
+        except profile_images.ImageError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(UserProfileSerializer(request.user).data)
+
+
+class PublicProfileImageView(APIView):
+    """GET /api/v1/publico/perfil/<token>/ — a imagem do perfil por link assinado (a tela e a barra do topo usam <img>)."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        from django.core import signing
+        from django.http import FileResponse, Http404
+        from accounts import profile_images
+        try:
+            data = profile_images.read_token(token)
+        except signing.BadSignature as exc:
+            raise Http404 from exc
+        spec = profile_images.KINDS.get(data.get('k'))
+        user = User.objects.filter(pk=data.get('u'), is_active=True).first() if spec else None
+        field = getattr(user, spec['field'], None) if user else None
+        if not field or field.name != data.get('n') or not field.storage.exists(field.name):
+            raise Http404
+        ctype = 'image/png' if field.name.endswith('.png') else 'image/jpeg'
+        resp = FileResponse(field.storage.open(field.name, 'rb'), content_type=ctype)
+        resp['Cache-Control'] = 'private, max-age=604800, immutable'    # o link muda quando a imagem muda
+        resp['X-Content-Type-Options'] = 'nosniff'
+        resp['Cross-Origin-Resource-Policy'] = 'cross-origin'
+        return resp
 
 
 class ChangePasswordView(APIView):

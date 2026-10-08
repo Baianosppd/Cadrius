@@ -33,17 +33,48 @@ def record_document_analysis(user_id) -> None:
 
 
 def dashboard_stats_for_user(user) -> dict:
-    """Três cards do dashboard para o utilizador autenticado."""
+    """Cartões do painel, contados nos dados reais do escritório (CAD-230).
+
+    Antes vinham só dos contadores por pessoa (``UserMessageSendCount``), que o fluxo novo (documentos enviados, Regras,
+    mensagens das automações) não incrementava: o painel ficava parado. Os contadores antigos ainda valem como piso.
+    """
+    empty = {"total_documentos": 0, "automacoes_rodadas": 0, "mensagens_enviadas": 0, "automacoes_ativas": 0,
+             "tarefas_hoje": 0, "tarefas_atrasadas": 0}
     if user is None or not getattr(user, "is_authenticated", False):
-        return {
-            "total_documentos": 0,
-            "automacoes_rodadas": 0,
-            "mensagens_enviadas": 0,
-        }
+        return empty
+
+    from django.utils import timezone
+
+    from accounts.team_roles import get_active_membership
+    from tasks.models import UserTask
 
     counts, _ = UserMessageSendCount.objects.get_or_create(user=user)
-    return {
-        "total_documentos": counts.document_analysis_count,
-        "automacoes_rodadas": counts.automations_run_count,
-        "mensagens_enviadas": counts.messages_sent_total,
-    }
+    today = timezone.localdate()
+    pending = UserTask.objects.filter(responsavel=user, completed=False)
+    out = {**empty,
+           "total_documentos": counts.document_analysis_count,
+           "automacoes_rodadas": counts.automations_run_count,
+           "mensagens_enviadas": counts.messages_sent_total,
+           "tarefas_hoje": UserTask.objects.filter(responsavel=user, scheduled_at__date=today).count(),
+           "tarefas_atrasadas": pending.filter(scheduled_at__date__lt=today).count()}
+    membership = get_active_membership(user)
+    if membership is None:
+        return out
+    org = membership.organization
+
+    from audit.models import AuditEvent
+    from automations.models import Rule, RuleRun
+    from documents.models import Document
+    from workflows.models import ExecutionLog, Workflow
+
+    runs = RuleRun.objects.filter(organization=org, status=RuleRun.Status.SUCCESS).count()
+    runs += ExecutionLog.objects.filter(workflow__organization=org).count()
+    sent = AuditEvent.objects.filter(organization_id=org.pk, action="message.sent", outcome="success").count()
+    out.update({
+        "total_documentos": max(Document.objects.filter(organization=org).count(), out["total_documentos"]),
+        "automacoes_rodadas": max(runs, out["automacoes_rodadas"]),
+        "mensagens_enviadas": max(sent, out["mensagens_enviadas"]),
+        "automacoes_ativas": Rule.objects.filter(organization=org, enabled=True).count()
+        + Workflow.objects.filter(organization=org, is_active=True).count(),
+    })
+    return out

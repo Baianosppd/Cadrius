@@ -13,13 +13,22 @@ User = get_user_model()
 class UserTaskListSerializer(serializers.ModelSerializer):
     description = serializers.CharField(source='titulo', read_only=True)
     time = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+    overdue = serializers.SerializerMethodField()
 
     class Meta:
         model = UserTask
-        fields = ['id', 'description', 'time', 'priority', 'completed']
+        fields = ['id', 'description', 'time', 'date', 'overdue', 'priority', 'completed']
 
     def get_time(self, obj):
         return timezone.localtime(obj.scheduled_at).strftime('%H:%M')
+
+    def get_date(self, obj):
+        return timezone.localtime(obj.scheduled_at).date().isoformat()
+
+    def get_overdue(self, obj):
+        # CAD-230: o painel mostra também as atrasadas; o front destaca com a data
+        return not obj.completed and timezone.localtime(obj.scheduled_at).date() < timezone.localdate()
 
 
 class UserTaskCreateSerializer(serializers.ModelSerializer):

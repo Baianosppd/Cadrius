@@ -13,6 +13,9 @@ class GoogleCalendarApp(models.Model):
     organization = models.OneToOneField('accounts.Organization', on_delete=models.CASCADE, related_name='gcal_app')
     client_id = models.CharField(max_length=255)
     client_secret = EncryptedTextField()
+    # CAD-230: "Conectar Google" sem o escritório criar app no Google Cloud — usa o app OAuth do próprio Cadrius
+    # (GOOGLE_WORKSPACE_CLIENT_ID/SECRET, ou o do login com Google). O segredo nunca é copiado para o banco.
+    uses_platform = models.BooleanField(default=False)
     enabled = models.BooleanField(default=True)
     # False = o evento no Google leva só "Tarefa Cadrius" (sem título/descrição): evita dado sensível em calendário de terceiros
     share_details = models.BooleanField(default=True)
@@ -22,6 +25,14 @@ class GoogleCalendarApp(models.Model):
 
     def __str__(self):
         return f'Google Calendar de {self.organization_id}'
+
+    def credentials(self) -> tuple[str, str]:
+        """(client_id, client_secret) para falar com o Google: do escritório ou da plataforma."""
+        if self.uses_platform:
+            from gcal.platform import platform_credentials
+            cid, secret = platform_credentials()
+            return cid or self.client_id, secret
+        return self.client_id, self.client_secret
 
 
 def default_task_kinds():
@@ -47,6 +58,12 @@ class GoogleCalendarLink(models.Model):
     lookahead_days = models.PositiveSmallIntegerField(default=60)
     task_kinds = models.JSONField(default=default_task_kinds, blank=True, help_text='Tipos que viram tarefa no Cadrius (prazo, audiencia…).')
     events_synced_at = models.DateTimeField(null=True, blank=True)
+    # CAD-230: escopos que a pessoa autorizou (agenda, planilhas/documentos criados pelo Cadrius) e a conta Google usada
+    scopes = models.TextField(blank=True, default='')
+    google_email = models.CharField(max_length=254, blank=True, default='')
+
+    def has_scope(self, scope: str) -> bool:
+        return scope in (self.scopes or '').split()
 
 
 class TaskEventMap(models.Model):
@@ -89,3 +106,24 @@ class ExternalEvent(models.Model):
     class Meta:
         ordering = ['start']
         constraints = [models.UniqueConstraint(fields=['link', 'event_id'], name='uniq_external_event_per_link')]
+
+
+class GoogleFile(models.Model):
+    """Planilha ou documento que o Cadrius criou no Drive da pessoa (CAD-230). Com o escopo drive.file o Cadrius só enxerga
+    estes arquivos; o registro permite reaproveitar a mesma planilha nas automações ("Cadrius — Honorários")."""
+
+    class Kind(models.TextChoices):
+        SHEET = 'sheet', 'Planilha'
+        DOC = 'doc', 'Documento'
+
+    link = models.ForeignKey(GoogleCalendarLink, on_delete=models.CASCADE, related_name='files')
+    kind = models.CharField(max_length=5, choices=Kind.choices)
+    name = models.CharField(max_length=200)
+    file_id = models.CharField(max_length=200)
+    url = models.URLField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-used_at']
+        constraints = [models.UniqueConstraint(fields=['link', 'kind', 'name'], name='uniq_google_file_name')]

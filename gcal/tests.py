@@ -249,7 +249,7 @@ class ApiTests(APITestCase):
     def test_fluxo_completo_conecta_e_guarda_o_refresh_token_cifrado(self):
         q, resp = self.connect()
         self.assertEqual(q['client_id'], [CLIENT_ID])                       # usa o app DO ESCRITÓRIO
-        self.assertEqual(q['scope'], [g.SCOPE])
+        self.assertIn(g.SCOPE, q['scope'][0].split())          # CAD-230: + drive.file (Planilhas/Documentos) e e-mail da conta
         self.assertEqual((q['access_type'], q['code_challenge_method']), (['offline'], ['S256']))
         self.assertEqual(q['redirect_uri'], ['https://api.example.com/api/v1/integrations/google-calendar/callback/'])
         from django.core.cache import cache

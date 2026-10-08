@@ -202,8 +202,9 @@ CATALOG = {
     'SHEETS': {
         'label': 'Google Sheets', 'categoria': 'Dados', 'uso': 'Registrar dados das automações em planilhas.',
         'campos': [{'key': 'token', 'label': 'Token de acesso', 'secret': True, 'required': True}],
-        'guia': ['Para importar dados para o Cadrius, prefira "Importar dados" (planilha exportada em CSV/XLSX): não precisa de token.',
-                 'Para escrever em planilhas, gere um token OAuth com escopo spreadsheets no Google Cloud Console.'],
+        'guia': ['Mais fácil (CAD-230): use o cartão "Google: Agenda, Planilhas e Documentos" no topo desta tela. Com ele, o '
+                 'Assistente exporta listas para planilhas e as automações registram linhas ("Registrar em planilha do Google").',
+                 'Para importar dados para o Cadrius, prefira "Importar dados" (planilha exportada em CSV/XLSX).'],
         'links': [{'label': 'API do Google Sheets', 'url': 'https://developers.google.com/sheets/api'}],
     },
     'ASTREA': {

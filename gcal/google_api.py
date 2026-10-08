@@ -67,19 +67,31 @@ def revoke(token):
 
 
 def calendar_call(access_token, method, path, *, params=None, json=None):
+    return api_call(access_token, method, f'{CAL_BASE}{path}', params=params, json=json)
+
+
+SHEETS_BASE = 'https://sheets.googleapis.com/v4'
+DOCS_BASE = 'https://docs.googleapis.com/v1'
+ALLOWED_BASES = (CAL_BASE, SHEETS_BASE, DOCS_BASE)
+
+
+def api_call(access_token, method, url, *, params=None, json=None):
+    """Chamada às APIs do Google (Agenda, Planilhas, Documentos — CAD-230). Só para as bases conhecidas."""
+    if not url.startswith(ALLOWED_BASES):
+        raise ValueError('URL fora das APIs do Google permitidas')
     try:
-        resp = requests.request(method, f'{CAL_BASE}{path}', params=params, json=json, timeout=TIMEOUT,
+        resp = requests.request(method, url, params=params, json=json, timeout=TIMEOUT,
                                 headers={'Authorization': f'Bearer {access_token}'})
     except requests.RequestException as exc:
         raise GoogleRetryable(exc.__class__.__name__) from exc
     if resp.status_code in (404, 410):
-        raise GoogleNotFound(path)
+        raise GoogleNotFound(url)
     if resp.status_code == 401:
         raise GoogleAuthError('access token recusado')
     if resp.status_code in (429, 500, 502, 503, 504) or (resp.status_code == 403 and 'rateLimit' in resp.text):
-        raise GoogleRetryable(f'calendar {resp.status_code}')
+        raise GoogleRetryable(f'google {resp.status_code}')
     if resp.status_code == 403:
-        raise GoogleAuthError('acesso negado à agenda (escopo/API desativada no projeto do Google)')
+        raise GoogleAuthError('acesso negado (escopo não autorizado ou API desativada no projeto do Google)')
     if resp.status_code >= 400:
-        raise GoogleRetryable(f'calendar {resp.status_code}')
+        raise GoogleRetryable(f'google {resp.status_code}')
     return resp.json() if resp.content else {}
