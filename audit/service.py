@@ -67,6 +67,8 @@ ACTIONS = frozenset({
     'forense.suspension_saved', 'forense.suspension_deleted', 'contact.cnpj_lookup',
     # CAD-224
     'ai.route_changed', 'billing.coupon_saved', 'billing.coupon_applied',
+    # CAD-231
+    'marketing.video_requested', 'marketing.asset_uploaded', 'marketing.asset_deleted',
 })
 
 

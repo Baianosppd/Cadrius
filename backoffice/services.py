@@ -12,7 +12,7 @@ from django.utils import timezone
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
 from audit import service as audit
-from billing import entitlements as ent
+from billing import addons, entitlements as ent
 from billing.credits import organization_credits_used
 from accounts import mfa
 from core.pii import mask_text
@@ -136,6 +136,7 @@ def org_detail(org) -> dict:
                    'origem': 'cortesia' if lot.stripe_session_id.startswith('manual:') else 'compra',
                    'valor_brl': round(lot.amount_paid_cents / 100, 2)}
                   for lot in CreditLot.objects.filter(organization=org).order_by('-created_at')[:20]],
+        'adicional_midia': addons.status(org),
     })
     return data
 
@@ -177,6 +178,20 @@ def org_action(actor, org, action: str, params: dict, reason: str) -> dict:
                                  amount_paid_cents=0)
         result = {'avulsos_disponiveis': ent.purchased_credits_balance(org, now)}
         params = {'credits': credits, 'valid_days': valid}
+    elif action == 'media_addon_on':                  # CAD-231: cortesia do adicional de mídia com IA
+        days = int(params.get('days') or 0)
+        if not 0 <= days <= 365:
+            raise ActionError('Prazo da cortesia: 0 (sem prazo) a 365 dias.')
+        addons.activate(org, source='cortesia', ends_at=now + timedelta(days=days) if days else None)
+        result = {'adicional_midia': addons.status(org)}
+        params = {'days': days}
+    elif action == 'media_addon_off':
+        current = org.media_addon if hasattr(org, 'media_addon') else None
+        if current is not None and current.active and current.source == 'contratado' and current.stripe_subscription_id:
+            raise ActionError('Adicional contratado pelo Stripe: cancele a assinatura do adicional no Stripe.')
+        addons.deactivate(org)
+        result = {'adicional_midia': addons.status(org)}
+        params = {}
     elif action in ('deactivate', 'activate'):
         org.is_active = action == 'activate'
         org.save(update_fields=['is_active'])

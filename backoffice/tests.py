@@ -347,3 +347,21 @@ class FiscalTests(Base):
         self.assertIn('Tomador;CPF/CNPJ', text)
         self.assertIn('299,00', text)
         self.assertTrue(AuditEvent.objects.filter(action='data.export').exists())
+
+
+class MediaAddonCourtesyTests(Base):
+    """CAD-231: a Gestão libera o adicional de mídia com IA como cortesia."""
+
+    def test_liga_com_prazo_e_desliga(self):
+        from billing import addons
+        url = f'/api/v1/backoffice/organizations/{self.org.pk}/actions/'
+        fin = self.as_(self.fin)
+        res = fin.post(url, {'action': 'media_addon_on', 'days': 30, 'reason': REASON}, format='json')
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertTrue(res.json()['adicional_midia']['ativo'])
+        self.assertEqual(res.json()['adicional_midia']['origem'], 'cortesia')
+        self.assertTrue(fin.get(f'/api/v1/backoffice/organizations/{self.org.pk}/').json()['adicional_midia']['ativo'])
+        self.assertEqual(fin.post(url, {'action': 'media_addon_on', 'days': 999, 'reason': REASON}, format='json').status_code, 400)
+        self.assertEqual(self.as_(self.ti).post(url, {'action': 'media_addon_on', 'reason': REASON}, format='json').status_code, 403)
+        fin.post(url, {'action': 'media_addon_off', 'reason': REASON}, format='json')
+        self.assertFalse(addons.media_ai_enabled(self.org))

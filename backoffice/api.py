@@ -20,7 +20,7 @@ from core.pii import filter_by_term
 
 PAGE = 50
 STATES = ('trialing', 'active', 'past_due', 'restricted', 'suspended', 'canceled')
-FINANCE_ACTIONS = {'extend_trial', 'grant_credits'}
+FINANCE_ACTIONS = {'extend_trial', 'grant_credits', 'media_addon_on', 'media_addon_off'}
 TI_ACTIONS = {'deactivate', 'activate'}
 USER_ACTIONS = {'unlock', 'deactivate', 'activate', 'revoke_sessions', 'send_password_reset', 'reset_mfa', 'temp_password'}
 
@@ -114,7 +114,8 @@ class OrganizationDetailView(APIView):
 
 
 class OrganizationActionView(APIView):
-    """POST {action, reason, ...}. Financeiro: extend_trial{days}, grant_credits{credits, valid_days}. TI: deactivate, activate."""
+    """POST {action, reason, ...}. Financeiro: extend_trial{days}, grant_credits{credits, valid_days},
+    media_addon_on{days: 0 = sem prazo}, media_addon_off (CAD-231). TI: deactivate, activate."""
     permission_classes = [IsBackoffice]
 
     def post(self, request, pk):

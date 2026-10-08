@@ -311,3 +311,93 @@ class BillingNoticesView(APIView):
                 continue
             out.append({'id': n.pk, 'title': n.title, 'body': n.body, 'severity': n.severity})
         return Response(out)
+
+
+class MediaAddonView(APIView):
+    """CAD-231 — adicional "Estúdio de mídia com IA".
+
+    GET  /api/billing/addons/midia/           situação (todos do escritório veem)
+    POST /api/billing/addons/midia/checkout/  dono/administrador: assinatura mensal do adicional no Stripe
+    POST /api/billing/addons/midia/cancelar/  dono/administrador: cancela no fim do período já pago
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from billing import addons
+        m = get_active_membership(request.user)
+        if m is None:
+            return Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({**addons.status(m.organization), 'pode_gerenciar': m.role in MANAGE_TEAM_ROLES})
+
+
+class MediaAddonCheckoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from billing import addons
+        m = get_active_membership(request.user)
+        if m is None or m.role not in MANAGE_TEAM_ROLES:
+            return Response({'detail': 'Só o dono ou administrador contrata o adicional.'}, status=status.HTTP_403_FORBIDDEN)
+        org = m.organization
+        if addons.included_in_plan(org):
+            return Response({'detail': 'O seu plano já inclui o estúdio de mídia com IA.'}, status=status.HTTP_400_BAD_REQUEST)
+        if addons.media_ai_enabled(org):
+            return Response({'detail': 'O adicional já está ativo.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not ai_enabled(org):
+            return Response({'detail': 'Regularize a assinatura antes de contratar o adicional.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not _stripe_ready():
+            return Response({'detail': NOT_CONFIGURED, 'code': 'payments_not_configured'},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        meta = {'kind': 'media_addon'}
+        try:
+            session = stripe.checkout.Session.create(
+                payment_method_types=_payment_methods(),
+                line_items=[{'price_data': {'currency': 'brl', 'unit_amount': int(addons.price_brl() * 100),
+                                            'recurring': {'interval': 'month'},
+                                            'product_data': {'name': 'Cadrius — Estúdio de mídia com IA',
+                                                             'description': 'Imagens e vídeos de marketing com IA (Gemini).'}},
+                             'quantity': 1}],
+                mode='subscription',
+                client_reference_id=str(org.id),
+                metadata=meta,
+                subscription_data={'metadata': meta},
+                success_url=f"{settings.FRONTEND_URL}/marketing?addon=success",
+                cancel_url=f"{settings.FRONTEND_URL}/marketing?addon=cancelled",
+            )
+        except Exception:
+            logger.exception('Erro ao criar checkout do adicional de mídia')
+            return Response({'detail': 'Não foi possível iniciar o pagamento. Tente novamente.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        audit_service.log('billing.checkout', organization=org, changes={'adicional': 'midia_ia'})
+        return Response({'checkout_url': session.url})
+
+
+class MediaAddonCancelView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from datetime import datetime, timezone as dt_tz
+        from billing.models import MediaAddon
+        m = get_active_membership(request.user)
+        if m is None or m.role not in MANAGE_TEAM_ROLES:
+            return Response({'detail': 'Só o dono ou administrador cancela o adicional.'}, status=status.HTTP_403_FORBIDDEN)
+        a = MediaAddon.objects.filter(organization=m.organization, active=True).first()
+        if a is None or a.source != MediaAddon.Source.PURCHASED or not a.stripe_subscription_id:
+            return Response({'detail': 'Não há adicional contratado para cancelar.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not _stripe_ready():
+            return Response({'detail': NOT_CONFIGURED, 'code': 'payments_not_configured'},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        try:
+            sub = stripe.Subscription.modify(a.stripe_subscription_id, cancel_at_period_end=True)
+        except Exception:
+            logger.exception('Erro ao cancelar o adicional de mídia')
+            return Response({'detail': 'Não foi possível cancelar agora. Tente novamente.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        end = sub.get('cancel_at') or sub.get('current_period_end')
+        if end:
+            a.ends_at = datetime.fromtimestamp(int(end), tz=dt_tz.utc)
+            a.save(update_fields=['ends_at', 'updated_at'])
+        audit_service.log('billing.subscription_canceled', actor=request.user, organization=m.organization,
+                          changes={'adicional': 'midia_ia', 'ate': str(a.ends_at or '')})
+        from billing import addons
+        return Response(addons.status(m.organization))
