@@ -32,29 +32,40 @@ IMAGE_RX = re.compile(r'^data:image/(png|jpeg);base64,([A-Za-z0-9+/=\s]+)$')
 MAX_IMAGE_BYTES = 200 * 1024
 URL_RX = re.compile(r'(https?://[^\s<>"\']+)')
 SIGNATURE_CID = 'assinatura-cadrius'
+LOGO_CID = 'logo-escritorio'
 
 
 class SignatureError(ValueError):
     pass
 
 
-def decode_image(data_url: str) -> tuple[bytes, str] | None:
+def decode_image(data_url: str, what: str = 'da assinatura') -> tuple[bytes, str] | None:
     """data:image/png;base64,... → (bytes, 'png'|'jpeg'). Levanta SignatureError se inválida ou grande demais."""
     if not data_url:
         return None
     m = IMAGE_RX.match(data_url.strip())
     if not m:
-        raise SignatureError('A imagem da assinatura precisa ser PNG ou JPG.')
+        raise SignatureError(f'A imagem {what} precisa ser PNG ou JPG.')
     try:
         raw = base64.b64decode(m.group(2), validate=False)
     except (binascii.Error, ValueError) as exc:
-        raise SignatureError('Imagem da assinatura ilegível.') from exc
+        raise SignatureError(f'Imagem {what} ilegível.') from exc
     if len(raw) > MAX_IMAGE_BYTES:
-        raise SignatureError('A imagem da assinatura deve ter até 200 KB.')
+        raise SignatureError(f'A imagem {what} deve ter até 200 KB.')
     magic_ok = raw.startswith(b'\x89PNG') if m.group(1) == 'png' else raw.startswith(b'\xff\xd8')
     if not magic_ok:
         raise SignatureError('O arquivo não é uma imagem PNG/JPG válida.')
     return raw, m.group(1)
+
+
+def office_logo(org):
+    """CAD-231: logo da empresa (bytes, subtipo) ou None."""
+    from brain.models import OfficeProfile
+    p = OfficeProfile.objects.filter(organization=org).only('email_logo').first()
+    try:
+        return decode_image(p.email_logo if p else '', 'da logo')
+    except SignatureError:
+        return None
 
 
 def office_style(org) -> tuple[str, str]:
@@ -91,10 +102,11 @@ def _paragraphs(text: str) -> str:
 
 
 def render(org, subject: str, body: str, *, user=None, layout: str = '', footer: str = '') -> dict:
-    """Devolve {'text', 'html', 'image'} — ``image`` é (bytes, subtipo) para anexar como CID, ou None."""
+    """Devolve {'text', 'html', 'image', 'logo'} — imagens como (bytes, subtipo) para anexar como CID, ou None."""
     office_layout, color = office_style(org)
     layout = layout if layout in LAYOUTS else office_layout
     sig_text, image = signature_for(org, user)
+    logo = office_logo(org)
     text = f'{body.strip()}\n\n{sig_text}' + (f'\n\n{footer.strip()}' if footer else '')
 
     font = "Georgia, 'Times New Roman', serif" if layout == 'classico' else "-apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
@@ -104,14 +116,20 @@ def render(org, subject: str, body: str, *, user=None, layout: str = '', footer:
                 if image else '') + '</div>'
     foot_html = f'<p style="margin:18px 0 0;color:#6b7280;font-size:12px">{html.escape(footer.strip())}</p>' if footer else ''
     office = html.escape(str(org))
+    logo_img = (f'<img src="cid:{LOGO_CID}" alt="{office}" style="max-height:44px;max-width:180px;vertical-align:middle;'
+                f'border:0">') if logo else ''
     if layout == 'simples':
-        header = ''
+        header = f'<div style="padding:0 4px 12px">{logo_img}</div>' if logo else ''
     elif layout == 'classico':
         header = (f'<div style="padding:20px 28px 12px;text-align:center;border-bottom:2px solid {color};font-family:{font};'
-                  f'font-size:20px;letter-spacing:.5px;color:#111827">{office}</div>')
+                  f'font-size:20px;letter-spacing:.5px;color:#111827">'
+                  + (f'<div style="margin-bottom:8px">{logo_img}</div>' if logo else '') + f'{office}</div>')
     else:
+        # logo sobre um "selo" branco, legível em qualquer cor de faixa
+        badge = (f'<span style="display:inline-block;background:#ffffff;border-radius:8px;padding:6px 10px;margin-right:12px;'
+                 f'vertical-align:middle">{logo_img}</span>') if logo else ''
         header = (f'<div style="background:{color};padding:18px 28px;color:#ffffff;font-size:18px;font-weight:600;'
-                  f'border-radius:10px 10px 0 0">{office}</div>')
+                  f'border-radius:10px 10px 0 0">{badge}<span style="vertical-align:middle">{office}</span></div>')
     radius = '0 0 10px 10px' if layout == 'moderno' else '10px'
     page = (
         '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">'
@@ -122,7 +140,7 @@ def render(org, subject: str, body: str, *, user=None, layout: str = '', footer:
         f'font-size:15px;line-height:1.6">{_paragraphs(body)}{sig_html}{foot_html}</div>'
         '</div></body></html>'
     )
-    return {'text': text, 'html': page, 'image': image}
+    return {'text': text, 'html': page, 'image': image, 'logo': logo}
 
 
 def build_message(org, subject: str, body: str, to: list, *, sender: str, user=None, layout: str = '', footer: str = '',
@@ -130,12 +148,13 @@ def build_message(org, subject: str, body: str, to: list, *, sender: str, user=N
     r = render(org, subject, body, user=user, layout=layout, footer=footer)
     msg = EmailMultiAlternatives(subject, r['text'], sender, to, connection=connection)
     msg.attach_alternative(r['html'], 'text/html')
-    if r['image']:
-        msg.mixed_subtype = 'related'
-        img = MIMEImage(r['image'][0], _subtype=r['image'][1])
-        img.add_header('Content-ID', f'<{SIGNATURE_CID}>')
-        img.add_header('Content-Disposition', 'inline', filename=f'assinatura.{"png" if r["image"][1] == "png" else "jpg"}')
-        msg.attach(img)
+    for key, cid, name in (('image', SIGNATURE_CID, 'assinatura'), ('logo', LOGO_CID, 'logo')):
+        if r.get(key):
+            msg.mixed_subtype = 'related'
+            img = MIMEImage(r[key][0], _subtype=r[key][1])
+            img.add_header('Content-ID', f'<{cid}>')
+            img.add_header('Content-Disposition', 'inline', filename=f'{name}.{"png" if r[key][1] == "png" else "jpg"}')
+            msg.attach(img)
     return msg
 
 

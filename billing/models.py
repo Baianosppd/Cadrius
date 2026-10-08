@@ -266,3 +266,26 @@ class FiscalObligationDone(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['obligation', 'competence'], name='uniq_obligation_competence')]
+
+
+class MediaAddon(models.Model):
+    """Adicional "Estúdio de mídia com IA" (CAD-231): imagens (Gemini "Nano Banana") e vídeos curtos (Veo) no Marketing.
+
+    Incluído no plano Enterprise; nos outros planos é contratado à parte (assinatura mensal própria no Stripe) ou liberado
+    pela Gestão Cadrius (cortesia/teste). Texto, artes prontas da marca e subir as próprias fotos valem em todos os planos."""
+
+    class Source(models.TextChoices):
+        PURCHASED = 'contratado', 'Contratado'
+        COURTESY = 'cortesia', 'Cortesia da Gestão'
+
+    organization = models.OneToOneField('accounts.Organization', on_delete=models.CASCADE, related_name='media_addon')
+    active = models.BooleanField(default=False)
+    source = models.CharField(max_length=12, choices=Source.choices, default=Source.PURCHASED)
+    stripe_subscription_id = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    stripe_session_id = models.CharField(max_length=200, blank=True, default='', unique=False)
+    started_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)        # cortesia com prazo, ou cancelamento agendado
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Mídia IA de {self.organization_id} ({"ativo" if self.active else "inativo"})'

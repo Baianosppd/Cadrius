@@ -62,7 +62,13 @@ class ContentPiece(models.Model):
     image_hint = models.CharField(max_length=500, blank=True, default='')    # sugestão de imagem/arte
     image_url = models.URLField(max_length=500, blank=True, default='')      # imagem pública (Instagram exige)
     image_file = models.CharField(max_length=300, blank=True, default='')    # CAD-226: imagem gerada (armazenamento do Cadrius)
-    image_source = models.CharField(max_length=10, blank=True, default='')   # openai | gemini | marca
+    image_source = models.CharField(max_length=10, blank=True, default='')   # gemini | marca | foto (openai: legado)
+    # CAD-231: vídeo curto com IA (Gemini Veo, adicional de mídia). A geração é assíncrona no Google: guardamos a operação.
+    video_file = models.CharField(max_length=300, blank=True, default='')
+    video_status = models.CharField(max_length=10, blank=True, default='')   # '' | gerando | pronto | falhou
+    video_error = models.CharField(max_length=300, blank=True, default='')
+    video_op = models.CharField(max_length=300, blank=True, default='')
+    video_started_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True)
     scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True)
     published_at = models.DateTimeField(null=True, blank=True)
@@ -79,6 +85,24 @@ class ContentPiece(models.Model):
     class Meta:
         ordering = ['scheduled_at', '-created_at']
         indexes = [models.Index(fields=['scope', 'organization', 'status'])]
+
+
+class MarketingAsset(models.Model):
+    """Foto ou imagem que o escritório sobe para usar nos conteúdos (CAD-231): fundo das artes prontas (todos os planos) e
+    referência para a IA de imagem/vídeo (adicional de mídia). Validada e regravada pelo Pillow (sem EXIF/localização)."""
+
+    scope = models.CharField(max_length=12, choices=ContentPiece.Scope.choices, default=ContentPiece.Scope.ESCRITORIO)
+    organization = models.ForeignKey('accounts.Organization', null=True, blank=True, on_delete=models.CASCADE,
+                                     related_name='marketing_assets')
+    name = models.CharField(max_length=120, blank=True, default='')
+    file = models.CharField(max_length=300)
+    width = models.PositiveIntegerField(default=0)
+    height = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class CaptureForm(models.Model):

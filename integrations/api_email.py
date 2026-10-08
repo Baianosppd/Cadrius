@@ -50,7 +50,8 @@ class VisualView(APIView):
         if org is None:
             return Response({'detail': 'Sem escritório ativo.'}, status=status.HTTP_403_FORBIDDEN)
         layout, color = email_layout.office_style(org)
-        return Response({'visual': layout, 'cor': color, 'pode_editar': m.role in MANAGE,
+        from brain import profile
+        return Response({'visual': layout, 'cor': color, 'pode_editar': m.role in MANAGE, 'logo': profile.get(org).email_logo or '',
                          'opcoes': [{'id': k, 'label': v} for k, v in email_layout.LAYOUTS.items()]})
 
     def put(self, request):
@@ -58,12 +59,22 @@ class VisualView(APIView):
         org, m = _org(request)
         if org is None or m.role not in MANAGE:
             return Response({'detail': 'Só dono ou administrador muda o visual do escritório.'}, status=status.HTTP_403_FORBIDDEN)
-        layout, color = request.data.get('visual'), str(request.data.get('cor') or '')
+        p = profile.get(org)
+        layout = request.data.get('visual', p.email_layout or email_layout.DEFAULT_LAYOUT)
+        color = str(request.data.get('cor', p.brand_color or email_layout.DEFAULT_COLOR) or '')
         if layout not in email_layout.LAYOUTS or not email_layout.COLOR_RX.match(color):
             return Response({'detail': 'Escolha um visual da lista e uma cor no formato #RRGGBB.'}, status=status.HTTP_400_BAD_REQUEST)
-        p = profile.get(org)
+        fields = ['email_layout', 'brand_color', 'updated_at']
+        if 'logo' in request.data:                       # CAD-231: logo da empresa ("" remove)
+            logo = str(request.data.get('logo') or '').strip()
+            try:
+                email_layout.decode_image(logo, 'da logo')
+            except email_layout.SignatureError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            p.email_logo = logo
+            fields.append('email_logo')
         p.email_layout, p.brand_color = layout, color
-        p.save(update_fields=['email_layout', 'brand_color', 'updated_at'])
+        p.save(update_fields=fields)
         audit.log('brain.profile_updated', actor=request.user, organization=org, target=p, changes={'campos': ['email_visual']})
         return self.get(request)
 
@@ -82,4 +93,7 @@ class PreviewView(APIView):
         html = r['html']
         if r['image']:                     # na prévia a imagem vai embutida (no e-mail real vai como anexo CID)
             html = html.replace(f'cid:{email_layout.SIGNATURE_CID}', request.user.email_signature_image)
+        if r.get('logo'):
+            from brain import profile
+            html = html.replace(f'cid:{email_layout.LOGO_CID}', profile.get(org).email_logo)
         return Response({'html': html})

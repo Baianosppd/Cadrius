@@ -60,6 +60,18 @@ def _checkout_completed(session) -> str:
         return 'ignored:not_paid'
     kind = meta.get('kind', 'subscription')
 
+    if kind == 'media_addon':                              # CAD-231: adicional de mídia com IA (assinatura própria)
+        from billing import addons
+        if session.get('amount_total') != _cents(addons.price_brl()):
+            audit.log('billing.payment_confirmed', actor_type='webhook', organization=org, outcome='denied',
+                      reason='adicional de mídia: valor pago não confere')
+            return 'ignored:addon_mismatch'
+        # a cobrança entra no livro pela invoice (1ª e renovações), como a do plano
+        addons.activate(org, source='contratado', subscription_id=session.get('subscription') or '', session_id=session.get('id', ''))
+        audit.log('billing.payment_confirmed', actor_type='webhook', organization=org, reason='media_addon',
+                  changes={'adicional': 'midia_ia'})
+        return 'addon_active'
+
     if kind == 'credit_pack':
         pack = CreditPack.objects.filter(pk=meta.get('pack_id'), is_active=True).first()
         if pack is None or session.get('amount_total') != _cents(pack.price_brl):
@@ -110,10 +122,25 @@ def _record_payment(org, kind, stripe_id, amount_cents, description):
         organization=org, kind=kind, amount_cents=amount_cents, paid_at=timezone.now(), description=description[:200]))
 
 
+def _addon_by_subscription(subscription_id):
+    from billing.models import MediaAddon
+    if not subscription_id:
+        return None
+    return MediaAddon.objects.filter(stripe_subscription_id=subscription_id).select_related('organization').first()
+
+
 def _payment_succeeded(invoice) -> str:
     org = _org_by_subscription(_invoice_subscription_id(invoice))
     if org is None:
-        return 'ignored:unknown_subscription'
+        addon = _addon_by_subscription(_invoice_subscription_id(invoice))
+        if addon is None:
+            return 'ignored:unknown_subscription'
+        _record_payment(addon.organization, Payment.Kind.SUBSCRIPTION, invoice.get('id', ''), invoice.get('amount_paid') or 0,
+                        'Adicional Estúdio de mídia com IA')
+        if not addon.active and addon.source == 'contratado':
+            addon.active = True
+            addon.save(update_fields=['active', 'updated_at'])
+        return 'addon_renewed'
     # A assinatura entra no livro pela invoice (1ª cobrança e renovações) — o checkout da assinatura não grava, para não duplicar.
     _record_payment(org, Payment.Kind.SUBSCRIPTION, invoice.get('id', ''), invoice.get('amount_paid') or 0,
                     f'Assinatura {org.plan.name}' if org.plan_id else 'Assinatura')
@@ -141,6 +168,13 @@ def _payment_failed(invoice) -> str:
 
 
 def _subscription_deleted(subscription) -> str:
+    addon = _addon_by_subscription(subscription.get('id'))
+    if addon is not None:                                   # CAD-231: cancelou só o adicional, o plano segue
+        addon.active = False
+        addon.save(update_fields=['active', 'updated_at'])
+        audit.log('billing.subscription_canceled', actor_type='webhook', organization=addon.organization,
+                  changes={'adicional': 'midia_ia'})
+        return 'addon_canceled'
     org = _org_by_subscription(subscription.get('id'))
     if org is None:
         return 'ignored:unknown_subscription'

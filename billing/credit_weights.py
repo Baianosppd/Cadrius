@@ -8,6 +8,7 @@ DEFAULT_WEIGHTS = {
     'draft_petition': ('Minuta de peça', 15),
     'marketing_content': ('Conteúdo de marketing com IA', 2),
     'marketing_image': ('Imagem de marketing gerada por IA', 4),
+    'marketing_video': ('Vídeo curto de marketing gerado por IA', 40),
     'ocr_page': ('OCR de página escaneada (local)', 0),
     'assistant_message': ('Mensagem ao assistente de IA', 1),
     'writing': ('Corrigir, reescrever ou resumir texto com IA', 1),

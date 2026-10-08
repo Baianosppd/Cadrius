@@ -93,7 +93,10 @@ def source_context(org, source_type, source_id):
 def render(body: str, values: dict) -> str:
     def _sub(m):
         value = str(values.get(m.group(1)) or '').strip()
-        return value or f'[COMPLETAR: {VARS.get(m.group(1), m.group(1))}]'
+        key = m.group(1)
+        # campo próprio de modelo importado (CAD-231): "campo.valor_da_causa" → "Valor da causa"
+        label = VARS.get(key) or (key[6:].replace('_', ' ').capitalize() if key.startswith('campo.') else key)
+        return value or f'[COMPLETAR: {label}]'
     return VAR.sub(_sub, body or '')
 
 

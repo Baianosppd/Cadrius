@@ -9,6 +9,9 @@ urlpatterns = [
     path('conteudos/<int:pk>/', api.PieceDetailView.as_view(), name='mkt-piece'),
     path('conteudos/<int:pk>/publicar/', api.PiecePublishView.as_view(), name='mkt-piece-publish'),
     path('conteudos/<int:pk>/imagem/', api.PieceImageView.as_view(), name='mkt-piece-image'),                 # CAD-226
+    path('conteudos/<int:pk>/video/', api.PieceVideoView.as_view(), name='mkt-piece-video'),                   # CAD-231
+    path('fotos/', api.AssetListView.as_view(), name='mkt-assets'),
+    path('fotos/<int:pk>/', api.AssetDetailView.as_view(), name='mkt-asset'),
     path('campanhas/', api.CampaignListView.as_view(), name='mkt-campaigns'),
     path('campanhas/<int:pk>/', api.CampaignDetailView.as_view(), name='mkt-campaign'),
     path('formularios/', api_leads.FormListView.as_view(), name='mkt-forms'),                      # CAD-223
@@ -20,6 +23,7 @@ public_urlpatterns = [
     path('captacao/<str:token>/', api_leads.PublicFormView.as_view(), name='public-capture'),
     path('pesquisa/<str:token>/', api_leads.PublicSurveyView.as_view(), name='public-survey'),
     path('marketing/imagem/<str:token>/', api.PublicImageView.as_view(), name='public-mkt-image'),
+    path('marketing/arquivo/<str:token>/', api.PublicFileView.as_view(), name='public-mkt-file'),
 ]
 
 staff_urlpatterns = [
@@ -29,6 +33,9 @@ staff_urlpatterns = [
     path('marketing/conteudos/<int:pk>/', api.StaffPieceDetailView.as_view(), name='staff-mkt-piece'),
     path('marketing/conteudos/<int:pk>/publicar/', api.StaffPiecePublishView.as_view(), name='staff-mkt-piece-publish'),
     path('marketing/conteudos/<int:pk>/imagem/', api.StaffPieceImageView.as_view(), name='staff-mkt-piece-image'),
+    path('marketing/conteudos/<int:pk>/video/', api.StaffPieceVideoView.as_view(), name='staff-mkt-piece-video'),
+    path('marketing/fotos/', api.StaffAssetListView.as_view(), name='staff-mkt-assets'),
+    path('marketing/fotos/<int:pk>/', api.StaffAssetDetailView.as_view(), name='staff-mkt-asset'),
     path('marketing/campanhas/', api.StaffCampaignListView.as_view(), name='staff-mkt-campaigns'),
     path('marketing/campanhas/<int:pk>/', api.StaffCampaignDetailView.as_view(), name='staff-mkt-campaign'),
     path('marketing/crescimento/', api.GrowthView.as_view(), name='staff-mkt-growth'),

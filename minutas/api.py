@@ -51,8 +51,7 @@ class TemplateListView(_Base):
             return err
         builtin = [{'chave': f'builtin:{k}', 'nome': t['name'], 'tipo': t['kind'], 'corpo': t['body'], 'do_escritorio': False}
                    for k, t in BUILTIN.items()]
-        own = [{'chave': f'org:{t.pk}', 'id': t.pk, 'nome': t.name, 'tipo': t.kind, 'corpo': t.body, 'do_escritorio': True}
-               for t in DraftTemplate.objects.filter(organization=m.organization)]
+        own = [template_json(t) for t in DraftTemplate.objects.filter(organization=m.organization).order_by('-updated_at')]
         return Response({'modelos': own + builtin, 'variaveis': [{'chave': k, 'label': v} for k, v in VARS.items()]})
 
     def post(self, request):
@@ -65,8 +64,40 @@ class TemplateListView(_Base):
         t = DraftTemplate.objects.create(organization=m.organization, name=name, body=body, created_by=request.user,
                                          kind=re.sub(r'[^a-z_]', '', str(request.data.get('tipo', 'outro')).lower())[:40] or 'outro')
         audit.log('draft.template_saved', actor=request.user, organization=m.organization, target=t, changes={'nome': name, 'novo': True})
-        return Response({'chave': f'org:{t.pk}', 'id': t.pk, 'nome': t.name, 'tipo': t.kind, 'corpo': t.body, 'do_escritorio': True},
-                        status=status.HTTP_201_CREATED)
+        return Response(template_json(t), status=status.HTTP_201_CREATED)
+
+
+class TemplateImportView(_Base):
+    """POST multipart {arquivo, salvar?} (dono/admin) — CAD-231: importa um modelo do escritório (Word, PDF, texto).
+    Sem ``salvar``: devolve a prévia (nome, tipo, corpo com as variáveis e os campos encontrados) para a pessoa conferir."""
+
+    def post(self, request):
+        from minutas import importer
+        m, err = self.membership(request, MANAGE_TEAM_ROLES)
+        if err:
+            return err
+        up = request.FILES.get('arquivo')
+        if up is None:
+            return Response({'detail': 'Escolha o arquivo do modelo.'}, status=status.HTTP_400_BAD_REQUEST)
+        if up.size > importer.MAX_FILE:
+            return Response({'detail': 'O arquivo pode ter até 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            data = importer.prepare(up.name, up.read())
+        except importer.ImportError_ as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if str(request.data.get('salvar', '')).lower() not in ('1', 'true', 'sim'):
+            return Response(data)
+        t = DraftTemplate.objects.create(organization=m.organization, name=str(request.data.get('nome') or data['nome'])[:120],
+                                         body=data['corpo'], kind=data['tipo'], created_by=request.user)
+        audit.log('draft.template_saved', actor=request.user, organization=m.organization, target=t,
+                  changes={'nome': t.name, 'novo': True, 'origem': 'importado', 'campos': len(data['campos'])})
+        return Response(template_json(t), status=status.HTTP_201_CREATED)
+
+
+def template_json(t) -> dict:
+    fields = sorted(set(services.VAR.findall(t.body)))
+    return {'chave': f'org:{t.pk}', 'id': t.pk, 'nome': t.name, 'tipo': t.kind, 'corpo': t.body, 'do_escritorio': True,
+            'campos': fields, 'atualizado_em': t.updated_at}
 
 
 class TemplateDetailView(_Base):
@@ -79,6 +110,8 @@ class TemplateDetailView(_Base):
             return Response(status=status.HTTP_404_NOT_FOUND)
         if 'nome' in request.data:
             t.name = str(request.data['nome']).strip()[:120] or t.name
+        if 'tipo' in request.data:                        # CAD-231
+            t.kind = re.sub(r'[^a-z_]', '', str(request.data['tipo']).lower())[:40] or t.kind
         if 'corpo' in request.data:
             body = str(request.data['corpo'])
             if not 10 <= len(body) <= MAX_BODY:
@@ -86,7 +119,7 @@ class TemplateDetailView(_Base):
             t.body = body
         t.save()
         audit.log('draft.template_saved', actor=request.user, organization=m.organization, target=t, changes={'nome': t.name, 'novo': False})
-        return Response({'chave': f'org:{t.pk}', 'id': t.pk, 'nome': t.name, 'tipo': t.kind, 'corpo': t.body, 'do_escritorio': True})
+        return Response(template_json(t))
 
     def delete(self, request, pk):
         m, err = self.membership(request, MANAGE_TEAM_ROLES)

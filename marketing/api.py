@@ -18,14 +18,15 @@ from accounts import access
 from accounts.team_roles import MANAGE_TEAM_ROLES, get_active_membership
 from audit import service as audit
 from backoffice.permissions import HasArea
-from marketing import compliance, ideas, services
-from marketing.models import Campaign, ContentPiece
+from marketing import compliance, ideas, media, services
+from marketing.images import AddonRequired, ImageError
+from marketing.models import Campaign, ContentPiece, MarketingAsset
 
 WRITE_ROLES = MANAGE_TEAM_ROLES | {'MEMBER'}
 PS = ContentPiece.Status
 
 
-def piece_json(p, full=True):
+def piece_json(p, full=True, request=None):
     data = {'id': p.pk, 'canal': p.channel, 'canal_label': p.get_channel_display(), 'tema': p.theme, 'titulo': p.title,
             'status': p.status, 'status_label': p.get_status_display(), 'agendado_para': p.scheduled_at, 'publicado_em': p.published_at,
             'campanha_id': p.campaign_id, 'alertas': p.compliance, 'bloqueado': compliance.blocking(p.compliance),
@@ -34,6 +35,8 @@ def piece_json(p, full=True):
     if full:
         data.update(texto=p.body, hashtags=p.hashtags, sugestao_imagem=p.image_hint, imagem_url=p.image_url,
                     imagem_origem=p.image_source,
+                    video_status=p.video_status, video_erro=p.video_error,
+                    video_url=media.file_url(p.video_file, request) if p.video_status == 'pronto' else '',
                     texto_final=services.full_text(p))
     return data
 
@@ -68,6 +71,10 @@ class _Scoped(APIView):
 
     def campaigns(self, org):
         qs = Campaign.objects.filter(scope=self.scope)
+        return qs.filter(organization=org) if self.scope == 'escritorio' else qs
+
+    def assets(self, org):
+        qs = MarketingAsset.objects.filter(scope=self.scope)
         return qs.filter(organization=org) if self.scope == 'escritorio' else qs
 
 
@@ -139,7 +146,7 @@ class PieceDetailView(_Scoped):
         if err:
             return err
         p = self._get(org, pk)
-        return Response(piece_json(p)) if p else Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(piece_json(p, request=request)) if p else Response(status=status.HTTP_404_NOT_FOUND)
 
     def patch(self, request, pk):
         d = request.data
@@ -198,7 +205,7 @@ class PieceDetailView(_Scoped):
             p.status = target
         p.save()
         audit.log('marketing.content_updated', actor=request.user, organization=org, target=p, changes={'status': p.status})
-        return Response(piece_json(p))
+        return Response(piece_json(p, request=request))
 
     def delete(self, request, pk):
         org, err = self.ctx(request, 'write')
@@ -226,11 +233,14 @@ class PiecePublishView(PieceDetailView):
             p = services.publish(p)
         except ValueError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(piece_json(p))
+        return Response(piece_json(p, request=request))
 
 
 class PieceImageView(PieceDetailView):
-    """CAD-226: POST {modo: 'ia' | 'marca'} → gera a imagem do conteúdo e devolve o conteúdo com a URL pública."""
+    """POST {modo, estilo, foto_id, referencias: [ids], sugestao_imagem} → imagem do conteúdo (link público).
+
+    modo 'marca' (arte pronta: estilo destaque|citacao|dica|foto) e 'foto' (foto do escritório): todos os planos.
+    modo 'ia' (Gemini, com até 3 fotos de referência): adicional de mídia com IA (CAD-231)."""
 
     def post(self, request, pk):
         from marketing import images
@@ -240,17 +250,94 @@ class PieceImageView(PieceDetailView):
         p = self._get(org, pk)
         if p is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        mode = 'marca' if request.data.get('modo') == 'marca' else 'ia'
-        if request.data.get('sugestao_imagem'):
-            p.image_hint = str(request.data['sugestao_imagem']).strip()[:500]
+        d = request.data
+        mode = d.get('modo') if d.get('modo') in ('ia', 'marca', 'foto') else 'ia'
+        style = d.get('estilo') if d.get('estilo') in images.STYLES else 'destaque'
+        photo = self.assets(org).filter(pk=d.get('foto_id')).first() if d.get('foto_id') else None
+        ref_ids = [i for i in (d.get('referencias') or []) if str(i).isdigit()][:images.MAX_REFS] if isinstance(
+            d.get('referencias'), list) else []
+        refs = list(self.assets(org).filter(pk__in=ref_ids))
+        if (d.get('foto_id') and photo is None) or len(refs) != len(ref_ids):
+            return Response({'detail': 'Imagem não encontrada.'}, status=status.HTTP_400_BAD_REQUEST)
+        if d.get('sugestao_imagem'):
+            p.image_hint = str(d['sugestao_imagem']).strip()[:500]
             p.save(update_fields=['image_hint', 'updated_at'])
         try:
-            p, notice = images.generate(p, request.user, mode=mode, request=request)
-        except images.ImageError as exc:
-            return Response({'detail': str(exc)}, status=status.HTTP_402_PAYMENT_REQUIRED)
+            p, notice = images.generate(p, request.user, mode=mode, request=request, style=style, photo=photo, refs=refs)
+        except AddonRequired as exc:
+            return Response({'detail': str(exc), 'code': 'addon_required'}, status=status.HTTP_402_PAYMENT_REQUIRED)
+        except ImageError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         audit.log('marketing.image_generated', actor=request.user, organization=org, target=p,
-                  changes={'origem': p.image_source, 'modo': mode})
-        return Response({**piece_json(p), 'aviso': notice})
+                  changes={'origem': p.image_source, 'modo': mode, 'estilo': style, 'referencias': len(refs)})
+        return Response({**piece_json(p, request=request), 'aviso': notice})
+
+
+class PieceVideoView(PieceDetailView):
+    """CAD-231 (adicional de mídia). POST {sugestao, foto_id} → pede o vídeo ao Gemini Veo; GET → andamento (consulta o Google)."""
+
+    def get(self, request, pk):
+        org, err = self.ctx(request)
+        if err:
+            return err
+        p = self._get(org, pk)
+        if p is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        p = media.poll_video(p, request.user)
+        return Response(piece_json(p, request=request))
+
+    def post(self, request, pk):
+        org, err = self.ctx(request, 'write')
+        if err:
+            return err
+        p = self._get(org, pk)
+        if p is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        photo = self.assets(org).filter(pk=request.data.get('foto_id')).first() if request.data.get('foto_id') else None
+        if request.data.get('foto_id') and photo is None:
+            return Response({'detail': 'Imagem não encontrada.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            p = media.start_video(p, request.user, hint=str(request.data.get('sugestao') or '')[:500], photo=photo)
+        except AddonRequired as exc:
+            return Response({'detail': str(exc), 'code': 'addon_required'}, status=status.HTTP_402_PAYMENT_REQUIRED)
+        except ImageError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        audit.log('marketing.video_requested', actor=request.user, organization=org, target=p, changes={'com_foto': bool(photo)})
+        return Response(piece_json(p, request=request), status=status.HTTP_202_ACCEPTED)
+
+
+class AssetListView(_Scoped):
+    """CAD-231: fotos do escritório para o marketing (todos os planos). GET lista; POST multipart ``arquivo``."""
+
+    def get(self, request):
+        org, err = self.ctx(request)
+        if err:
+            return err
+        return Response([media.asset_json(a, request) for a in self.assets(org)[:200]])
+
+    def post(self, request):
+        org, err = self.ctx(request, 'write')
+        if err:
+            return err
+        try:
+            a = media.save_asset(org, request.user, request.FILES.get('arquivo'), scope=self.scope)
+        except ImageError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        audit.log('marketing.asset_uploaded', actor=request.user, organization=org, changes={'id': a.pk})
+        return Response(media.asset_json(a, request), status=status.HTTP_201_CREATED)
+
+
+class AssetDetailView(_Scoped):
+    def delete(self, request, pk):
+        org, err = self.ctx(request, 'write')
+        if err:
+            return err
+        a = self.assets(org).filter(pk=pk).first()
+        if a is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        media.delete_asset(a)
+        audit.log('marketing.asset_deleted', actor=request.user, organization=org, changes={'id': pk})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PublicImageView(APIView):
@@ -271,6 +358,29 @@ class PublicImageView(APIView):
         if p is None or not p.image_file or not default_storage.exists(p.image_file):
             raise Http404
         resp = FileResponse(default_storage.open(p.image_file, 'rb'), content_type='image/png')
+        resp['Cache-Control'] = 'public, max-age=86400'
+        resp['X-Content-Type-Options'] = 'nosniff'
+        return resp
+
+
+class PublicFileView(APIView):
+    """CAD-231: foto do escritório ou vídeo gerado, por link assinado (só caminhos de marketing/fotos e marketing/video)."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    TYPES = {'jpg': 'image/jpeg', 'png': 'image/png', 'mp4': 'video/mp4'}
+
+    def get(self, request, token):
+        from django.core import signing
+        from django.core.files.storage import default_storage
+        from django.http import FileResponse, Http404
+        try:
+            path = media.read_file_token(token)
+        except signing.BadSignature as exc:
+            raise Http404 from exc
+        ctype = self.TYPES.get(path.rsplit('.', 1)[-1].lower())
+        if ctype is None or not default_storage.exists(path):
+            raise Http404
+        resp = FileResponse(default_storage.open(path, 'rb'), content_type=ctype)
         resp['Cache-Control'] = 'public, max-age=86400'
         resp['X-Content-Type-Options'] = 'nosniff'
         return resp
@@ -339,6 +449,18 @@ class StaffPiecePublishView(StaffMixin, PiecePublishView):
 
 
 class StaffPieceImageView(StaffMixin, PieceImageView):
+    pass
+
+
+class StaffPieceVideoView(StaffMixin, PieceVideoView):
+    pass
+
+
+class StaffAssetListView(StaffMixin, AssetListView):
+    pass
+
+
+class StaffAssetDetailView(StaffMixin, AssetDetailView):
     pass
 
 
