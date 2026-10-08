@@ -169,4 +169,6 @@ class OfficeProfile(models.Model):
     # CAD-226: visual padrão dos e-mails do escritório (integrations/email_layout.py)
     email_layout = models.CharField(max_length=12, default='moderno', blank=True)
     brand_color = models.CharField(max_length=7, default='#1d4ed8', blank=True)
+    # CAD-231: logo da empresa no topo dos e-mails (data URL PNG/JPG até 200 KB; vai como imagem embutida)
+    email_logo = models.TextField(blank=True, default='')
     updated_at = models.DateTimeField(auto_now=True)

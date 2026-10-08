@@ -86,3 +86,30 @@ class EmailLayoutTests(APITestCase):
         rule['actions'][0]['params']['visual'] = 'neon'
         with self.assertRaises(catalog.RuleError):
             catalog.clean_rule(rule)
+
+
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class EmailLogoTests(APITestCase):
+    """CAD-231: logo da empresa no topo dos e-mails (todos os visuais), embutida como imagem CID."""
+
+    def setUp(self):
+        self.org = make_org('Andrade & Lima')
+        self.owner = make_user('dono@x.com', self.org, role='OWNER')
+        self.c = APIClient()
+        self.c.force_authenticate(self.owner)
+
+    def test_logo_salva_aparece_na_previa_e_vai_embutida(self):
+        res = self.c.put('/api/v1/integrations/email/visual/', {'logo': PNG}, format='json')   # só a logo, sem mudar o visual
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(res.json()['logo'], PNG)
+        self.assertEqual(res.json()['visual'], 'moderno')
+        html = self.c.post('/api/v1/integrations/email/previa/', {}, format='json').json()['html']
+        self.assertIn(PNG, html)
+        for layout in ('moderno', 'classico', 'simples'):
+            self.assertIn('cid:logo-escritorio', email_layout.render(self.org, 'Oi', 'Corpo', layout=layout)['html'])
+        email_layout.send(self.org, 'Oi', 'Corpo', ['m@x.com'])
+        self.assertTrue(any(getattr(a, 'get', lambda *_: None)('Content-ID') == '<logo-escritorio>' for a in mail.outbox[0].attachments))
+        fake = 'data:image/png;base64,' + base64.b64encode(b'GIF89a').decode()
+        self.assertEqual(self.c.put('/api/v1/integrations/email/visual/', {'logo': fake}, format='json').status_code, 400)
+        self.assertEqual(self.c.put('/api/v1/integrations/email/visual/', {'logo': ''}, format='json').json()['logo'], '')
+        self.assertNotIn('logo-escritorio', email_layout.render(self.org, 'Oi', 'Corpo')['html'])
