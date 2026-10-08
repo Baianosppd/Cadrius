@@ -45,7 +45,7 @@ def redirect_uri(request=None) -> str:
 
 
 class AppSerializer(serializers.Serializer):
-    client_id = serializers.CharField(max_length=255)
+    client_id = serializers.CharField(max_length=255, required=False)
     client_secret = serializers.CharField(max_length=255, required=False, allow_blank=True, write_only=True)
     enabled = serializers.BooleanField(required=False)
     share_details = serializers.BooleanField(required=False)
@@ -72,9 +72,16 @@ class GCalStatusView(APIView):
             return Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
         app = GoogleCalendarApp.objects.filter(organization=membership.organization).first()
         link = GoogleCalendarLink.objects.filter(user=request.user).first()
+        from gcal import platform
+        own_app = bool(app and app.enabled and not app.uses_platform)
         return Response({
-            'app_configured': bool(app and app.enabled),
-            'client_id': app.client_id if app else '',
+            # CAD-230: com o app da plataforma, a pessoa conecta sem o escritório configurar nada no Google Cloud
+            'app_configured': own_app or platform.platform_available(),
+            'own_app': own_app,
+            'platform_available': platform.platform_available(),
+            'google_email': link.google_email if link else '',
+            'recursos': {'agenda': bool(link), 'planilhas_documentos': bool(link and link.has_scope(platform.DRIVE_FILE))},
+            'client_id': app.client_id if own_app else '',
             'share_details': app.share_details if app else True,
             'event_minutes': app.event_minutes if app else 30,
             'can_configure': membership.role in MANAGE_TEAM_ROLES,
@@ -83,7 +90,7 @@ class GCalStatusView(APIView):
             'last_sync_at': link.last_sync_at if link else None,
             'last_error': link.last_error if link else '',
             'redirect_uri': redirect_uri(request),
-            'scope': g.SCOPE,
+            'scope': platform.scopes(),
             # CAD-222: compromissos criados direto no Google
             'import_events': link.import_events if link else True,
             'lookahead_days': link.lookahead_days if link else 60,
@@ -104,12 +111,22 @@ class GCalAppView(APIView):
         ser.is_valid(raise_exception=True)
         d = ser.validated_data
         app = GoogleCalendarApp.objects.filter(organization=membership.organization).first()
-        if app is None and not d.get('client_secret'):
-            return Response({'client_secret': ['Informe o segredo do cliente.']}, status=status.HTTP_400_BAD_REQUEST)
-        app = app or GoogleCalendarApp(organization=membership.organization)
-        app.client_id = d['client_id']
-        if d.get('client_secret'):
-            app.client_secret = d['client_secret']
+        if d.get('client_id'):
+            # app próprio do escritório: troca o da plataforma (quem já conectou precisa reconectar com o app novo)
+            switching = app is None or app.uses_platform or app.client_id != d['client_id']
+            if switching and not d.get('client_secret'):
+                return Response({'client_secret': ['Informe o segredo do cliente.']}, status=status.HTTP_400_BAD_REQUEST)
+            if app is not None and switching:
+                app.links.update(status=GoogleCalendarLink.Status.NEEDS_REAUTH, last_error='O escritório trocou o app do Google.')
+            app = app or GoogleCalendarApp(organization=membership.organization)
+            app.client_id, app.uses_platform = d['client_id'], False
+            if d.get('client_secret'):
+                app.client_secret = d['client_secret']
+        elif app is None:
+            from gcal import platform
+            app = platform.app_for(membership.organization)        # só preferências, com o app do Cadrius
+            if app is None:
+                return Response({'client_id': ['Informe o ID do cliente do Google.']}, status=status.HTTP_400_BAD_REQUEST)
         for field in ('enabled', 'share_details', 'event_minutes'):
             if field in d:
                 setattr(app, field, d[field])
@@ -142,13 +159,16 @@ class GCalConnectView(APIView):
 
     def post(self, request):
         membership = _membership(request)
-        app = GoogleCalendarApp.objects.filter(organization=membership.organization, enabled=True).first() if membership else None
+        from gcal import platform
+        app = platform.app_for(membership.organization) if membership else None
         if app is None:
-            return Response({'detail': 'O escritório ainda não configurou o app do Google.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'O Google ainda não está disponível para este escritório. Peça ao suporte do Cadrius '
+                                       'ou cadastre o app do Google do escritório.'}, status=status.HTTP_400_BAD_REQUEST)
         nonce, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         state = signing.dumps({'n': nonce}, salt=SALT)
         cache.set(_pending_key(nonce), {'u': str(request.user.pk), 'a': app.pk, 'v': verifier}, STATE_MAX_AGE)
-        params = {'client_id': app.client_id, 'redirect_uri': redirect_uri(request), 'response_type': 'code', 'scope': g.SCOPE,
+        params = {'client_id': app.credentials()[0], 'redirect_uri': redirect_uri(request), 'response_type': 'code',
+                  'scope': platform.scopes() if app.uses_platform else f'{g.SCOPE} {platform.DRIVE_FILE} {platform.IDENTITY}',
                   'access_type': 'offline', 'prompt': 'consent', 'include_granted_scopes': 'true', 'state': state,
                   'code_challenge': _pkce(verifier), 'code_challenge_method': 'S256'}
         return Response({'authorization_url': f'{g.AUTH_URL}?{urlencode(params)}'})
@@ -181,7 +201,8 @@ class GCalCallbackView(View):
         if app is None or user is None or not app.organization.members.filter(user=user, is_active=True).exists():
             return self._back('state_invalid')
         try:
-            tokens = g.exchange_code(app.client_id, app.client_secret, request.GET['code'], redirect_uri(request), data['v'])
+            cid, secret = app.credentials()
+            tokens = g.exchange_code(cid, secret, request.GET['code'], redirect_uri(request), data['v'])
         except g.GoogleAuthError as exc:
             logger.warning('Google Agenda: troca do código recusada (%s)', str(exc)[:120])
             reason = {'redirect_uri_mismatch': 'redirect_mismatch', 'invalid_grant': 'code_expired'}.get(getattr(exc, 'code', ''), 'code_rejected')
@@ -190,9 +211,21 @@ class GCalCallbackView(View):
         if not refresh:
             return self._back('no_refresh_token')   # o Google só devolve na 1ª autorização: revogue o acesso e conecte de novo
         GoogleCalendarLink.objects.update_or_create(user=user, defaults={
-            'app': app, 'refresh_token': refresh, 'status': GoogleCalendarLink.Status.ACTIVE, 'sync_token': '', 'last_error': ''})
+            'app': app, 'refresh_token': refresh, 'status': GoogleCalendarLink.Status.ACTIVE, 'sync_token': '', 'last_error': '',
+            'scopes': str(tokens.get('scope') or '')[:2000], 'google_email': _email_from_id_token(tokens.get('id_token'))})
         audit.log('connection.created', actor=user, organization=app.organization, changes={'provider': 'google_calendar'})
         return self._back('ok')
+
+
+def _email_from_id_token(id_token) -> str:
+    """Só para mostrar "conectado como fulano@…": o token veio direto do Google (TLS, troca do code), sem uso de autorização."""
+    if not id_token:
+        return ''
+    try:
+        import jwt
+        return str(jwt.decode(id_token, options={'verify_signature': False}).get('email') or '')[:254]
+    except Exception:  # noqa: BLE001
+        return ''
 
 
 class GCalDisconnectView(APIView):
@@ -272,9 +305,45 @@ class GCalEventsView(APIView):
             qs = qs.filter(kind=kind)
         return Response([event_json(e) for e in qs[:200]])
 
+    def post(self, request):
+        """CAD-230: cria o compromisso direto no Google Agenda da pessoa.
+        {titulo, inicio (ISO), duracao_min, local, descricao, convidados[], avisar_convidados, dia_inteiro}"""
+        membership = _membership(request)
+        if membership is None:
+            return Response({'detail': 'Usuário sem escritório.'}, status=status.HTTP_403_FORBIDDEN)
+        from gcal import write
+        d = request.data
+        inicio = _parse_start(d.get('inicio'))
+        if inicio is None:
+            return Response({'detail': 'Informe data e hora de início.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ev = write.create_event(request.user, membership.organization, titulo=str(d.get('titulo') or ''), inicio=inicio,
+                                    duracao_min=_int(d.get('duracao_min'), 60), local=str(d.get('local') or ''),
+                                    descricao=str(d.get('descricao') or ''), convidados=d.get('convidados') or [],
+                                    avisar_convidados=bool(d.get('avisar_convidados')), dia_inteiro=bool(d.get('dia_inteiro')))
+        except write.CalendarWriteError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(event_json(ev), status=status.HTTP_201_CREATED)
+
+
+def _parse_start(value):
+    from django.utils.dateparse import parse_datetime
+    dt = parse_datetime(str(value or ''))
+    if dt is None:
+        return None
+    return dt if timezone.is_aware(dt) else timezone.make_aware(dt)
+
+
+def _int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
 
 class GCalEventDetailView(APIView):
-    """PATCH {tipo, cliente_id, processo_id} — corrige a classificação/vínculos (a correção não é desfeita pela sincronização)."""
+    """PATCH {tipo, cliente_id, processo_id} — corrige a classificação/vínculos (a correção não é desfeita pela sincronização).
+    PATCH {titulo, inicio, duracao_min, local, descricao} muda o compromisso no Google; DELETE cancela (CAD-230)."""
     permission_classes = [permissions.IsAuthenticated]
 
     def patch(self, request, pk):
@@ -300,4 +369,30 @@ class GCalEventDetailView(APIView):
             ev.save(update_fields=fields)
             from gcal.events import _ensure_task
             _ensure_task(ev.link, ev)
+        # CAD-230: mudar o próprio compromisso no Google (título, horário, duração, local, descrição)
+        changes = {k: data[k] for k in ('titulo', 'inicio', 'duracao_min', 'local', 'descricao') if k in data}
+        if changes:
+            from gcal import write
+            if ev.link.user_id != request.user.id:
+                return Response({'detail': 'Só quem é dono do compromisso pode alterá-lo no Google.'}, status=status.HTTP_403_FORBIDDEN)
+            inicio = _parse_start(changes['inicio']) if 'inicio' in changes else None
+            if 'inicio' in changes and inicio is None:
+                return Response({'detail': 'Data e hora inválidas.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                ev = write.update_event(request.user, membership.organization, ev.pk, titulo=changes.get('titulo'), inicio=inicio,
+                                        duracao_min=_int(changes['duracao_min'], 60) if 'duracao_min' in changes else None,
+                                        local=changes.get('local'), descricao=changes.get('descricao'))
+            except write.CalendarWriteError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(event_json(ev))
+
+    def delete(self, request, pk):
+        membership = _membership(request)
+        if membership is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        from gcal import write
+        try:
+            write.cancel_event(request.user, membership.organization, pk)
+        except write.CalendarWriteError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)

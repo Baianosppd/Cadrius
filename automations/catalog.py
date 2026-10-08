@@ -4,6 +4,9 @@ As variáveis entram nos textos como ``{{processo.cnj}}``. Destinatário de envi
 número/e-mail nunca são digitados na regra."""
 from __future__ import annotations
 
+import re
+
+from automations.compute import HELP_FUNCS, NAME_RE, SOURCES, ComputeError, check_expression
 from automations.models import Rule
 
 T = Rule.Trigger
@@ -159,7 +162,10 @@ TRIGGERS = {
 }
 
 OPS = {'eq': 'é igual a', 'neq': 'é diferente de', 'contains': 'contém', 'in': 'é um destes', 'exists': 'está preenchido',
-       'not_exists': 'está vazio'}
+       'not_exists': 'está vazio',
+       # CAD-230: comparações numéricas (valores em R$, dias, notas, resultados de cálculo)
+       'gt': 'é maior que', 'gte': 'é maior ou igual a', 'lt': 'é menor que', 'lte': 'é menor ou igual a'}
+NUMERIC_OPS = {'gt', 'gte', 'lt', 'lte'}
 EXTERNAL = {'send_whatsapp', 'send_email', 'send_message', 'erp_call', 'team_chat', 'send_survey'}
 ACTIONS = {
     'create_task': {'label': 'Criar tarefa', 'externo': False,
@@ -182,7 +188,26 @@ ACTIONS = {
                   'params': {'canal': 'slack | teams | telegram', 'mensagem': 'Mensagem (aceita variáveis)'}},
     'erp_call': {'label': 'Chamar o ERP', 'externo': True,
                  'params': {'conector_id': 'Conector', 'operacao': 'Operação', 'dados': 'Campos (aceitam variáveis)'}},
+    # ---------------------------------------------------------------- CAD-230: processamento e Google
+    'calcular': {'label': 'Calcular (conta com as variáveis)', 'externo': False, 'processamento': True,
+                 'params': {'nome': 'Nome do resultado (ex.: multa → use {{calc.multa}} nos passos seguintes)',
+                            'expressao': 'Conta, ex.: {{honorario.valor}} * 2% + {{honorario.valor}} * 0,033% * {{honorario.dias_atraso}}',
+                            'formato': 'numero | moeda | inteiro | percentual'}},
+    'tabela': {'label': 'Montar tabela temporária com dados do escritório', 'externo': False, 'processamento': True,
+               'params': {'nome': 'Nome da tabela (ex.: abertos → {{tabela.abertos.total}}, .quantidade, .texto)',
+                          'fonte': 'honorarios_em_aberto | honorarios_vencidos | tarefas_abertas | prazos_semana | '
+                                   'processos_parados | despesas_mes | oportunidades_abertas',
+                          'do_cliente': 'sim = só do cliente do evento', 'limite': 'Máximo de linhas (1 a 200)'}},
+    'google_planilha': {'label': 'Registrar em planilha do Google', 'externo': False,
+                        'params': {'planilha': 'Nome da planilha (o Cadrius cria na 1ª vez e acrescenta linhas depois)',
+                                   'tabela': 'Tabela temporária a copiar (opcional)',
+                                   'colunas': 'Coluna=valor; Coluna=valor (aceita variáveis), ex.: Cliente={{cliente.nome}}; Valor={{calc.multa}}'}},
+    'google_evento': {'label': 'Criar compromisso no Google Agenda', 'externo': False,
+                      'params': {'titulo': 'Título (aceita variáveis)', 'descricao': 'Descrição', 'quando': 'prazo | dias_uteis',
+                                 'dias': 'Dias úteis a partir de hoje', 'antecedencia': 'Dias úteis antes do prazo', 'hora': 'HH:MM',
+                                 'duracao_min': 'Duração em minutos (padrão 60)'}},
 }
+STEP_CONDITION = 'somente_se'
 MAX_CONDITIONS, MAX_ACTIONS, MAX_TEXT = 10, 10, 2000
 
 
@@ -196,7 +221,12 @@ def catalog() -> dict:
                       'variaveis': [{'chave': c, 'label': lbl} for c, lbl in {**v['vars'], **COMMON_VARS}.items()]}
                      for k, v in TRIGGERS.items()],
         'operadores': [{'id': k, 'label': v} for k, v in OPS.items()],
-        'acoes': [{'id': k, 'label': v['label'], 'externo': v['externo'], 'params': v['params']} for k, v in ACTIONS.items()],
+        'acoes': [{'id': k, 'label': v['label'], 'externo': v['externo'], 'params': v['params'],
+                   'processamento': v.get('processamento', False)} for k, v in ACTIONS.items()],
+        # CAD-230: o que os passos de processamento oferecem aos passos seguintes
+        'processamento': {'funcoes': HELP_FUNCS, 'fontes': {k: lbl for k, (lbl, _fn) in SOURCES.items()},
+                          'variaveis': ['calc.<nome>', 'calc.<nome>_valor', 'tabela.<nome>.quantidade', 'tabela.<nome>.total',
+                                        'tabela.<nome>.texto']},
     }
 
 
@@ -259,7 +289,7 @@ def clean_trigger_config(trigger: str, config) -> dict:
     return {}
 
 
-def clean_conditions(trigger: str, conditions) -> list:
+def clean_conditions(trigger: str, conditions, *, produced=()) -> list:
     if conditions in (None, ''):
         return []
     if not isinstance(conditions, list) or len(conditions) > MAX_CONDITIONS:
@@ -270,7 +300,7 @@ def clean_conditions(trigger: str, conditions) -> list:
         if not isinstance(c, dict):
             raise RuleError('Condição inválida.')
         field, op = c.get('field'), c.get('op')
-        if field not in allowed:
+        if field not in allowed and not any(field == p or field.startswith(p + '.') for p in produced):
             raise RuleError(f'Campo de condição desconhecido para este gatilho: {field}.')
         if op not in OPS:
             raise RuleError(f'Operador desconhecido: {op}.')
@@ -283,6 +313,15 @@ def clean_conditions(trigger: str, conditions) -> list:
             value = [str(v)[:200] for v in value]
         elif op in ('exists', 'not_exists'):
             value = ''
+        elif op in NUMERIC_OPS:
+            from automations.compute import to_number
+            if not str(value).strip():
+                raise RuleError(f'Informe o número da condição sobre {field}.')
+            try:
+                to_number(value)
+            except ComputeError as exc:
+                raise RuleError(f'Condição sobre {field}: informe um número.') from exc
+            value = str(value)[:40]
         else:
             value = str(value)[:200]
             if not value:
@@ -291,15 +330,98 @@ def clean_conditions(trigger: str, conditions) -> list:
     return out
 
 
+def _name(p, key='nome') -> str:
+    name = str(p.get(key) or '').strip().lower()
+    if not NAME_RE.match(name):
+        raise RuleError(f'"{key}": só letras minúsculas, números e _ (ex.: multa_atraso).')
+    return name
+
+
+def _yes(value) -> bool:
+    return str(value).strip().lower() in ('1', 'true', 'sim', 's', 'yes', 'on')
+
+
+def _columns(raw) -> list:
+    """'Cliente={{cliente.nome}}; Valor={{calc.multa}}' ou [{titulo, valor}] → [{titulo, valor}]."""
+    if isinstance(raw, str):
+        items = []
+        for part in [x for x in raw.split(';') if x.strip()]:
+            if '=' not in part:
+                raise RuleError('Colunas: use Coluna=valor; Coluna=valor.')
+            title, value = part.split('=', 1)
+            items.append({'titulo': title.strip(), 'valor': value.strip()})
+        raw = items
+    if not isinstance(raw, list) or len(raw) > 30:
+        raise RuleError('Colunas: até 30.')
+    out = []
+    for c in raw:
+        if not isinstance(c, dict) or not str(c.get('titulo', '')).strip():
+            raise RuleError('Cada coluna precisa de título.')
+        out.append({'titulo': str(c['titulo']).strip()[:60], 'valor': str(c.get('valor', ''))[:500]})
+    return out
+
+
+def _when_params(trigger, p) -> dict:
+    quando = p.get('quando', 'dias_uteis')
+    if quando not in ('prazo', 'dias_uteis'):
+        raise RuleError('"quando" deve ser prazo ou dias_uteis.')
+    if quando == 'prazo' and trigger not in (T.DOCUMENT_CONFIRMED, T.DEADLINE_SOON, T.PUBLICATION_NEW, T.CALENDAR_EVENT,
+                                             T.EMAIL_RECEIVED, T.TASK_OVERDUE):
+        raise RuleError('Este gatilho não traz data de prazo: use "dias_uteis".')
+    out = {'quando': quando}
+    if quando == 'prazo':
+        out['antecedencia'] = _int(p.get('antecedencia', 0), 'antecedencia', 0, 30)
+    else:
+        out['dias'] = _int(p.get('dias', 0), 'dias', 0, 60)
+    return out
+
+
 def clean_actions(trigger: str, actions) -> list:
     if not isinstance(actions, list) or not 1 <= len(actions) <= MAX_ACTIONS:
         raise RuleError(f'Escolha de 1 a {MAX_ACTIONS} ações.')
-    out = []
+    out, produced = [], []
     for a in actions:
         if not isinstance(a, dict) or a.get('type') not in ACTIONS:
             raise RuleError(f'Ação desconhecida: {a.get("type") if isinstance(a, dict) else a}.')
         kind, p = a['type'], a.get('params') if isinstance(a.get('params'), dict) else {}
-        if kind == 'create_task':
+        if kind == 'calcular':
+            expr = _text(p, 'expressao', required=True, limit=400)
+            try:
+                check_expression(expr)
+            except ComputeError as exc:
+                raise RuleError(f'Cálculo: {exc}') from exc
+            formato = p.get('formato') or 'numero'
+            if formato not in ('numero', 'moeda', 'inteiro', 'percentual'):
+                raise RuleError('Formato: numero, moeda, inteiro ou percentual.')
+            name = _name(p)
+            params = {'nome': name, 'expressao': expr, 'formato': formato}
+            produced.append(f'calc.{name}')
+            produced.append(f'calc.{name}_valor')
+        elif kind == 'tabela':
+            if p.get('fonte') not in SOURCES:
+                raise RuleError(f'Fonte: {", ".join(SOURCES)}.')
+            do_cliente = _yes(p.get('do_cliente', False))
+            if do_cliente and 'cliente' not in TRIGGERS[trigger]['destinatarios']:
+                raise RuleError('Este gatilho não tem cliente para filtrar a tabela.')
+            name = _name(p)
+            params = {'nome': name, 'fonte': p['fonte'], 'do_cliente': do_cliente,
+                      'limite': _int(p.get('limite', 50), 'limite', 1, 200)}
+            produced.append(f'tabela.{name}')
+        elif kind == 'google_planilha':
+            tabela = str(p.get('tabela') or '').strip().lower()
+            if tabela and f'tabela.{tabela}' not in produced:
+                raise RuleError(f'A tabela "{tabela}" precisa ser montada num passo anterior.')
+            cols = _columns(p.get('colunas') or [])
+            if not tabela and not cols:
+                raise RuleError('Planilha: informe as colunas (Coluna=valor) ou uma tabela temporária.')
+            params = {'planilha': _text(p, 'planilha', required=True, limit=100), 'tabela': tabela, 'colunas': cols}
+        elif kind == 'google_evento':
+            hora = str(p.get('hora') or '09:00').strip()
+            if not re.match(r'^([01]?\d|2[0-3]):[0-5]\d$', hora):
+                raise RuleError('Hora no formato HH:MM.')
+            params = {'titulo': _text(p, 'titulo', required=True, limit=255), 'descricao': _text(p, 'descricao'), 'hora': hora,
+                      'duracao_min': _int(p.get('duracao_min', 60), 'duracao_min', 5, 1440), **_when_params(trigger, p)}
+        elif kind == 'create_task':
             quando = p.get('quando', 'dias_uteis')
             if quando not in ('prazo', 'dias_uteis'):
                 raise RuleError('Tarefa: "quando" deve ser prazo ou dias_uteis.')
@@ -354,7 +476,11 @@ def clean_actions(trigger: str, actions) -> list:
                 raise RuleError('ERP: "dados" deve ser um objeto com até 30 campos de texto.')
             params = {'conector_id': _int(p.get('conector_id'), 'conector_id', 1, 2**31), 'operacao': _text(p, 'operacao', required=True, limit=60),
                       'dados': {str(k)[:60]: v for k, v in dados.items()}}
-        out.append({'type': kind, 'params': params})
+        item = {'type': kind, 'params': params}
+        cond = a.get(STEP_CONDITION)                      # CAD-230: "só faça este passo se…" (vale para resultados de cálculo)
+        if cond:
+            item[STEP_CONDITION] = clean_conditions(trigger, [cond], produced=produced)[0]
+        out.append(item)
     return out
 
 

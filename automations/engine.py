@@ -66,6 +66,15 @@ def condition_ok(cond: dict, ctx: dict) -> bool:
         return _norm(expected) in _norm(value)
     if op == 'in':
         return _norm(value) in {_norm(x) for x in expected or []}
+    if op in ('gt', 'gte', 'lt', 'lte'):                     # CAD-230: "R$ 1.234,56", "15", resultados de cálculo
+        from automations.compute import ComputeError, to_number
+        if not filled:
+            return False
+        try:
+            a, b = to_number(value), to_number(expected)
+        except ComputeError:
+            return False
+        return {'gt': a > b, 'gte': a >= b, 'lt': a < b, 'lte': a <= b}[op]
     return False
 
 
@@ -101,9 +110,70 @@ def _contact(org, ctx, dest):
     return Contact.objects.filter(organization=org, pk=cid).first() if cid else None
 
 
+def _google_user(org, rule, ctx):
+    """Conta Google usada pelos passos do Google: a do responsável do evento; senão, a de quem criou a regra."""
+    from django.contrib.auth import get_user_model
+    from gcal.models import GoogleCalendarLink
+    for uid in (resolve(ctx, 'responsavel.id'), getattr(rule, 'created_by_id', None)):
+        if not uid:
+            continue
+        user = get_user_model().objects.filter(pk=uid, memberships__organization=org, memberships__is_active=True).first()
+        if user and GoogleCalendarLink.objects.filter(user=user, status='active').exists():
+            return user
+    return None
+
+
 def plan_step(org, rule, action, ctx) -> dict:
     kind, p = action['type'], action['params']
     step = {'tipo': kind, 'rotulo': ACTIONS[kind]['label'], 'externo': kind in EXTERNAL, 'status': 'planejado', 'detalhe': '', 'dados': {}}
+    cond = action.get('somente_se')
+    if cond and not condition_ok(cond, ctx):                 # CAD-230: passo condicional
+        return {**step, 'status': 'pulado', 'detalhe': f'Pulado: a condição "{cond["field"]} {cond["op"]} {cond.get("value", "")}" '
+                                                       'não foi atendida.'}
+    if kind == 'calcular':
+        from automations import compute
+        try:
+            value = compute.evaluate(p['expressao'], ctx)
+        except compute.ComputeError as exc:
+            return {**step, 'status': 'erro', 'detalhe': f'Cálculo "{p["nome"]}": {exc}'}
+        shown = compute.fmt(value, p.get('formato', 'numero'))
+        calc = ctx.setdefault('calc', {})
+        calc[p['nome']], calc[f'{p["nome"]}_valor'] = shown, str(value.quantize(compute.Decimal('0.0001')).normalize())
+        return {**step, 'status': 'feito', 'detalhe': f'{p["nome"]} = {shown}', 'dados': {'nome': p['nome'], 'resultado': shown}}
+    if kind == 'tabela':
+        from automations import compute
+        try:
+            table = compute.build_table(org, ctx, p['fonte'], do_cliente=p.get('do_cliente'), limite=p.get('limite', 50))
+        except compute.ComputeError as exc:
+            return {**step, 'status': 'erro', 'detalhe': f'Tabela "{p["nome"]}": {exc}'}
+        ctx.setdefault('tabela', {})[p['nome']] = table
+        label = compute.SOURCES[p['fonte']][0]
+        return {**step, 'status': 'feito', 'detalhe': f'Tabela "{p["nome"]}" ({label}): {table["quantidade"]} linha(s)'
+                + (f', total {table["total"]}' if table['total'] else '') + '.',
+                'dados': {'nome': p['nome'], 'quantidade': table['quantidade'], 'total': table['total']}}
+    if kind in ('google_planilha', 'google_evento'):
+        user = _google_user(org, rule, ctx)
+        if user is None:
+            return {**step, 'status': 'bloqueado',
+                    'detalhe': 'Ninguém com o Google conectado (responsável do evento ou quem criou a regra): Integrações → Google.'}
+        if kind == 'google_planilha':
+            if p.get('tabela'):
+                table = resolve(ctx, f'tabela.{p["tabela"]}') or {}
+                header, rows = table.get('colunas') or [], table.get('linhas') or []
+            else:
+                header = [c['titulo'] for c in p['colunas']]
+                rows = [[render(c['valor'], ctx)[:500] for c in p['colunas']]]
+            step['dados'] = {'usuario_id': str(user.pk), 'planilha': render(p['planilha'], ctx)[:100], 'colunas': header, 'linhas': rows}
+            step['detalhe'] = f'{len(rows)} linha(s) na planilha "{step["dados"]["planilha"]}" (Google de {user.get_full_name() or user.email}).'
+            return step
+        due, why = _due(org, p, ctx)
+        if due is None:
+            return {**step, 'status': 'bloqueado', 'detalhe': why}
+        title = render(p['titulo'], ctx)[:255] or 'Compromisso da automação'
+        step['dados'] = {'usuario_id': str(user.pk), 'titulo': title, 'descricao': render(p.get('descricao', ''), ctx)[:2000],
+                         'data': due.isoformat(), 'hora': p.get('hora', '09:00'), 'duracao_min': p.get('duracao_min', 60)}
+        step['detalhe'] = f'Compromisso "{title}" em {ctxmod.br(due)} às {p.get("hora", "09:00")} no Google de {user.get_full_name() or user.email}.'
+        return step
     if kind == 'create_task':
         due, why = _due(org, p, ctx)
         if due is None:
@@ -176,6 +246,7 @@ def plan_step(org, rule, action, ctx) -> dict:
 
 
 def plan(org, rule, ctx) -> list:
+    # em ordem: cálculos e tabelas de um passo ficam no contexto para os passos seguintes (CAD-230)
     return [plan_step(org, rule, a, ctx) for a in rule.actions]
 
 
@@ -234,6 +305,27 @@ def perform(org, rule, run, step, index, force=False) -> dict:
             used = messaging.deliver(org, contact, wanted, text, d.get('assunto', ''),
                                      origin={'regra': rule.pk, 'execucao': run.pk}, user=rule.created_by, layout=d.get('visual', ''))
             return {**step, 'status': 'feito', 'resultado': {'canal': used}}
+        if step['tipo'] in ('google_planilha', 'google_evento'):          # CAD-230
+            from django.contrib.auth import get_user_model
+            user = get_user_model().objects.filter(pk=d.get('usuario_id')).first()
+            if user is None or not user.memberships.filter(organization=org, is_active=True).exists():
+                raise ValueError('A pessoa da conta Google não está mais no escritório.')
+            if step['tipo'] == 'google_planilha':
+                from gcal import workspace
+                try:
+                    f = workspace.append_rows(user, d['planilha'], d['linhas'], d.get('colunas'))
+                except workspace.WorkspaceError as exc:
+                    raise ValueError(str(exc)) from exc
+                return {**step, 'status': 'feito', 'resultado': {'link': f.url}}
+            from gcal import write
+            day = datetime.strptime(d['data'], '%Y-%m-%d').date()
+            hh, mm = (int(x) for x in d.get('hora', '09:00').split(':'))
+            try:
+                ev = write.create_event(user, org, titulo=d['titulo'], inicio=timezone.make_aware(datetime.combine(day, time(hh, mm))),
+                                        duracao_min=d.get('duracao_min', 60), descricao=d.get('descricao', ''))
+            except write.CalendarWriteError as exc:
+                raise ValueError(str(exc)) from exc
+            return {**step, 'status': 'feito', 'resultado': {'evento_id': ev.pk}}
         if step['tipo'] == 'team_chat':
             from integrations.models import AppConnection
             from integrations.services import post_team_message
@@ -282,7 +374,7 @@ def resolve_responsavel(run):
 
 
 def final_status(steps) -> str:
-    states = [s['status'] for s in steps]
+    states = [s['status'] for s in steps if s['status'] != 'pulado'] or ['feito']   # passo condicional pulado não é falha
     if 'aguardando' in states:
         return S.PENDING
     done = states.count('feito')
@@ -447,7 +539,7 @@ def _flatten(ctx, prefix='') -> dict:
         key = f'{prefix}{k}'
         if isinstance(v, dict):
             out.update(_flatten(v, key + '.'))
-        elif k not in ('id', 'iso'):
+        elif k not in ('id', 'iso') and not isinstance(v, list):    # linhas das tabelas temporárias ficam fora
             out[key] = v
     return out
 
