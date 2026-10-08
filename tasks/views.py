@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import mixins
 from rest_framework.permissions import IsAuthenticated
@@ -43,10 +46,16 @@ class UserTaskViewSet(
 
     def filter_queryset_by_tenant(self, queryset):
         today = timezone.localdate()
-        return queryset.filter(
-            responsavel=self.request.user,
-            scheduled_at__date=today,
-        ).order_by("scheduled_at")
+        mine = queryset.filter(responsavel=self.request.user)
+        if self.action != "list":
+            return mine                    # marcar como feita vale para qualquer tarefa da pessoa (inclusive atrasada)
+        if self.request.query_params.get("periodo") == "painel":
+            # CAD-230: o painel mostra hoje + o que ficou atrasado (até 30 dias) e ainda não foi feito
+            return mine.filter(
+                Q(scheduled_at__date=today)
+                | Q(completed=False, scheduled_at__date__lt=today, scheduled_at__date__gte=today - timedelta(days=30))
+            ).order_by("scheduled_at")
+        return mine.filter(scheduled_at__date=today).order_by("scheduled_at")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

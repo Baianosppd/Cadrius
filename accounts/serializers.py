@@ -48,12 +48,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
     mfa_enabled = serializers.SerializerMethodField()
     mfa_required = serializers.SerializerMethodField()
     acessos = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
+    cover_image = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'initials',
             'phone', 'cpf', 'oab_number', 'oab_uf', 'practice_area', 'profile_picture',
+            'cover_image', 'cover_preset', 'cover_caption',
             'organization', 'role', 'is_staff', 'mfa_enabled', 'mfa_required', 'must_change_password', 'acessos',
         ]
         read_only_fields = fields
@@ -61,6 +64,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def _membership(self, obj):
         from .team_roles import get_active_membership
         return get_active_membership(obj)
+
+    def get_profile_picture(self, obj):
+        from accounts import profile_images
+        return profile_images.url(obj, 'foto')
+
+    def get_cover_image(self, obj):
+        from accounts import profile_images
+        return profile_images.url(obj, 'capa')
 
     def get_acessos(self, obj):
         """CAD-223: null = sem grupo (vale o cargo); senão o grupo e as permissões efetivas."""
@@ -109,13 +120,22 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'phone', 'oab_number']
+        fields = ['first_name', 'last_name', 'phone', 'oab_number', 'cover_preset', 'cover_caption']
         extra_kwargs = {
+            'cover_preset': {'required': False},
+            'cover_caption': {'required': False},
             'first_name': {'required': False},
             'last_name': {'required': False},
             'phone': {'required': False},
             'oab_number': {'required': False},
         }
+
+
+    def validate_cover_preset(self, value):
+        from accounts.profile_images import COVER_PRESETS
+        if value not in COVER_PRESETS:
+            raise serializers.ValidationError('Fundo de capa inválido.')
+        return value
 
 
 class ChangePasswordSerializer(serializers.Serializer):

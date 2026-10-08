@@ -13,6 +13,8 @@ from accounts.views import (
     RegisterCompanyView,
     GetUserProfileView,
     UpdateUserProfileView,
+    ProfileImageView,
+    PublicProfileImageView,
     ChangePasswordView,
     TeamMemberListCreateView,
     MemberCreditLimitView,
@@ -73,6 +75,7 @@ urlpatterns = [
     path('api/v1/auth/register/empresa/', RegisterCompanyView.as_view(), name='company_register'),
     path('api/v1/auth/user/', GetUserProfileView.as_view(), name='user_profile'),
     path('api/v1/auth/profile/', UpdateUserProfileView.as_view(), name='user_profile_update'),
+    path('api/v1/auth/profile/imagem/<str:kind>/', ProfileImageView.as_view(), name='user_profile_image'),  # CAD-230
     path('api/v1/auth/change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('api/v1/auth/password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),
     path('api/v1/auth/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
@@ -137,6 +140,7 @@ urlpatterns = [
     path('api/v1/minutas/', include('minutas.urls')),
     path('api/v1/marketing/', include('marketing.urls')),
     path('api/v1/publico/', include((marketing_public_urls, 'publico'))),
+    path('api/v1/publico/perfil/<str:token>/', PublicProfileImageView.as_view(), name='public-profile-image'),  # CAD-230
     path('api/v1/publico/atalho/<int:rule_id>/<str:key>/', AutomationShortcutView.as_view(), name='public-shortcut'),  # CAD-226
     path('api/v1/publico/voz/<str:key>/', PublicVoiceView.as_view(), name='public-voice'),                       # CAD-227
     path('api/v1/publico/relogio/decidir/<str:token>/', PublicWatchDecisionView.as_view(), name='public-watch-decision'),
