@@ -121,7 +121,7 @@ class MFAVerifyView(APIView):
         membership = get_active_membership(user)
         audit.log('auth.login.success', actor=user, organization=membership.organization if membership else None,
                   reason=f'MFA ({kind}) via {challenge.get("via", "pwd")}', data_categories=['identificacao'], legal_basis='contrato')
-        data = mfa.issue_tokens(user, mfa=True)
+        data = mfa.issue_tokens(user, mfa=True, remember=challenge.get('r', True))
         if kind == 'recovery':
             data['recovery_codes_left'] = mfa.recovery_left(user)
         return Response(data)

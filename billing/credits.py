@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
-from billing.entitlements import PAUSED_MESSAGE, ai_enabled, effective_monthly_credits
+from billing.entitlements import PAUSED_MESSAGE, TRIALING, ai_enabled, effective_monthly_credits, effective_status
 from billing.models import AIUsageLog, CreditLot, MemberCreditUsage
 
 PLAN_LIMIT_MESSAGE = "Limite de créditos do plano atingido."
@@ -12,6 +12,18 @@ MEMBER_LIMIT_MESSAGE = "Limite de créditos individual atingido."
 
 def current_billing_month():
     return timezone.localdate().replace(day=1)
+
+
+def plan_credits_used(organization, month=None, now=None):
+    """Quanto já saiu dos créditos do plano no período que vale agora (CAD-232).
+
+    - Plano pago ativo: o mês corrente (renova todo mês).
+    - Teste/plano gratuito: o TOTAL desde o cadastro. Os 30 créditos gratuitos são um pacote só; antes, um teste que
+      atravessava a virada do mês ganhava outros 30.
+    """
+    if effective_status(organization, now) == TRIALING:
+        return AIUsageLog.objects.filter(organization=organization).aggregate(t=Sum('extractions_count'))['t'] or 0
+    return organization_credits_used(organization, month)
 
 
 def _membership_for(organization, user_id):
@@ -65,7 +77,7 @@ def check_credit_available(organization, user_id=None):
     if not ai_enabled(organization):
         return False, PAUSED_MESSAGE
     month = current_billing_month()
-    plan_left = effective_monthly_credits(organization) - organization_credits_used(organization, month)
+    plan_left = effective_monthly_credits(organization) - plan_credits_used(organization, month)
     if plan_left <= 0 and _purchased_available(organization) <= 0:
         return False, PLAN_LIMIT_MESSAGE
 
@@ -100,7 +112,9 @@ def consume_credit(organization, user_id=None, amount=1):
             organization=organization,
             billing_cycle_month=month,
         )
-        plan_left = max(effective_monthly_credits(organization, now) - org_usage.extractions_count, 0)
+        used = (plan_credits_used(organization, month, now) if effective_status(organization, now) == TRIALING
+                else org_usage.extractions_count)
+        plan_left = max(effective_monthly_credits(organization, now) - used, 0)
         from_plan = min(plan_left, amount)
         from_lots = amount - from_plan
         if from_lots and _purchased_available(organization, now) < from_lots:
@@ -144,7 +158,7 @@ def usage_summary(organization, now=None):
     from billing.entitlements import effective_monthly_credits
     month = current_billing_month()
     total = effective_monthly_credits(organization, now)
-    used = organization_credits_used(organization, month)
+    used = plan_credits_used(organization, month, now)
     avulsos = _purchased_available(organization, now)
     return {
         'creditos_usados_mes': used,

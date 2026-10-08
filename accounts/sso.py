@@ -28,7 +28,6 @@ from django.contrib.auth.models import update_last_login
 from django.core import signing
 from django.http import HttpResponse, HttpResponseRedirect
 from django.views import View
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from audit import service as audit
 from accounts.models import Organization, OrganizationMembership, SocialIdentity
@@ -247,7 +246,8 @@ class SsoCallbackView(View):
         if mfa.enabled(user):   # SSO não dispensa a 2ª etapa: o front pede o código (CAD-169)
             audit.log('auth.sso.login', actor=user, reason=f'{provider} (aguardando MFA)', legal_basis='contrato')
             return _front_redirect({'mfa_token': mfa.issue_challenge(user, f'sso:{provider}')})
-        refresh = RefreshToken.for_user(user)
+        from accounts.session_tokens import issue
+        refresh = issue(user, remember=True)               # CAD-232: login social já fica conectado
         update_last_login(None, user)   # mesmo registro do login por senha (UPDATE_LAST_LOGIN)
         audit.log('auth.sso.login', actor=user, reason=provider, legal_basis='contrato')
         return _front_redirect({'access': str(refresh.access_token), 'refresh': str(refresh)})
