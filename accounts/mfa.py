@@ -19,7 +19,6 @@ from django.core import signing
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
-from rest_framework_simplejwt.tokens import RefreshToken
 
 STEP = 30
 DIGITS = 6
@@ -150,8 +149,8 @@ def disable(user) -> None:
 
 
 # ----------------------------------------------------------------------------- desafio de login e tokens
-def issue_challenge(user, via: str) -> str:
-    return signing.dumps({'u': str(user.pk), 'n': secrets.token_hex(8), 'via': via}, salt=CHALLENGE_SALT)
+def issue_challenge(user, via: str, remember: bool = True) -> str:
+    return signing.dumps({'u': str(user.pk), 'n': secrets.token_hex(8), 'via': via, 'r': bool(remember)}, salt=CHALLENGE_SALT)
 
 
 def read_challenge(token: str) -> dict | None:
@@ -183,8 +182,9 @@ def kill_challenge(challenge: dict) -> None:
         pass
 
 
-def issue_tokens(user, *, mfa: bool) -> dict:
-    refresh = RefreshToken.for_user(user)
+def issue_tokens(user, *, mfa: bool, remember: bool = True) -> dict:
+    from accounts.session_tokens import issue
+    refresh = issue(user, remember=remember)
     if mfa:
         refresh['amr'] = 'mfa'                     # copiado para o access token (e nos refresh seguintes)
     update_last_login(None, user)

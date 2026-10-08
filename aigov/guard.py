@@ -62,6 +62,12 @@ def check(organization, kind: str, provider: str) -> AIGovernancePolicy:
         raise AIBlocked('provider_not_allowed', f'O provedor {provider} não está autorizado pelo escritório.')
     if kind == AIActionLog.Kind.EXTRACTION and policy.autonomy_level == AIGovernancePolicy.Autonomy.SUGGEST:
         raise AIBlocked('suggest_only', 'No modo "somente sugestões" a extração automática está desligada.')
+    # CAD-232: sem saldo (plano do período + avulsos) ou com a assinatura pausada, nenhuma IA roda, venha de onde vier
+    # (tela, automação, e-mail). Cada recurso continua cobrando o seu peso depois de entregar.
+    from billing.credits import check_credit_available
+    ok, msg = check_credit_available(organization)
+    if not ok:
+        raise AIBlocked('no_credits', msg)
     since = timezone.now() - timedelta(days=1)
     used = AIActionLog.objects.filter(organization_id=organization.pk, created_at__gte=since, blocked=False).count()
     if used >= policy.daily_ai_request_limit:

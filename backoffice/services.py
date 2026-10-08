@@ -13,7 +13,7 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 
 from audit import service as audit
 from billing import addons, entitlements as ent
-from billing.credits import organization_credits_used
+from billing.credits import plan_credits_used
 from accounts import mfa
 from core.pii import mask_text
 
@@ -127,7 +127,7 @@ def org_detail(org) -> dict:
     members = org.members.select_related('user').order_by('-is_active', 'role')
     data.update({
         'membros': sum(1 for m in members if m.is_active),
-        'creditos': {'mes_usados': organization_credits_used(org), 'mes_limite': ent.effective_monthly_credits(org, now),
+        'creditos': {'mes_usados': plan_credits_used(org), 'mes_limite': ent.effective_monthly_credits(org, now),
                      'avulsos_disponiveis': ent.purchased_credits_balance(org, now)},
         'limite_usuarios': ent.effective_max_users(org, now),
         'equipe': [{'id': str(m.user_id), 'email': m.user.email, 'nome': m.user.get_full_name(), 'papel': m.role,

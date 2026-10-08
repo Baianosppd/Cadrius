@@ -211,6 +211,8 @@ def process_email(email_id, profile_id, workflow_id):
             return
 
         record_document_analysis(email_obj.mailbox.user_id)
+        from billing.credits import charge                    # CAD-232: extração do e-mail também desconta crédito
+        charge(membership.organization, 'extraction', user_id=email_obj.mailbox.user_id)
 
         logger.info(f"✅ [Workflow {workflow.name}] IA extraiu o JSON com sucesso! A enviar para a Ação...")
         

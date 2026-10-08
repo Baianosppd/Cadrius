@@ -22,8 +22,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         from rest_framework_simplejwt.serializers import TokenObtainSerializer
         TokenObtainSerializer.validate(self, attrs)  # levanta 401 (e dispara user_login_failed) se inválido
         from accounts import mfa
+        from accounts.session_tokens import wants_remember
+        remember = wants_remember(self.initial_data.get('lembrar'))      # CAD-232: "Manter conectado"
         if mfa.enabled(self.user):
-            return {'mfa_required': True, 'mfa_token': mfa.issue_challenge(self.user, 'pwd')}
+            return {'mfa_required': True, 'mfa_token': mfa.issue_challenge(self.user, 'pwd', remember)}
         from accounts.team_roles import get_active_membership
         from audit import service
         membership = get_active_membership(self.user)
@@ -32,7 +34,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             organization=membership.organization if membership else None,
             data_categories=['identificacao'], legal_basis='contrato',
         )
-        data = mfa.issue_tokens(self.user, mfa=False)
+        data = mfa.issue_tokens(self.user, mfa=False, remember=remember)
         if mfa.required(self.user):
             data['mfa_setup_required'] = True        # equipe sem MFA: entra, mas a Gestão pede o cadastro
         return data

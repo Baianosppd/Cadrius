@@ -295,11 +295,11 @@ class CompanyRegistrationSerializer(LegalAcceptanceMixin, serializers.Serializer
 
 
 def registration_response(membership):
-    from .serializers import CustomTokenObtainPairSerializer
 
     user = membership.user
     organization = membership.organization
-    refresh = CustomTokenObtainPairSerializer.get_token(user)
+    from accounts.session_tokens import issue
+    refresh = issue(user, remember=True)                    # CAD-232: quem acabou de criar a conta fica conectado
     return {
         'user': {
             'id': str(user.id),

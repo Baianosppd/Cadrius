@@ -27,7 +27,7 @@ from django.db.models import OuterRef, Subquery
 from billing.credits import (
     current_billing_month,
     distributed_credits,
-    organization_credits_used,
+    plan_credits_used,
 )
 from billing.models import MemberCreditUsage
 from .models import OrganizationMembership
@@ -47,6 +47,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class ThrottledTokenRefreshView(TokenRefreshView):
+    from accounts.session_tokens import SessionRefreshSerializer as serializer_class   # CAD-232: mantém o prazo
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'auth_refresh'
 
@@ -304,7 +305,7 @@ class TeamCreditsSummaryView(APIView):
         organization = membership.organization
         from billing.entitlements import effective_monthly_credits, purchased_credits_balance
         total = effective_monthly_credits(organization)
-        usados = organization_credits_used(organization)
+        usados = plan_credits_used(organization)
         distribuidos = distributed_credits(organization)
         return Response({
             'creditos_total': total,

@@ -367,12 +367,15 @@ PASSWORD_RESET_TIMEOUT = 60 * 60  # validade do link de recuperação (segundos)
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': False,
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),          # sem "Manter conectado" (accounts/session_tokens.py)
+    'ROTATE_REFRESH_TOKENS': True,                         # CAD-232: renova a cada uso (sessão deslizante)
     'BLACKLIST_AFTER_ROTATION': True,
     # Registra o último acesso no login por senha (Gestão Cadrius: "último acesso", usuários ativos 24 h/30 dias)
     'UPDATE_LAST_LOGIN': True,
 }
+
+# CAD-232: "Manter conectado" — dias que a sessão dura sem uso (renova a cada uso)
+SESSION_REMEMBER_DAYS = int(os.environ.get('SESSION_REMEMBER_DAYS', '30'))
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
