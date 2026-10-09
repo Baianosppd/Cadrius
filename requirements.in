@@ -5,7 +5,7 @@
 # drf-yasg, django-admin-interface, django-colorfield, email-validator, bandit/safety (movidos p/ dev).
 
 # --- Django core & API ---
-Django>=5.2,<5.3
+Django>=5.2.18,<5.3
 djangorestframework
 djangorestframework_simplejwt
 django-cors-headers
