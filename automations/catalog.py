@@ -376,6 +376,19 @@ def _when_params(trigger, p) -> dict:
     return out
 
 
+FIXED_CONTACT = re.compile(r'^contato:([1-9]\d{0,9})$')
+
+
+def is_fixed_contact(dest) -> bool:
+    """CAD-234: "contato:<id>" = sempre o mesmo contato (ex.: o contador, um cliente específico), em qualquer gatilho."""
+    return isinstance(dest, str) and bool(FIXED_CONTACT.match(dest))
+
+
+def fixed_contact_id(dest) -> int | None:
+    m = FIXED_CONTACT.match(dest) if isinstance(dest, str) else None
+    return int(m.group(1)) if m else None
+
+
 def clean_actions(trigger: str, actions) -> list:
     if not isinstance(actions, list) or not 1 <= len(actions) <= MAX_ACTIONS:
         raise RuleError(f'Escolha de 1 a {MAX_ACTIONS} ações.')
@@ -441,8 +454,8 @@ def clean_actions(trigger: str, actions) -> list:
             params = {'titulo': _text(p, 'titulo', required=True, limit=120), 'mensagem': _text(p, 'mensagem', required=True, limit=500)}
         elif kind in ('send_whatsapp', 'send_email', 'send_message'):
             dest = p.get('destinatario')
-            if dest not in TRIGGERS[trigger]['destinatarios']:
-                options = ', '.join(TRIGGERS[trigger]['destinatarios']) or 'nenhum (este gatilho não tem contato vinculado)'
+            if not is_fixed_contact(dest) and dest not in TRIGGERS[trigger]['destinatarios']:
+                options = ', '.join(TRIGGERS[trigger]['destinatarios'] + ['contato:<id> (um contato fixo)'])
                 raise RuleError(f'Destinatário inválido para este gatilho. Opções: {options}.')
             params = {'destinatario': dest, 'mensagem': _text(p, 'mensagem', required=True, limit=1000)}
             if kind == 'send_email':

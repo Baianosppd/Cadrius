@@ -72,6 +72,11 @@ class DocumentListCreateView(generics.ListCreateAPIView):
             matches = filter_by_term(ClientDocument.objects.all(), "nome_cliente_idx", "client.name", q)
             qs = qs.filter(Q(nome__icontains=q) | Q(pk__in=matches.values("documento_id")))
 
+        # ?contato=12 — documentos do contato (CAD-234)
+        contato = (self.request.query_params.get("contato") or "").strip()
+        if contato.isdigit():
+            qs = qs.filter(contact_id=int(contato))
+
         # ?cliente=silv  — busca parcial pelo nome do cliente (cifrado em repouso; usa o índice de tokens, ver core/pii.py)
         cliente = (self.request.query_params.get("cliente") or "").strip()
         if cliente:

@@ -72,7 +72,38 @@ def calendar_call(access_token, method, path, *, params=None, json=None):
 
 SHEETS_BASE = 'https://sheets.googleapis.com/v4'
 DOCS_BASE = 'https://docs.googleapis.com/v1'
-ALLOWED_BASES = (CAL_BASE, SHEETS_BASE, DOCS_BASE)
+DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
+ALLOWED_BASES = (CAL_BASE, SHEETS_BASE, DOCS_BASE, DRIVE_BASE)
+
+
+class GoogleTooLarge(Exception):
+    """Arquivo maior que o limite (download interrompido)."""
+
+
+def download(access_token, url, *, params=None, max_bytes: int):
+    """Baixa o conteúdo de um arquivo do Drive (CAD-234) em partes, parando no limite. Só a API do Drive."""
+    if not url.startswith(DRIVE_BASE):
+        raise ValueError('URL fora da API do Drive')
+    try:
+        resp = requests.get(url, params=params, timeout=60, stream=True, headers={'Authorization': f'Bearer {access_token}'})
+    except requests.RequestException as exc:
+        raise GoogleRetryable(exc.__class__.__name__) from exc
+    with resp:
+        if resp.status_code in (404, 410):
+            raise GoogleNotFound(url)
+        if resp.status_code == 401:
+            raise GoogleAuthError('access token recusado')
+        if resp.status_code in (403,) and 'rateLimit' not in resp.text:
+            raise GoogleAuthError('acesso negado ao arquivo')
+        if resp.status_code >= 400:
+            raise GoogleRetryable(f'google {resp.status_code}')
+        chunks, total = [], 0
+        for chunk in resp.iter_content(256 * 1024):
+            total += len(chunk)
+            if total > max_bytes:
+                raise GoogleTooLarge()
+            chunks.append(chunk)
+    return b''.join(chunks)
 
 
 def api_call(access_token, method, url, *, params=None, json=None):

@@ -53,6 +53,8 @@ INT = {'type': 'integer'}
 B = {'type': 'boolean'}
 ARR = {'type': 'array', 'items': {'type': 'object'}}
 OBJ = {'type': 'object'}
+NOVO_OBJ = {'type': 'object', 'properties': {'nome': S, 'tipo': S, 'email': S, 'telefone': S, 'documento': S, 'autoriza_whatsapp': B,
+                                            'autoriza_email': B}}
 
 
 def _date(value, field='data') -> date:
@@ -225,6 +227,34 @@ def memoria_do_escritorio(ctx, consulta: str):
 
 
 # ----------------------------------------------------------------------------- ações (só com confirmação)
+def consultar_cnpj(ctx, cnpj: str):
+    """CAD-234: dados públicos da empresa (Receita Federal via BrasilAPI) para completar cadastro, automação ou mensagem."""
+    import re
+
+    from accounts.validators import is_valid_cnpj
+    from integrations import public_data
+    digits = re.sub(r'\D', '', cnpj or '')
+    if len(digits) != 14 or not is_valid_cnpj(digits):
+        raise ToolError('CNPJ inválido.')
+    try:
+        return public_data.cnpj(digits)
+    except public_data.PublicDataError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+def consultar_cep(ctx, cep: str):
+    import re
+
+    from integrations import public_data
+    digits = re.sub(r'\D', '', cep or '')
+    if len(digits) != 8:
+        raise ToolError('CEP inválido.')
+    try:
+        return public_data.cep(digits)
+    except public_data.PublicDataError as exc:
+        raise ToolError(str(exc)) from exc
+
+
 def criar_tarefa(ctx, titulo: str, data: str, hora: str = '09:00', descricao: str = '', prioridade: str = 'media'):
     from tasks.models import UserTask
     day = _date(data)
@@ -335,22 +365,60 @@ def _rule_body(nome, gatilho, acoes, condicoes=None, configuracao=None, descrica
         raise ToolError(f'Regra inválida: {exc}') from exc
 
 
-def _preview_regra(ctx, nome='', gatilho='', acoes=None, condicoes=None, configuracao=None, descricao=''):
-    body = _rule_body(nome, gatilho, acoes, condicoes, configuracao, descricao)
+NOVO = 'novo_contato'          # CAD-234: destinatário que o assistente cadastra no mesmo pedido
+
+
+def _swap_novo(acoes, contact_id):
+    """Troca o destinatário "novo_contato" pelo contato fixo (contato:<id>)."""
+    out = []
+    for a in acoes or []:
+        if isinstance(a, dict) and isinstance(a.get('params'), dict) and a['params'].get('destinatario') == NOVO:
+            a = {**a, 'params': {**a['params'], 'destinatario': f'contato:{contact_id}'}}
+        out.append(a)
+    return out
+
+
+def _uses_novo(acoes) -> bool:
+    return any(isinstance(a, dict) and isinstance(a.get('params'), dict) and a['params'].get('destinatario') == NOVO for a in acoes or [])
+
+
+def _quick(fn, *args):
+    from contacts import quick
+    try:
+        return fn(*args)
+    except quick.QuickContactError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+def _preview_regra(ctx, nome='', gatilho='', acoes=None, condicoes=None, configuracao=None, descricao='', novo_contato=None):
+    from contacts import quick
+    if _uses_novo(acoes) and not novo_contato:
+        raise ToolError('Para mandar a um contato novo, informe novo_contato (nome e e-mail e/ou telefone).')
+    body = _rule_body(nome, gatilho, _swap_novo(acoes, 1), condicoes, configuracao, descricao)
     from automations.catalog import ACTIONS, TRIGGERS
     passos = '; '.join(ACTIONS[a['type']]['label'] for a in body['actions'])
     conds = f' se {len(body["conditions"])} condição(ões)' if body['conditions'] else ''
-    return f'Quando "{TRIGGERS[body["trigger"]]["label"]}"{conds} → {passos}. Nasce DESLIGADA: simule e ligue em Automações.'
+    antes = f'Primeiro {_quick(quick.describe, ctx.org, novo_contato)}. Depois: ' if novo_contato else ''
+    return f'{antes}Quando "{TRIGGERS[body["trigger"]]["label"]}"{conds} → {passos}. Nasce DESLIGADA: simule e ligue em Automações.'
 
 
-def criar_regra(ctx, nome, gatilho, acoes, condicoes=None, configuracao=None, descricao=''):
+def criar_regra(ctx, nome, gatilho, acoes, condicoes=None, configuracao=None, descricao='', novo_contato=None):
     from audit import service as audit
     from automations.models import Rule
+    from contacts import quick
+    if _uses_novo(acoes) and not novo_contato:
+        raise ToolError('Para mandar a um contato novo, informe novo_contato (nome e e-mail e/ou telefone).')
+    _rule_body(nome, gatilho, _swap_novo(acoes, 1), condicoes, configuracao, descricao)     # valida antes de cadastrar
+    contact = None
+    if novo_contato:
+        contact, _ = _quick(quick.ensure, ctx.org, ctx.user, novo_contato)
+        acoes = _swap_novo(acoes, contact.pk)
     body = _rule_body(nome, gatilho, acoes, condicoes, configuracao, descricao)
     rule = Rule.objects.create(organization=ctx.org, created_by=ctx.user, enabled=False, **body)
     audit.log('automation.rule_created', actor=ctx.user, organization=ctx.org, target=rule,
               changes={'trigger': rule.trigger, 'actions': [a['type'] for a in rule.actions], 'origem': 'assistente'})
-    return {'id': rule.pk, 'mensagem': f'Regra "{rule.name}" criada desligada. Abra para ver o fluxo, simule e ligue.',
+    extra = f' Contato "{contact.name}" pronto para receber.' if contact else ''
+    return {'id': rule.pk, 'mensagem': f'Regra "{rule.name}" criada desligada.{extra} Abra para ver o fluxo, simule e ligue.',
             'link': f'/automacao?aba=regras&regra={rule.pk}'}
 
 
@@ -454,10 +522,16 @@ def honorarios_em_aberto(ctx):
              'vencimento': r.due_date.isoformat(), 'dias_atraso': overdue_days(r), 'link': '/financas'} for r in rows]
 
 
-def enviar_mensagem_cliente(ctx, contato_id, mensagem, canal='melhor', assunto='', visual=''):
+def enviar_mensagem_cliente(ctx, mensagem, contato_id=None, canal='melhor', assunto='', visual='', novo_contato=None):
     from automations import messaging
+    from contacts import quick
     from contacts.models import Contact
-    contact = Contact.objects.filter(organization=ctx.org, pk=contato_id).first()
+    if novo_contato and not contato_id:
+        contact, _ = _quick(quick.ensure, ctx.org, ctx.user, novo_contato)
+    else:
+        contact = Contact.objects.filter(organization=ctx.org, pk=contato_id).first()
+    if contact is None:
+        raise ToolError('Contato não encontrado: use buscar_contatos ou informe novo_contato.')
     try:
         used = messaging.deliver(ctx.org, contact, canal if canal in ('melhor', 'whatsapp', 'email') else 'melhor', mensagem[:2000],
                                  assunto[:150], origin={'origem': 'assistente', 'usuario': str(ctx.user.pk)},
@@ -467,21 +541,38 @@ def enviar_mensagem_cliente(ctx, contato_id, mensagem, canal='melhor', assunto='
     return {'mensagem': f'Mensagem enviada a {contact.name} por {messaging.CHANNEL_LABEL[used]}.', 'link': f'/contatos?abrir={contact.pk}'}
 
 
-def _preview_mensagem(ctx, contato_id, mensagem='', canal='melhor', assunto='', visual=''):
+def _preview_mensagem(ctx, mensagem='', contato_id=None, canal='melhor', assunto='', visual='', novo_contato=None):
     from automations import messaging
+    from contacts import quick
     from contacts.models import Contact
-    contact = Contact.objects.filter(organization=ctx.org, pk=contato_id).first()
+    wanted = canal if canal in ('melhor', 'whatsapp', 'email') else 'melhor'
+    if novo_contato and not contato_id:
+        values, wa, em = _quick(quick.clean, novo_contato)
+        existing = quick.find_existing(ctx.org, values)
+        first = _quick(quick.describe, ctx.org, novo_contato)
+        if existing is None:                                      # ainda não existe: confere o canal com o que vai ser gravado
+            options = ['whatsapp', 'email'] if wanted == 'melhor' else [wanted]
+            ok = [c for c in options if (c == 'whatsapp' and wa and values.get('phone') and messaging.whatsapp_connection(ctx.org))
+                  or (c == 'email' and em and values.get('email'))]
+            if not ok:
+                return f'Primeiro {first}. Não dá para enviar ainda: falta a autorização (ou o dado) do canal escolhido.'
+            return f'Primeiro {first}. Depois envia por {messaging.CHANNEL_LABEL[ok[0]]}: "{mensagem[:300]}".'
+        contact = existing
+        prefix = f'Primeiro {first}. '
+    else:
+        contact = Contact.objects.filter(organization=ctx.org, pk=contato_id).first()
+        prefix = ''
     try:
-        ch = messaging.pick_channel(ctx.org, contact, canal if canal in ('melhor', 'whatsapp', 'email') else 'melhor')
+        ch = messaging.pick_channel(ctx.org, contact, wanted)
     except messaging.Blocked as exc:
-        return f'Não dá para enviar: {exc}'
+        return f'{prefix}Não dá para enviar: {exc}'
     hours = '' if messaging.business_hours() else ' Atenção: fora do horário comercial.'
     look = ''
     if ch == 'email':
         from integrations.email_layout import LAYOUTS, office_style
         name = visual if visual in LAYOUTS else office_style(ctx.org)[0]
         look = f' E-mail no visual "{LAYOUTS[name].split(" (")[0]}", com a sua assinatura.'
-    return f'Vai por {messaging.CHANNEL_LABEL[ch]} para {contact.name}: "{mensagem[:300]}".{hours}{look}'
+    return f'{prefix}Vai por {messaging.CHANNEL_LABEL[ch]} para {contact.name}: "{mensagem[:300]}".{hours}{look}'
 
 
 def emails_triados(ctx, categoria='', dias=7):
@@ -641,6 +732,11 @@ TOOLS: dict[str, Tool] = {t.name: t for t in [
     Tool('criar_tarefa', 'PROPÕE criar uma tarefa para a pessoa (precisa de confirmação). data AAAA-MM-DD, hora HH:MM, '
          'prioridade alta|media|baixa.', _obj({'titulo': S, 'data': S, 'hora': S, 'descricao': S, 'prioridade': S}, ['titulo', 'data']),
          criar_tarefa, action=True, label='Criar tarefa'),
+    Tool('consultar_cnpj', 'Dados públicos de uma empresa pelo CNPJ (razão social, nome fantasia, situação, endereço, e-mail e '
+         'telefone da Receita Federal). Use para completar cadastro de empresa antes de criar contato, automação ou mensagem.',
+         _obj({'cnpj': S}, ['cnpj']), consultar_cnpj, label='Consulta de CNPJ'),
+    Tool('consultar_cep', 'Endereço de um CEP (logradouro, bairro, cidade, UF).', _obj({'cep': S}, ['cep']), consultar_cep,
+         label='Consulta de CEP'),
     Tool('criar_contato', 'PROPÕE cadastrar um contato (precisa de confirmação).',
          _obj({'nome': S, 'tipo': S, 'email': S, 'telefone': S, 'documento': S}, ['nome']), criar_contato, action=True,
          label='Cadastrar contato'),
@@ -663,8 +759,12 @@ TOOLS: dict[str, Tool] = {t.name: t for t in [
          _obj({}), sugestoes_de_automacao, label='Sugestões de automação'),
     Tool('criar_regra', 'PROPÕE criar regra de automação (nasce desligada). gatilho = id do catálogo; acoes = lista de '
          '{"type", "params", "somente_se"?} em ordem (calcular/tabela antes de quem usa o resultado); condicoes = lista de '
-         '{"field", "op", "value"}; configuracao conforme o gatilho.',
-         _obj({'nome': S, 'gatilho': S, 'acoes': ARR, 'condicoes': ARR, 'configuracao': OBJ, 'descricao': S}, ['nome', 'gatilho', 'acoes']),
+         '{"field", "op", "value"}; configuracao conforme o gatilho. Destinatário das mensagens: "cliente"/"contato" do evento, '
+         '"contato:<id>" para um contato fixo já cadastrado (ache com buscar_contatos) ou "novo_contato" + o objeto novo_contato '
+         '(nome, email, telefone, tipo, documento, autoriza_whatsapp, autoriza_email) para cadastrar quem ainda não está nos '
+         'contatos — tudo na mesma confirmação. autoriza_* = true só se a pessoa disser que o contato autorizou receber.',
+         _obj({'nome': S, 'gatilho': S, 'acoes': ARR, 'condicoes': ARR, 'configuracao': OBJ, 'descricao': S, 'novo_contato': NOVO_OBJ},
+              ['nome', 'gatilho', 'acoes']),
          criar_regra, action=True, label='Criar automação', managers=True, preview=_preview_regra),
     Tool('ativar_regra', 'PROPÕE ligar (ligar=true) ou desligar uma regra pelo id. Mostra a simulação antes da confirmação.',
          _obj({'id': INT, 'ligar': B}, ['id']), ativar_regra, action=True, label='Ligar/desligar automação', managers=True,
@@ -686,8 +786,10 @@ TOOLS: dict[str, Tool] = {t.name: t for t in [
     Tool('enviar_mensagem_cliente', 'PROPÕE enviar mensagem ao contato (contato_id) pelo canal autorizado: melhor | whatsapp | email. '
          'E-mail sai no visual do escritório com a assinatura de quem confirma; visual = moderno | classico | simples '
          '(vazio = padrão do escritório). Escreva o e-mail com saudação, parágrafos curtos e fecho cordial, sem assinatura '
-         '(ela entra sozinha).',
-         _obj({'contato_id': INT, 'mensagem': S, 'canal': S, 'assunto': S, 'visual': S}, ['contato_id', 'mensagem']), enviar_mensagem_cliente,
+         '(ela entra sozinha). Para quem ainda não é contato, mande novo_contato (sem contato_id): o cadastro e o envio vão '
+         'na mesma confirmação.',
+         _obj({'contato_id': INT, 'mensagem': S, 'canal': S, 'assunto': S, 'visual': S, 'novo_contato': NOVO_OBJ}, ['mensagem']),
+         enviar_mensagem_cliente,
          action=True, label='Enviar mensagem', preview=_preview_mensagem),
     Tool('emails_triados', 'E-mails recebidos e já classificados (categoria: intimacao, cliente, agenda, financeiro, comercial, '
          'documento, marketing, outro).', _obj({'categoria': S, 'dias': INT}), emails_triados, label='E-mails'),
@@ -736,6 +838,7 @@ def describe(tool: Tool, args: dict, ctx=None) -> str:
 # Módulo de cada ferramenta (grupo de acesso, CAD-223): consulta pede "<módulo>.ver"; ação pede "<módulo>.editar".
 TOOL_MODULES = {
     'buscar_contatos': 'contatos', 'criar_contato': 'contatos', 'enviar_mensagem_cliente': 'contatos',
+    'consultar_cnpj': 'contatos', 'consultar_cep': 'contatos',
     'buscar_processos': 'processos', 'publicacoes': 'processos', 'ler_publicacao': 'processos', 'calcular_prazo': 'processos',
     'marcar_publicacao_revisada': 'processos', 'contexto_do_caso': 'processos',
     'agenda': 'tarefas', 'criar_tarefa': 'tarefas', 'agenda_google': 'tarefas',

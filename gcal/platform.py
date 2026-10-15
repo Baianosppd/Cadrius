@@ -14,7 +14,11 @@ from django.conf import settings
 # documentos) que o PRÓPRIO Cadrius criar — não dá acesso ao resto do Drive (escopo não sensível no Google).
 CALENDAR = 'https://www.googleapis.com/auth/calendar.events'
 DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file'
+# CAD-234: leitura do Drive, pedida SÓ quando a pessoa vai importar a carteira de clientes das pastas (autorização incremental).
+# É escopo "restrito" no Google: em produção pública o app precisa da verificação do Google; até lá, só usuários de teste do app.
+DRIVE_READONLY = 'https://www.googleapis.com/auth/drive.readonly'
 IDENTITY = 'openid email'
+EXTRA_ACCESS = {'drive_leitura': DRIVE_READONLY}
 
 
 def platform_credentials() -> tuple[str, str]:
@@ -23,13 +27,19 @@ def platform_credentials() -> tuple[str, str]:
     return cid, secret
 
 
+def drive_import_enabled() -> bool:
+    return bool(getattr(settings, 'GOOGLE_DRIVE_IMPORT_ENABLED', True))
+
+
 def platform_available() -> bool:
     cid, secret = platform_credentials()
     return bool(cid and secret)
 
 
-def scopes() -> str:
+def scopes(acesso: str = '') -> str:
     extra = getattr(settings, 'GOOGLE_EXTRA_SCOPES', '') or ''
+    if acesso in EXTRA_ACCESS and drive_import_enabled():
+        extra = f'{extra} {EXTRA_ACCESS[acesso]}'
     wanted = [IDENTITY, CALENDAR]
     if getattr(settings, 'GOOGLE_DOCS_SHEETS_ENABLED', True):
         wanted.append(DRIVE_FILE)

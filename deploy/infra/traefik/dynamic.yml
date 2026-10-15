@@ -36,3 +36,14 @@ http:
       buffering:
         maxRequestBodyBytes: 2097152
         memRequestBodyBytes: 2097152
+    # CAD-234: rotas de envio de arquivos. Documentos: até 30 MB (o Django limita a DOCUMENT_MAX_BYTES, 25 MB).
+    # Acima de 2 MB o corpo vai para o disco do proxy, não para a memória.
+    upload-limit:
+      buffering:
+        maxRequestBodyBytes: 31457280
+        memRequestBodyBytes: 2097152
+    # .zip da carteira de clientes em pastas (Importar → Pastas de clientes): até 2 GB (FOLDER_IMPORT_MAX_ZIP_BYTES).
+    zip-limit:
+      buffering:
+        maxRequestBodyBytes: 2147483648
+        memRequestBodyBytes: 2097152
