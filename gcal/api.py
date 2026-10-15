@@ -153,6 +153,9 @@ def _pkce(verifier: str) -> str:
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()
 
 
+BACK_PAGES = {'integracoes', 'importar'}     # telas para onde o Google pode devolver a pessoa (lista fechada)
+
+
 class GCalConnectView(APIView):
     """POST — devolve a URL de autorização do Google (SPA: o front navega para ela). Usa o app OAuth do escritório."""
     permission_classes = [permissions.IsAuthenticated]
@@ -166,9 +169,15 @@ class GCalConnectView(APIView):
                                        'ou cadastre o app do Google do escritório.'}, status=status.HTTP_400_BAD_REQUEST)
         nonce, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         state = signing.dumps({'n': nonce}, salt=SALT)
-        cache.set(_pending_key(nonce), {'u': str(request.user.pk), 'a': app.pk, 'v': verifier}, STATE_MAX_AGE)
+        # CAD-234: acesso extra pedido na hora (ex.: "drive_leitura" para importar a carteira das pastas) e tela de volta
+        acesso = str(request.data.get('acesso') or '') if hasattr(request, 'data') else ''
+        acesso = acesso if acesso in platform.EXTRA_ACCESS and platform.drive_import_enabled() else ''
+        volta = str(request.data.get('volta') or '') if hasattr(request, 'data') else ''
+        cache.set(_pending_key(nonce), {'u': str(request.user.pk), 'a': app.pk, 'v': verifier, 'b': volta if volta in BACK_PAGES else ''},
+                  STATE_MAX_AGE)
+        own = f'{g.SCOPE} {platform.DRIVE_FILE} {platform.IDENTITY}' + (f' {platform.EXTRA_ACCESS[acesso]}' if acesso else '')
         params = {'client_id': app.credentials()[0], 'redirect_uri': redirect_uri(request), 'response_type': 'code',
-                  'scope': platform.scopes() if app.uses_platform else f'{g.SCOPE} {platform.DRIVE_FILE} {platform.IDENTITY}',
+                  'scope': platform.scopes(acesso) if app.uses_platform else own,
                   'access_type': 'offline', 'prompt': 'consent', 'include_granted_scopes': 'true', 'state': state,
                   'code_challenge': _pkce(verifier), 'code_challenge_method': 'S256'}
         return Response({'authorization_url': f'{g.AUTH_URL}?{urlencode(params)}'})
@@ -179,8 +188,8 @@ class GCalCallbackView(View):
     com as credenciais do escritório e guarda o refresh token."""
     http_method_names = ['get']
 
-    def _back(self, result):
-        response = HttpResponseRedirect(f"{settings.FRONTEND_URL}/integracoes?gcal={result}")
+    def _back(self, result, page=''):
+        response = HttpResponseRedirect(f"{settings.FRONTEND_URL}/{page or 'integracoes'}?gcal={result}")
         response['Referrer-Policy'] = 'no-referrer'
         return response
 
@@ -214,7 +223,7 @@ class GCalCallbackView(View):
             'app': app, 'refresh_token': refresh, 'status': GoogleCalendarLink.Status.ACTIVE, 'sync_token': '', 'last_error': '',
             'scopes': str(tokens.get('scope') or '')[:2000], 'google_email': _email_from_id_token(tokens.get('id_token'))})
         audit.log('connection.created', actor=user, organization=app.organization, changes={'provider': 'google_calendar'})
-        return self._back('ok')
+        return self._back('ok', data.get('b', ''))
 
 
 def _email_from_id_token(id_token) -> str:

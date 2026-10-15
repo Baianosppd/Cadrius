@@ -18,4 +18,6 @@ class Command(BaseCommand):
             job.rows, job.status, job.finished_at = [], ImportJob.Status.CANCELED, timezone.now()
             job.save(update_fields=['rows', 'status', 'finished_at'])
             n += 1
-        self.stdout.write(f'{n} importações limpas')
+        from imports.folders import cleanup_stale
+        pastas = cleanup_stale()                       # CAD-234: .zip de importações de pastas abandonadas (48 h)
+        self.stdout.write(f'{n} importações limpas; {pastas} importações de pastas limpas')

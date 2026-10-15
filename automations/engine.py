@@ -104,10 +104,26 @@ def _due(org, params, ctx):
 
 
 def _contact(org, ctx, dest):
+    from automations.catalog import fixed_contact_id
     from contacts.models import Contact
 
-    cid = resolve(ctx, f'{dest}.id')
+    cid = fixed_contact_id(dest) or resolve(ctx, f'{dest}.id')     # CAD-234: contato fixo ou o do evento
     return Contact.objects.filter(organization=org, pk=cid).first() if cid else None
+
+
+def _with_dest(ctx, contact):
+    """{{destinatario.nome}} / {{destinatario.primeiro_nome}} nos textos: quem vai receber (útil com contato fixo)."""
+    if contact is None:
+        return ctx
+    name = contact.name or ''
+    return {**ctx, 'destinatario': {'nome': name, 'primeiro_nome': name.split(' ')[0]}}
+
+
+def _missing(dest, vincular=False) -> str:
+    from automations.catalog import is_fixed_contact
+    if is_fixed_contact(dest):
+        return 'O contato escolhido na regra não existe mais neste escritório.'
+    return f'O evento não tem {dest} vinculado' + (' (vincule o cliente ao processo).' if vincular else '.')
 
 
 def _google_user(org, rule, ctx):
@@ -190,6 +206,7 @@ def plan_step(org, rule, action, ctx) -> dict:
     elif kind in ('send_message', 'send_survey'):
         from automations import messaging
         contact = _contact(org, ctx, p['destinatario'])
+        ctx = _with_dest(ctx, contact)
         data = {'mensagem': render(p['mensagem'], ctx)[:1000], 'assunto': render(p.get('assunto', ''), ctx)[:150], 'canal': p['canal'],
                 'visual': p.get('visual', '')}
         if kind == 'send_survey':                       # CAD-223: o link único da pesquisa é criado na hora do envio
@@ -197,8 +214,7 @@ def plan_step(org, rule, action, ctx) -> dict:
         if contact is None:
             name = resolve(ctx, f'{p["destinatario"]}.nome')
             return {**step, 'status': 'bloqueado', 'dados': data,
-                    'detalhe': f'Simulação com contato de exemplo ({name}).' if name else
-                               f'O evento não tem {p["destinatario"]} vinculado.'}
+                    'detalhe': f'Simulação com contato de exemplo ({name}).' if name else _missing(p['destinatario'])}
         data.update(contato_id=contact.pk, nome=contact.name)
         try:
             channel = messaging.pick_channel(org, contact, p['canal'])
@@ -210,10 +226,10 @@ def plan_step(org, rule, action, ctx) -> dict:
     elif kind in ('send_whatsapp', 'send_email'):
         channel = 'whatsapp' if kind == 'send_whatsapp' else 'email'
         contact = _contact(org, ctx, p['destinatario'])
+        ctx = _with_dest(ctx, contact)
         if contact is None:
             name = resolve(ctx, f'{p["destinatario"]}.nome')
-            why = (f'Simulação com contato de exemplo ({name}).' if name else
-                   f'O evento não tem {p["destinatario"]} vinculado (vincule o cliente ao processo).')
+            why = (f'Simulação com contato de exemplo ({name}).' if name else _missing(p['destinatario'], vincular=True))
             return {**step, 'status': 'bloqueado', 'detalhe': why,
                     'dados': {'mensagem': render(p['mensagem'], ctx)[:1000], 'assunto': render(p.get('assunto', ''), ctx)[:150]}}
         data = {'contato_id': contact.pk, 'nome': contact.name, 'mensagem': render(p['mensagem'], ctx)[:1000]}

@@ -51,6 +51,8 @@ class Document(models.Model):
     data = models.DateTimeField(default=timezone.now)
     # Conteúdo cifrado em repouso (core/storage.py); baixar é pelo endpoint /documentos/<id>/download/ (decifra na saída).
     arquivo = models.FileField(upload_to="documents/%Y/%m/", max_length=500, storage=encrypted_storage)
+    # CAD-234: contato dono do documento (ex.: importado da pasta do cliente no Drive). Opcional.
+    contact = models.ForeignKey("contacts.Contact", null=True, blank=True, on_delete=models.SET_NULL, related_name="documents")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
