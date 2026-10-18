@@ -1,0 +1,196 @@
+erDiagram
+    AIActionLog {
+        bigint id PK
+        uuid organization_id
+        texto user_ref
+        texto kind
+        texto provider
+        json data_categories
+        int input_chars
+        int duration_ms
+        bool success
+    }
+    AIGovernancePolicy {
+        bigint id PK
+        bool ai_enabled
+        texto autonomy_level
+        json allowed_providers
+        int daily_ai_request_limit
+        int max_actions_per_ai_workflow
+        texto updated_by
+        int organization_id FK
+    }
+    AIRoute {
+        bigint id PK
+        texto activity
+        json providers
+        bool use_reserves
+        texto updated_by
+    }
+    GlobalAISwitch {
+        int id PK
+        bool ai_enabled
+        texto reason
+        texto changed_by
+        data_hora changed_at
+    }
+    AssistantSettings {
+        bigint id PK
+        bool case_strategy
+        bool mcp_enabled
+        bool use_memory
+        int organization_id FK
+    }
+    Conversation {
+        bigint id PK
+        texto title
+        texto mode
+        int organization_id FK
+        int user_id FK
+        int case_id FK
+        int contact_id FK
+    }
+    Message {
+        bigint id PK
+        texto role
+        cifrado content
+        texto provider
+        json tools
+        int conversation_id FK
+    }
+    OrgAIKey {
+        bigint id PK
+        texto provider
+        cifrado api_key
+        texto base_url
+        texto model
+        bool paid_account
+        texto last4
+        data_hora last_used_at
+        int organization_id FK
+        int created_by_id FK
+    }
+    PendingAction {
+        bigint id PK
+        texto tool
+        cifrado arguments
+        cifrado summary
+        texto status
+        cifrado result
+        data_hora decided_at
+        int conversation_id FK
+        int message_id FK
+    }
+    PersonalToken {
+        bigint id PK
+        texto name
+        texto prefix
+        texto token_hash
+        texto scope
+        data_hora expires_at
+        data_hora last_used_at
+        int uses
+        data_hora revoked_at
+        int organization_id FK
+        int user_id FK
+    }
+    AIFeedback {
+        bigint id PK
+        texto action_kind
+        texto decision
+        texto subject
+        cifrado changes
+        int confidence
+        int organization_id FK
+        int user_id FK
+    }
+    AutomationSuggestion {
+        bigint id PK
+        texto key
+        texto title
+        cifrado reason
+        int evidence
+        cifrado payload
+        texto status
+        data_hora decided_at
+        int organization_id FK
+        int rule_id FK
+        int decided_by_id FK
+    }
+    AutonomyLevel {
+        bigint id PK
+        texto action_kind
+        texto mode
+        int organization_id FK
+        int updated_by_id FK
+    }
+    AutonomyProposal {
+        bigint id PK
+        texto action_kind
+        texto from_mode
+        texto to_mode
+        int samples
+        decimal approval_rate
+        texto status
+        data_hora decided_at
+        int organization_id FK
+        int decided_by_id FK
+    }
+    MemoryItem {
+        bigint id PK
+        texto kind
+        texto title
+        cifrado text
+        cifrado payload
+        cifrado embedding
+        texto source
+        int organization_id FK
+        int created_by_id FK
+    }
+    OfficeProfile {
+        bigint id PK
+        json areas
+        texto audience
+        texto city
+        texto tone
+        texto signature
+        json social
+        json auto_stats
+        texto email_layout
+        int organization_id FK
+    }
+    OfficeRule {
+        bigint id PK
+        texto kind
+        texto field
+        texto from_value
+        texto to_value
+        int evidence
+        texto status
+        data_hora decided_at
+        int organization_id FK
+        int decided_by_id FK
+    }
+    ExtractionProfile {
+        bigint id PK
+        texto name
+        texto ai_provider
+        texto system_prompt_template
+        texto pydantic_schema_name
+        int user_id FK
+    }
+    Contact {
+        int id PK "em outro diagrama"
+    }
+    MonitoredCase {
+        int id PK "em outro diagrama"
+    }
+    Rule {
+        int id PK "em outro diagrama"
+    }
+    Conversation }o--o| MonitoredCase : "case"
+    Conversation }o--o| Contact : "contact"
+    Message }o--|| Conversation : "conversation"
+    PendingAction }o--|| Conversation : "conversation"
+    PendingAction }o--o| Message : "message"
+    AutomationSuggestion }o--o| Rule : "rule"

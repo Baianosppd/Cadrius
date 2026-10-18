@@ -1,0 +1,113 @@
+erDiagram
+    AsaasEvent {
+        bigint id PK
+        texto event_id
+        texto event
+        texto payment_id
+        int organization_id FK
+    }
+    Expense {
+        bigint id PK
+        texto description
+        texto category
+        positivebiginteger amount_cents
+        data date
+        bool reimbursable
+        int organization_id FK
+        int contact_id FK
+        int case_id FK
+        int reimbursement_id FK
+        int created_by_id FK
+    }
+    FeeAgreement {
+        bigint id PK
+        texto title
+        texto kind
+        positivebiginteger total_cents
+        int installments
+        data first_due
+        decimal success_pct
+        texto status
+        cifrado notes
+        int organization_id FK
+        int contact_id FK
+        int case_id FK
+        int opportunity_id FK
+        int created_by_id FK
+    }
+    FinanceSettings {
+        bigint id PK
+        positivebiginteger monthly_goal_cents
+        texto regime
+        decimal iss_pct
+        texto service_description
+        texto municipal_service_code
+        texto municipal_service_name
+        texto accountant_email
+        int organization_id FK
+    }
+    Opportunity {
+        bigint id PK
+        texto title
+        texto area
+        texto stage
+        texto source
+        positivebiginteger value_cents
+        texto next_action
+        data next_action_at
+        texto lost_reason
+        int organization_id FK
+        int contact_id FK
+        int campaign_id FK
+        int owner_id FK
+        int created_by_id FK
+    }
+    Receivable {
+        bigint id PK
+        texto description
+        positivebiginteger amount_cents
+        data due_date
+        texto status
+        data paid_at
+        positivebiginteger paid_cents
+        texto method
+        texto asaas_id
+        int organization_id FK
+        int agreement_id FK
+        int contact_id FK
+        int case_id FK
+        int created_by_id FK
+    }
+    RecurringExpense {
+        bigint id PK
+        texto description
+        texto category
+        positivebiginteger amount_cents
+        int day
+        bool active
+        data starts_on
+        data ends_on
+        texto last_month
+        int organization_id FK
+        int created_by_id FK
+    }
+    Campaign {
+        int id PK "em outro diagrama"
+    }
+    Contact {
+        int id PK "em outro diagrama"
+    }
+    MonitoredCase {
+        int id PK "em outro diagrama"
+    }
+    Expense }o--o| Contact : "contact"
+    Expense }o--o| MonitoredCase : "case"
+    Expense |o--o| Receivable : "reimbursement"
+    FeeAgreement }o--|| Contact : "contact"
+    FeeAgreement }o--o| MonitoredCase : "case"
+    FeeAgreement }o--o| Opportunity : "opportunity"
+    Opportunity }o--|| Contact : "contact"
+    Opportunity }o--o| Campaign : "campaign"
+    Receivable }o--o| FeeAgreement : "agreement"
+    Receivable }o--|| Contact : "contact"
+    Receivable }o--o| MonitoredCase : "case"

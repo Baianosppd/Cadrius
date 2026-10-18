@@ -1,0 +1,11 @@
+flowchart LR
+    classDef job fill:#ede9fe,stroke:#6d28d9,color:#2e1065
+    classDef ok fill:#dcfce7,stroke:#15803d,color:#052e16
+    S["Agendador Django-Q<br/>publications_poll (180 min)"]:::job --> DJ["DJEN<br/>comunicaapi.pje.jus.br"]
+    DJ --> PUB["Publication<br/>(por OabWatch)"]
+    PUB --> TRI["Triagem<br/>regras locais ou IA"]
+    TRI --> PRZ["Prazo sugerido<br/>forense: dias úteis, feriados,<br/>suspensões do tribunal"]
+    PRZ --> REV{"Advogado confirma?"}
+    REV -- sim --> TASK["Tarefa / prazo na agenda<br/>(+ Google Agenda)"]:::ok
+    PUB --> EMIT["emit publication_new → automações"]
+    REV -- descarta --> DESC["Descartada"]

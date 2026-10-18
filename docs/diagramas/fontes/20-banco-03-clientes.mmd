@@ -1,0 +1,235 @@
+erDiagram
+    Contact {
+        bigint id PK
+        texto kind
+        texto person_type
+        cifrado name
+        cifrado document
+        cifrado email
+        cifrado phone
+        cifrado notes
+        json tags
+        int organization_id FK
+        int created_by_id FK
+    }
+    ClientDocument {
+        bigint id PK
+        cifrado nome_cliente
+        int documento_id FK
+    }
+    Document {
+        bigint id PK
+        texto nome
+        texto tipo
+        texto status
+        data_hora data
+        arquivo arquivo
+        int organization_id FK
+        int uploaded_by_id FK
+        int contact_id FK
+    }
+    DocumentExtraction {
+        bigint id PK
+        texto status
+        texto stage
+        texto detected_kind
+        int text_chars
+        bool ocr_used
+        texto provider
+        int confidence
+        cifrado fields
+        int document_id FK
+        int reviewed_by_id FK
+    }
+    CourtInfo {
+        bigint id PK
+        texto tribunal
+        texto name
+        texto balcao_virtual_url
+        texto services_url
+        texto hearings_url
+        texto hours
+        texto notes
+        int updated_by_id FK
+    }
+    CourtSuspension {
+        bigint id PK
+        texto tribunal
+        texto comarca
+        texto kind
+        data start
+        data end
+        texto reason
+        texto source_url
+        int created_by_id FK
+    }
+    Holiday {
+        bigint id PK
+        data date
+        texto name
+        texto tribunal
+        bool yearly
+        int organization_id FK
+    }
+    FolderImport {
+        bigint id PK
+        texto source
+        texto label
+        texto drive_folder_id
+        texto archive_path
+        cifrado plan
+        json options
+        json progress
+        texto status
+        int organization_id FK
+        int created_by_id FK
+    }
+    ImportJob {
+        bigint id PK
+        texto target
+        texto filename
+        texto status
+        json columns
+        cifrado rows
+        int rows_total
+        json mapping
+        json summary
+        int organization_id FK
+        int created_by_id FK
+    }
+    Draft {
+        bigint id PK
+        texto template_key
+        texto title
+        texto source_type
+        int source_id
+        cifrado content
+        cifrado generated_content
+        cifrado citations
+        int pending
+        int organization_id FK
+        int created_by_id FK
+        int reviewed_by_id FK
+    }
+    DraftTemplate {
+        bigint id PK
+        texto name
+        texto kind
+        texto body
+        int organization_id FK
+        int created_by_id FK
+    }
+    PortalLink {
+        bigint id PK
+        texto token_hash
+        texto hint
+        bool show_finance
+        data_hora expires_at
+        data_hora revoked_at
+        data_hora last_access_at
+        int access_count
+        int organization_id FK
+        int contact_id FK
+        int created_by_id FK
+    }
+    OabWatch {
+        bigint id PK
+        texto numero
+        texto uf
+        texto nome
+        bool is_active
+        data_hora last_checked_at
+        texto last_error
+        int organization_id FK
+        int responsavel_id FK
+    }
+    Publication {
+        bigint id PK
+        texto source
+        texto external_id
+        texto tribunal
+        texto tipo
+        texto orgao
+        texto classe
+        cifrado cnj
+        cifrado texto
+        int organization_id FK
+        int watch_id FK
+        int case_id FK
+        int task_id FK
+        int reviewed_by_id FK
+    }
+    CaseMovement {
+        bigint id PK
+        data_hora occurred_at
+        texto code
+        texto name
+        texto complement
+        texto digest
+        bool notified
+        int case_id FK
+    }
+    MonitoredCase {
+        bigint id PK
+        cifrado cnj
+        texto tribunal
+        cifrado label
+        bool is_active
+        data_hora last_checked_at
+        data_hora last_movement_at
+        texto last_error
+        int organization_id FK
+        int responsavel_id FK
+        int client_id FK
+    }
+    NewsItem {
+        bigint id PK
+        texto source
+        texto url
+        texto title
+        texto summary
+        data_hora published_at
+    }
+    IntegrationConfig {
+        bigint id PK
+        texto name
+        cifrado trello_api_key
+        cifrado trello_api_token
+        texto trello_list_id
+        cifrado telegram_bot_token
+        texto telegram_chat_id
+        bool is_active
+    }
+    IntegrationLog {
+        bigint id PK
+        texto service
+        texto status
+        json request_data
+        int response_code
+        json response_body
+        data_hora attempted_at
+        int email_message_id FK
+    }
+    UserTask {
+        bigint id PK
+        texto titulo
+        texto descricao
+        data_hora scheduled_at
+        texto priority
+        bool sincronizar
+        bool completed
+        int responsavel_id FK
+    }
+    EmailMessage {
+        int id PK "em outro diagrama"
+    }
+    ClientDocument }o--|| Document : "documento"
+    Document }o--o| Contact : "contact"
+    DocumentExtraction ||--|| Document : "document"
+    PortalLink }o--|| Contact : "contact"
+    Publication }o--o| OabWatch : "watch"
+    Publication }o--o| MonitoredCase : "case"
+    Publication }o--o| UserTask : "task"
+    CaseMovement }o--|| MonitoredCase : "case"
+    MonitoredCase }o--o| Contact : "client"
+    IntegrationLog }o--|| EmailMessage : "email_message"

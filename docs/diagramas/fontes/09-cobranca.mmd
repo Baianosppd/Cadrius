@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    actor D as Dono do escritório
+    participant FE as Front
+    participant API as billing
+    participant S as Stripe
+    D->>FE: Assinar plano / comprar créditos / adicional de mídia
+    FE->>API: POST checkout (plano, cupom)
+    API->>S: cria Checkout Session (metadata: org, tipo)
+    S-->>FE: redireciona para o pagamento
+    D->>S: paga (cartão / boleto)
+    S->>API: webhook /api/billing/webhook/ (assinado)
+    API->>API: confere assinatura (STRIPE_WEBHOOK_SECRET) e idempotência
+    alt checkout.session.completed
+        API->>API: ativa plano · CreditLot · MediaAddon · Payment
+    else invoice.paid / payment_succeeded
+        API->>API: renova período · Payment
+    else invoice.payment_failed
+        API->>API: marca atraso (carência)
+    else customer.subscription.deleted
+        API->>API: cancela (dados mantidos)
+    end
+    API-->>S: 200
+    Note over API: sem saldo de créditos → aigov bloqueia qualquer IA (no_credits)

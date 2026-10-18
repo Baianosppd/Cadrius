@@ -1,0 +1,16 @@
+flowchart TB
+    classDef pub fill:#f1f5f9,stroke:#64748b,color:#1e293b
+    classDef esc fill:#dbeafe,stroke:#1d4ed8,color:#0a2463
+    classDef ges fill:#0a2463,stroke:#0a2463,color:#fff
+    APP["SPA React + Vite<br/>services/api.js (JWT + renovação com Web Locks)"]
+    APP --> P["Público"]:::pub
+    APP --> E["Escritório (login)"]:::esc
+    APP --> G["Gestão Cadrius (staff + MFA)"]:::ges
+    P --> P1["Login · cadastro · senha"]:::pub
+    P --> P2["Portal do cliente · captação<br/>pesquisa · parear WhatsApp"]:::pub
+    E --> E1["Dia a dia<br/>Painel · Assistente IA · Relógio e voz<br/>Publicações · Processos · Agenda forense · Documentos"]:::esc
+    E --> E2["Produção<br/>Minutas · Automações (React Flow) · Contatos"]:::esc
+    E --> E3["Clientes e finanças<br/>Carteira · Finanças · Marketing"]:::esc
+    E --> E4["Configurações<br/>Equipe · Integrações · IA do escritório<br/>Plugins · Importar dados"]:::esc
+    E --> E5["Segurança<br/>Privacidade · IA segura · Auditoria"]:::esc
+    G --> G1["Início · Receita (financeiro, fiscal, promoções)<br/>Atendimento (suporte, marketing, jurídico)<br/>Pessoas e acessos · Plataforma (IA, cibersegurança)"]:::ges

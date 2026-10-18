@@ -1,0 +1,121 @@
+erDiagram
+    AnomalyAlert {
+        bigint id PK
+        texto rule
+        texto severity
+        texto status
+        texto actor_id
+        texto actor_label
+        uuid organization_id
+        ip ip
+        texto summary
+    }
+    AuditChainHead {
+        int id PK
+        bigint last_seq
+        texto last_hash
+    }
+    AuditCheckpoint {
+        bigint id PK
+        bigint purged_until_seq
+        texto last_hash
+        int purged_count
+        texto reason
+    }
+    AuditEvent {
+        bigint seq PK
+        uuid uid
+        data_hora occurred_at
+        texto request_id
+        texto actor_type
+        texto actor_id
+        texto actor_label
+        uuid organization_id
+        texto action
+    }
+    BlockedIP {
+        bigint id PK
+        texto network
+        texto reason
+        texto created_by
+        data_hora expires_at
+        int hits
+        data_hora last_hit_at
+    }
+    ComplianceSnapshot {
+        bigint id PK
+        texto framework
+        real score
+        json counts
+        json failing
+    }
+    ControlAssessment {
+        bigint id PK
+        texto framework
+        texto control_id
+        texto status
+        texto owner
+        texto evidence_url
+        texto justification
+        texto reviewed_by
+        data_hora reviewed_at
+    }
+    ConsentRecord {
+        bigint id PK
+        texto user_ref
+        uuid organization_id
+        texto purpose
+        texto legal_basis
+        bool granted
+        data_hora occurred_at
+        ip ip
+        texto user_agent_hash
+        int user_id FK
+        int document_id FK
+    }
+    DataSubjectRequest {
+        uuid id PK
+        texto user_ref
+        uuid organization_id
+        texto type
+        texto status
+        texto notes
+        data_hora opened_at
+        data_hora due_at
+        data_hora fulfilled_at
+        int user_id FK
+    }
+    LegalDocument {
+        bigint id PK
+        texto kind
+        texto version
+        texto title
+        texto content_md
+        texto content_sha256
+        texto locale
+        bool requires_reconsent
+        bool is_current
+    }
+    OrganizationOffboarding {
+        bigint id PK
+        uuid organization_id
+        texto organization_name
+        texto requested_by
+        data_hora requested_at
+        data_hora purge_after
+        texto status
+        data_hora purged_at
+        json summary
+    }
+    SubprocessorEntry {
+        bigint id PK
+        texto name
+        texto country
+        texto purpose
+        json data_categories
+        bool international_transfer
+        texto safeguards
+        texto dpa_url
+        bool contract_verified
+    }
+    ConsentRecord }o--|| LegalDocument : "document"

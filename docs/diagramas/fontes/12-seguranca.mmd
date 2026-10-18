@@ -1,0 +1,11 @@
+flowchart TB
+    classDef l fill:#fee2e2,stroke:#b91c1c,color:#450a0a
+    A["Borda<br/>Traefik: TLS, HSTS, cabeçalhos, limite por IP e de corpo<br/>bloqueio de IP pela TI"]:::l
+    B["Identidade<br/>senha forte + bloqueio por tentativas (axes)<br/>MFA TOTP · SSO Google/Microsoft · JWT rotativo com blacklist"]:::l
+    C["Autorização<br/>escritório isolado (multi-tenant)<br/>cargo + grupo de acesso por módulo"]:::l
+    D["Dados<br/>campos pessoais cifrados + índices cegos para busca<br/>arquivos cifrados em repouso · segredos no .env"]:::l
+    E["IA governada<br/>provedores permitidos por escritório · dados mascarados<br/>créditos · autonomia supervisionada · kill switch"]:::l
+    F["Rastreabilidade<br/>auditoria imutável encadeada por hash · alertas de anomalia<br/>Sentry"]:::l
+    G["LGPD<br/>consentimento por canal · pedidos do titular · suboperadores<br/>retenção e expurgo · desligamento do escritório em 30 dias"]:::l
+    H["Continuidade<br/>backup diário cifrado (gpg) · cópia externa<br/>teste de restauração automático"]:::l
+    A --> B --> C --> D --> E --> F --> G --> H

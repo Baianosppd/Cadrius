@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    actor U as Advogado
+    participant API as API
+    participant ST as Armazenamento cifrado
+    participant Q as Fila (Redis)
+    participant W as Worker
+    participant GOV as aigov (política + créditos)
+    participant IA as Provedor de IA
+    U->>API: envia arquivo (até 25 MB)
+    API->>ST: grava cifrado (Document)
+    API->>Q: enqueue process_document
+    API-->>U: 201 (documento salvo)
+    Q->>W: process_document
+    W->>W: tipo pelo conteúdo → texto (PDF/DOCX) ou OCR
+    W->>W: mascara CPF, CNPJ, e-mail e telefone
+    W->>GOV: pode usar IA? (política, provedor, saldo de créditos)
+    GOV-->>W: provedor + fallback
+    W->>IA: extrair partes, datas, prazos e valores
+    IA-->>W: JSON
+    W->>W: DocumentExtraction = aguardando revisão
+    U->>API: confere e confirma
+    API->>API: emit("document_confirmed") → automações

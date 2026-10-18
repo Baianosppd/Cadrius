@@ -1,0 +1,131 @@
+erDiagram
+    AIUsageLog {
+        bigint id PK
+        data billing_cycle_month
+        int extractions_count
+        int organization_id FK
+    }
+    BillingNotice {
+        bigint id PK
+        texto title
+        texto body
+        texto severity
+        json audience_tiers
+        json audience_statuses
+        data_hora starts_at
+        data_hora ends_at
+        bool is_active
+    }
+    CreditLot {
+        bigint id PK
+        int credits_total
+        int credits_remaining
+        data_hora expires_at
+        texto stripe_session_id
+        int amount_paid_cents
+        int organization_id FK
+    }
+    CreditPack {
+        bigint id PK
+        texto name
+        int credits
+        decimal price_brl
+        bool is_active
+    }
+    CreditWeight {
+        bigint id PK
+        texto operation
+        texto label
+        int credits
+        bool is_active
+    }
+    FiscalObligation {
+        bigint id PK
+        texto code
+        texto name
+        texto description
+        texto periodicity
+        int due_day
+        int due_month
+        texto adjust
+        bool active
+    }
+    FiscalObligationDone {
+        bigint id PK
+        texto competence
+        data_hora done_at
+        texto note
+        int obligation_id FK
+        int done_by_id FK
+    }
+    MediaAddon {
+        bigint id PK
+        bool active
+        texto source
+        texto stripe_subscription_id
+        texto stripe_session_id
+        data_hora started_at
+        data_hora ends_at
+        int organization_id FK
+    }
+    MemberCreditUsage {
+        bigint id PK
+        data billing_cycle_month
+        int credits_used
+        int membership_id FK
+    }
+    Payment {
+        bigint id PK
+        texto kind
+        texto description
+        int amount_cents
+        data_hora paid_at
+        texto stripe_id
+        texto invoice_status
+        texto invoice_number
+        data invoice_issued_at
+        int organization_id FK
+    }
+    PlanPriceHistory {
+        bigint id PK
+        decimal old_price
+        decimal new_price
+        int old_credits
+        int new_credits
+        texto changed_by
+        data_hora changed_at
+        int plan_id FK
+    }
+    Promotion {
+        bigint id PK
+        texto code
+        texto name
+        texto description
+        texto kind
+        decimal value
+        texto duration
+        int duration_months
+        json plan_tiers
+    }
+    PromotionRedemption {
+        bigint id PK
+        texto stripe_session_id
+        int promotion_id FK
+        int organization_id FK
+    }
+    SubscriptionPlan {
+        bigint id PK
+        texto name
+        texto tier
+        decimal price_brl
+        int max_users
+        int max_ai_extractions
+        bool is_active
+    }
+    OrganizationMembership {
+        int id PK "em outro diagrama"
+    }
+    FiscalObligationDone }o--|| FiscalObligation : "obligation"
+    MemberCreditUsage }o--|| OrganizationMembership : "membership"
+    PlanPriceHistory }o--|| SubscriptionPlan : "plan"
+    PromotionRedemption }o--|| Promotion : "promotion"

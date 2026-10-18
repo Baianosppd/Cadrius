@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    actor U as Pessoa
+    participant FE as Front (React)
+    participant API as API Django
+    participant G as Google / Microsoft
+    alt E-mail e senha
+        U->>FE: e-mail, senha, "manter conectado"
+        FE->>API: POST /auth/token/ (lembrar)
+        API->>API: axes (bloqueio por tentativas) + senha
+        opt MFA ativo
+            API-->>FE: mfa_token (5 min)
+            U->>FE: código do app autenticador
+            FE->>API: POST /auth/mfa/verify/
+        end
+    else Entrar com Google/Microsoft (SSO)
+        FE->>G: autorização (openid email profile, state + nonce)
+        G-->>FE: /google/callback?code
+        FE->>API: troca do code, valida id_token (JWKS)
+        API->>API: SocialIdentity → usuário
+    end
+    API-->>FE: access (curto) + refresh (30 dias ou 1 dia)
+    FE->>API: chamadas com Bearer access
+    Note over FE,API: access venceu → POST /auth/token/refresh/<br/>refresh rotativo + blacklist, uma aba renova por vez (Web Locks)
