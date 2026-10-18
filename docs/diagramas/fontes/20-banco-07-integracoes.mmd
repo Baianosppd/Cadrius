@@ -1,0 +1,225 @@
+erDiagram
+    ErpCallLog {
+        bigint id PK
+        texto operation
+        bool dry_run
+        bool ok
+        int status_code
+        texto error
+        int connector_id FK
+        int actor_id FK
+    }
+    ErpConnector {
+        bigint id PK
+        texto name
+        texto preset
+        texto base_url
+        cifrado credentials
+        json operations
+        bool live_enabled
+        bool is_active
+        int organization_id FK
+        int created_by_id FK
+    }
+    ExternalEvent {
+        bigint id PK
+        texto event_id
+        cifrado title
+        cifrado description
+        cifrado location
+        data_hora start
+        data_hora end
+        bool all_day
+        texto kind
+        int link_id FK
+        int organization_id FK
+        int case_id FK
+        int contact_id FK
+        int task_id FK
+    }
+    GoogleCalendarApp {
+        bigint id PK
+        texto client_id
+        cifrado client_secret
+        bool uses_platform
+        bool enabled
+        bool share_details
+        int event_minutes
+        int organization_id FK
+    }
+    GoogleCalendarLink {
+        bigint id PK
+        cifrado refresh_token
+        texto calendar_id
+        texto status
+        texto sync_token
+        data_hora last_sync_at
+        texto last_error
+        data_hora connected_at
+        bool import_events
+        int user_id FK
+        int app_id FK
+    }
+    GoogleFile {
+        bigint id PK
+        texto kind
+        texto name
+        texto file_id
+        texto url
+        data_hora used_at
+        int link_id FK
+    }
+    TaskEventMap {
+        bigint id PK
+        texto event_id
+        data_hora last_synced_at
+        int task_id FK
+        int link_id FK
+    }
+    AppConnection {
+        bigint id PK
+        texto name
+        texto app_name
+        cifrado credentials
+        bool is_active
+        int user_id FK
+    }
+    IntegrationLog {
+        bigint id PK
+        texto status
+        json request_data
+        int response_code
+        json response_body
+        texto error_message
+        data_hora attempted_at
+        int connection_id FK
+    }
+    Campaign {
+        bigint id PK
+        texto scope
+        texto name
+        texto goal
+        texto audience
+        json channels
+        data starts_on
+        data ends_on
+        texto notes
+        int organization_id FK
+        int created_by_id FK
+    }
+    CaptureForm {
+        bigint id PK
+        texto token
+        texto title
+        texto intro
+        json areas
+        texto thank_you
+        bool active
+        json compliance
+        int submissions
+        int organization_id FK
+        int campaign_id FK
+        int created_by_id FK
+    }
+    ContentPiece {
+        bigint id PK
+        texto scope
+        texto channel
+        texto theme
+        texto title
+        texto body
+        json hashtags
+        texto image_hint
+        texto image_url
+        int organization_id FK
+        int campaign_id FK
+        int created_by_id FK
+        int approved_by_id FK
+    }
+    MarketingAsset {
+        bigint id PK
+        texto scope
+        texto name
+        texto file
+        int width
+        int height
+        int organization_id FK
+        int created_by_id FK
+    }
+    SatisfactionSurvey {
+        bigint id PK
+        texto token
+        texto reason
+        int score
+        cifrado comment
+        data_hora expires_at
+        data_hora answered_at
+        int organization_id FK
+        int contact_id FK
+    }
+    CustomizationRequest {
+        bigint id PK
+        texto area
+        cifrado objective
+        cifrado example
+        texto frequency
+        int users_affected
+        data wanted_by
+        texto stage
+        cifrado proposal
+        int ticket_id FK
+        int approved_by_id FK
+    }
+    SupportAccessGrant {
+        bigint id PK
+        data_hora expires_at
+        data_hora revoked_at
+        int ticket_id FK
+        int granted_by_id FK
+    }
+    Ticket {
+        bigint id PK
+        cifrado subject
+        texto category
+        texto priority
+        texto status
+        texto page_url
+        data_hora first_response_at
+        data_hora resolved_at
+        int organization_id FK
+        int opened_by_id FK
+        int assigned_to_id FK
+    }
+    TicketMessage {
+        bigint id PK
+        bool from_staff
+        bool internal
+        cifrado body
+        int ticket_id FK
+        int author_id FK
+    }
+    Contact {
+        int id PK "em outro diagrama"
+    }
+    MonitoredCase {
+        int id PK "em outro diagrama"
+    }
+    UserTask {
+        int id PK "em outro diagrama"
+    }
+    ErpCallLog }o--|| ErpConnector : "connector"
+    ExternalEvent }o--|| GoogleCalendarLink : "link"
+    ExternalEvent }o--o| MonitoredCase : "case"
+    ExternalEvent }o--o| Contact : "contact"
+    ExternalEvent }o--o| UserTask : "task"
+    GoogleCalendarLink }o--|| GoogleCalendarApp : "app"
+    GoogleFile }o--|| GoogleCalendarLink : "link"
+    TaskEventMap ||--|| UserTask : "task"
+    TaskEventMap }o--|| GoogleCalendarLink : "link"
+    IntegrationLog }o--o| AppConnection : "connection"
+    CaptureForm }o--o| Campaign : "campaign"
+    ContentPiece }o--o| Campaign : "campaign"
+    SatisfactionSurvey }o--|| Contact : "contact"
+    CustomizationRequest ||--|| Ticket : "ticket"
+    SupportAccessGrant }o--|| Ticket : "ticket"
+    TicketMessage }o--|| Ticket : "ticket"

@@ -1,0 +1,146 @@
+erDiagram
+    PersonalDevice {
+        bigint id PK
+        texto name
+        texto kind
+        texto key_hash
+        bool can_approve
+        bool notify
+        texto ntfy_topic
+        data_hora last_used_at
+        data_hora revoked_at
+        int organization_id FK
+        int user_id FK
+    }
+    Rule {
+        bigint id PK
+        texto name
+        texto description
+        bool enabled
+        texto trigger
+        json trigger_config
+        json conditions
+        json actions
+        bool require_approval
+        int organization_id FK
+        int created_by_id FK
+    }
+    RuleRun {
+        bigint id PK
+        texto trigger
+        texto status
+        cifrado title
+        cifrado steps
+        texto dedupe_key
+        data_hora decided_at
+        texto decision_note
+        int rule_id FK
+        int organization_id FK
+        int decided_by_id FK
+    }
+    EmailMessage {
+        bigint id PK
+        texto message_id
+        texto subject
+        texto sender
+        data_hora received_at
+        texto body_text
+        bool is_dispatched
+        int mailbox_id FK
+    }
+    EmailTriage {
+        bigint id PK
+        texto category
+        texto urgency
+        cifrado summary
+        texto suggested_action
+        data due_date
+        texto method
+        int email_id FK
+        int organization_id FK
+        int contact_id FK
+    }
+    MailBox {
+        bigint id PK
+        texto name
+        texto imap_host
+        int imap_port
+        texto username
+        data_hora last_fetch_at
+        bool is_active
+        int user_id FK
+    }
+    Notification {
+        bigint id PK
+        texto type
+        texto title
+        texto description
+        texto origem
+        texto documento
+        texto acao
+        texto detalhes
+        texto action_label
+        int user_id FK
+        int organization_id FK
+    }
+    WebhookTrigger {
+        bigint id PK
+        uuid identifier
+        int workflow_id FK
+    }
+    Action {
+        bigint id PK
+        texto action_type
+        texto endpoint_url
+        texto method
+        json headers
+        texto payload_template
+        int workflow_id FK
+    }
+    ExecutionLog {
+        bigint id PK
+        texto status
+        json trigger_payload
+        json final_result
+        texto error_message
+        int execution_time_ms
+        bool ai_origin
+        data_hora reviewed_at
+        texto review_decision
+        int workflow_id FK
+        int triggered_by_id FK
+        int reviewed_by_id FK
+    }
+    Trigger {
+        bigint id PK
+        texto event_type
+        json payload_mapping
+        uuid webhook_token
+        int workflow_id FK
+        int connection_id FK
+    }
+    Workflow {
+        bigint id PK
+        texto name
+        texto description
+        bool is_active
+        bool ai_generated
+        data_hora approved_at
+        int organization_id FK
+        int approved_by_id FK
+    }
+    AppConnection {
+        int id PK "em outro diagrama"
+    }
+    Contact {
+        int id PK "em outro diagrama"
+    }
+    RuleRun }o--|| Rule : "rule"
+    EmailMessage }o--|| MailBox : "mailbox"
+    EmailTriage ||--|| EmailMessage : "email"
+    EmailTriage }o--o| Contact : "contact"
+    WebhookTrigger ||--|| Workflow : "workflow"
+    Action }o--|| Workflow : "workflow"
+    ExecutionLog }o--|| Workflow : "workflow"
+    Trigger ||--|| Workflow : "workflow"
+    Trigger }o--|| AppConnection : "connection"

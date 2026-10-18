@@ -1,0 +1,9 @@
+flowchart LR
+    classDef g fill:#dcfce7,stroke:#15803d,color:#052e16
+    classDef b fill:#dbeafe,stroke:#1d4ed8,color:#0a2463
+    PR["Pull request<br/>CAD-xxx → main"] --> CI["GitHub Actions (CI)<br/>back: testes Django (Postgres+Redis), lint, SAST,<br/>dependências, gitleaks, imagem + Trivy<br/>front: lint, build, testes, imagem nginx"]:::b
+    CI --> REV["Revisão e merge"]
+    REV -->|main| DP["deploy.yml → servidor<br/>deploy.sh prod"]:::g
+    DEV["push em develop"] --> DS["deploy-staging.yml<br/>deploy.sh staging"]:::g
+    DP --> STEPS["atualiza o kit · backup antes<br/>git pull back + front · build das imagens<br/>sobe · migra · rotinas · /readyz<br/>falhou → rollback automático"]
+    DS --> STEPS

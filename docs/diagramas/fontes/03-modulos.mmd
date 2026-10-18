@@ -1,0 +1,65 @@
+flowchart LR
+    classDef core fill:#1d4ed8,stroke:#0a2463,color:#fff
+    classDef dom fill:#dbeafe,stroke:#1d4ed8,color:#0a2463
+    classDef ia fill:#ede9fe,stroke:#6d28d9,color:#2e1065
+    classDef sec fill:#fee2e2,stroke:#b91c1c,color:#450a0a
+    classDef int fill:#dcfce7,stroke:#15803d,color:#052e16
+    subgraph NUC["Núcleo"]
+        accounts["accounts<br/>usuários · escritórios · MFA · SSO · grupos"]:::core
+        billing["billing<br/>planos · créditos · Stripe · fiscal"]:::core
+        core_["core<br/>cifra · índices cegos · fila"]:::core
+        backoffice["backoffice<br/>Gestão Cadrius"]:::core
+    end
+    subgraph DOM["Escritório"]
+        contacts["contacts"]:::dom
+        documents["documents<br/>leitura de documentos"]:::dom
+        research["research<br/>processos monitorados"]:::dom
+        publications["publications<br/>DJEN"]:::dom
+        forense["forense<br/>prazos e feriados"]:::dom
+        tasks["tasks"]:::dom
+        minutas["minutas"]:::dom
+        carteira["carteira<br/>CRM e financeiro"]:::dom
+        portal["portal do cliente"]:::dom
+        marketing["marketing"]:::dom
+        imports["imports<br/>planilhas e pastas"]:::dom
+        support["support"]:::dom
+    end
+    subgraph AUT["Automação e IA"]
+        automations["automations<br/>regras"]:::ia
+        workflows["workflows<br/>fluxos com apps"]:::ia
+        assistant["assistant<br/>chat + ferramentas + MCP"]:::ia
+        aigov["aigov<br/>IA governada"]:::ia
+        brain["brain<br/>aprendizado"]:::ia
+        emails["emails<br/>triagem"]:::ia
+    end
+    subgraph INT["Integrações"]
+        gcal["gcal<br/>Google"]:::int
+        integrations["integrations<br/>conectores · WhatsApp · dados públicos"]:::int
+        erp["erp"]:::int
+        webhooks["webhooks"]:::int
+    end
+    subgraph SEC["Segurança e LGPD"]
+        audit["audit<br/>trilha encadeada"]:::sec
+        privacy["privacy"]:::sec
+        compliance["compliance"]:::sec
+    end
+    assistant --> aigov
+    documents --> aigov
+    emails --> aigov
+    marketing --> aigov
+    aigov --> billing
+    documents --> automations
+    publications --> automations
+    contacts --> automations
+    emails --> automations
+    carteira --> automations
+    gcal --> automations
+    automations --> integrations
+    automations --> gcal
+    assistant --> automations
+    assistant --> contacts
+    imports --> contacts
+    imports --> documents
+    brain --> automations
+    DOM --> audit
+    AUT --> audit

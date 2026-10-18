@@ -2,6 +2,8 @@
 
 Arquitetura em camadas, orientada a eventos (EDA simplificada), com governança transversal (auditoria, privacidade, IA, conformidade).
 
+> Diagramas completos (contexto, infraestrutura, serviços, fluxos, segurança, rotinas, CI/CD e banco de dados): [diagramas/ARQUITETURA_E_DIAGRAMAS.md](diagramas/ARQUITETURA_E_DIAGRAMAS.md).
+
 ## 1. Fluxo de dados
 ```mermaid
 flowchart LR

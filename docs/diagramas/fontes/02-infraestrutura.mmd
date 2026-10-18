@@ -1,0 +1,36 @@
+flowchart TB
+    classDef edge fill:#0a2463,stroke:#0a2463,color:#fff
+    classDef app fill:#dbeafe,stroke:#1d4ed8,color:#0a2463
+    classDef data fill:#fef3c7,stroke:#b45309,color:#451a03
+    classDef ext fill:#f1f5f9,stroke:#64748b,color:#1e293b
+    U["Navegador / celular"] -->|HTTPS 443| T
+    subgraph INFRA["infra (compartilhada)"]
+        T["Traefik<br/>TLS Let's Encrypt · cabeçalhos de segurança<br/>limite por IP · corpo 2 MB (upload 30 MB / .zip 2 GB)"]:::edge
+        PG[("PostgreSQL<br/>base cadrius_prod e cadrius_staging")]:::data
+        DZ["Dozzle<br/>(logs dos contêineres)"]:::app
+    end
+    subgraph AMB["ambiente (prod ou staging)"]
+        FE["frontend<br/>nginx + React (Vite)<br/>app.cadrius.ia.br"]:::app
+        WEB["web<br/>Django + DRF (uvicorn ASGI)<br/>api.cadrius.ia.br"]:::app
+        WK["worker<br/>Django-Q (qcluster)<br/>tarefas e rotinas agendadas"]:::app
+        RD[("Redis<br/>fila, cache, limites")]:::data
+        MEDIA[("volume media<br/>documentos cifrados<br/>.zip temporários")]:::data
+        EVO["Evolution API<br/>WhatsApp"]:::app
+    end
+    T -->|app.*| FE
+    T -->|api.*| WEB
+    WEB --> PG
+    WK --> PG
+    WEB <--> RD
+    WK <--> RD
+    WEB --- MEDIA
+    WK --- MEDIA
+    WK --> EVO
+    WEB --> EVO
+    WK -->|HTTPS| EXT["APIs externas<br/>(IA, Google, Stripe, DJEN…)"]:::ext
+    WEB -->|HTTPS| EXT
+    subgraph HOST["servidor (systemd)"]
+        BK["backup diário (pg_dump + gpg)<br/>verificação de restauração<br/>cópia externa (rclone/B2/S3)"]:::app
+    end
+    BK --> PG
+    BK --> OFF[("Armazenamento externo<br/>de backups")]:::data

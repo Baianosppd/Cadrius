@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor U as Advogado
+    participant FE as Front
+    participant API as imports
+    participant G as Google Drive
+    participant W as Worker
+    alt Pelo Google Drive
+        U->>FE: autoriza leitura do Drive (uma vez) e cola o link da pasta-mãe
+        FE->>API: POST /imports/pastas/ (link da pasta)
+        API->>G: lista subpastas e arquivos (só nomes)
+    else Pelo .zip
+        U->>FE: envia o .zip baixado do Drive
+        FE->>API: POST /imports/pastas/zip/
+        API->>API: lê só o índice e guarda o .zip em pasta privada (0600)
+    end
+    API-->>FE: prévia: cliente, CPF/CNPJ, arquivos, já é contato?
+    U->>FE: desmarca o que não quer, IA opcional, Importar
+    FE->>API: POST /imports/pastas/:id/importar/
+    API->>W: enqueue run
+    loop etapas de ~40 s
+        W->>W: contato existente (CPF/CNPJ ou nome) ou novo
+        W->>G: baixa o arquivo (Docs → PDF) ou lê do .zip
+        W->>W: Document cifrado ligado ao contato
+    end
+    W->>W: apaga o .zip e a prévia + auditoria
+    FE->>API: acompanha o progresso

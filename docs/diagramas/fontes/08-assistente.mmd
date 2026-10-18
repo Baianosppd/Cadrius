@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    actor U as Advogado
+    participant FE as Front
+    participant API as assistant
+    participant GOV as aigov
+    participant LLM as IA (Claude, OpenAI…)
+    participant T as Ferramentas
+    U->>FE: "Crie uma automação: intimação por e-mail vira tarefa e avisa o João"
+    FE->>API: POST /assistant/conversations/
+    API->>GOV: política + créditos + provedor da atividade "assistente"
+    API->>LLM: mensagens + catálogo de ferramentas (só as permitidas ao grupo de acesso)
+    LLM-->>API: chama buscar_contatos / catalogo_de_automacao
+    API->>T: executa (leitura, só dados do escritório)
+    T-->>API: resultado (dados de terceiros marcados como não confiáveis)
+    LLM-->>API: chama criar_regra(..., novo_contato)
+    API->>API: PendingAction + resumo (prévia, nada gravado)
+    API-->>FE: resposta + cartão "Aguardando sua confirmação"
+    U->>FE: Confirmar
+    FE->>API: POST /assistant/actions/{id}/decide/
+    API->>T: cadastra o contato (se novo) + cria a regra desligada
+    API->>API: auditoria
+    API-->>FE: Feito + link para abrir o fluxo

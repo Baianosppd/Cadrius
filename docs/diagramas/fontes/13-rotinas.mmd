@@ -1,0 +1,11 @@
+flowchart LR
+    classDef m fill:#ede9fe,stroke:#6d28d9,color:#2e1065
+    classDef h fill:#dbeafe,stroke:#1d4ed8,color:#0a2463
+    classDef d fill:#dcfce7,stroke:#15803d,color:#052e16
+    Q(("Django-Q<br/>worker"))
+    Q --> M5["5 min<br/>detectar anomalias"]:::m
+    Q --> M15["15 min<br/>automações (prazos e agendadas)<br/>Google Agenda (sincronizar)<br/>marketing (publicar agendados)"]:::m
+    Q --> H1["1 h<br/>andamentos de processos · notícias<br/>fiscal (NFS-e e obrigações)"]:::h
+    Q --> H3["3 h<br/>publicações do DJEN"]:::h
+    Q --> H6["6 h<br/>despesas fixas do mês"]:::h
+    Q --> D1["diária<br/>cadeia de auditoria · retenção LGPD<br/>fotografia de conformidade<br/>aprendizado da IA · limpeza de importações"]:::d

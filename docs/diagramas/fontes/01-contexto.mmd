@@ -1,0 +1,21 @@
+flowchart LR
+    classDef pessoa fill:#dbeafe,stroke:#1d4ed8,color:#0a2463
+    classDef sistema fill:#1d4ed8,stroke:#0a2463,color:#fff
+    classDef ext fill:#f1f5f9,stroke:#64748b,color:#1e293b
+    ADV["Advogados e equipe<br/>do escritório"]:::pessoa
+    CLI["Cliente do escritório<br/>(portal, captação, pesquisa)"]:::pessoa
+    STAFF["Equipe Cadrius<br/>(Gestão)"]:::pessoa
+    CAD(("Cadrius<br/>app + API")):::sistema
+    ADV -->|navegador / celular / relógio| CAD
+    CLI -->|links públicos com token| CAD
+    STAFF -->|Gestão com MFA| CAD
+    CAD --> IA["Provedores de IA<br/>Claude · OpenAI · Gemini · Groq<br/>Maritaca · Mistral · OpenRouter · Ollama"]:::ext
+    CAD --> GOO["Google<br/>login · Agenda · Planilhas · Docs · Drive"]:::ext
+    CAD --> MS["Microsoft<br/>login (SSO)"]:::ext
+    CAD --> PAY["Stripe (assinatura Cadrius)<br/>Asaas (cobrança do escritório)"]:::ext
+    CAD --> JUD["Judiciário<br/>DJEN (publicações) · DataJud"]:::ext
+    CAD --> MSG["Mensagens<br/>WhatsApp (Evolution) · e-mail SMTP/IMAP<br/>Slack · Teams · Telegram"]:::ext
+    CAD --> FIS["Fiscal<br/>Focus NFe (NFS-e)"]:::ext
+    CAD --> PUB["Dados públicos<br/>BrasilAPI (CNPJ/CEP)"]:::ext
+    CAD --> ASS["Assinatura digital<br/>ZapSign · D4Sign · Autentique"]:::ext
+    CAD --> OBS["Sentry (erros)<br/>armazenamento externo (backups)"]:::ext

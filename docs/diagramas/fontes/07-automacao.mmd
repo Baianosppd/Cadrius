@@ -1,0 +1,25 @@
+flowchart TB
+    classDef ev fill:#dbeafe,stroke:#1d4ed8,color:#0a2463
+    classDef dec fill:#fef3c7,stroke:#b45309,color:#451a03
+    classDef ok fill:#dcfce7,stroke:#15803d,color:#052e16
+    classDef stop fill:#fee2e2,stroke:#b91c1c,color:#450a0a
+    EV["Evento<br/>e-mail triado · publicação · documento confirmado<br/>andamento · prazo · honorário · contato · agenda<br/>agendado (cron) · atalho/voz"]:::ev --> EMIT["emit(organização, gatilho, refs, dedupe)"]
+    EMIT --> RULES{"Regras ligadas<br/>para o gatilho?"}:::dec
+    RULES -- não --> FIM1["nada"]:::stop
+    RULES -- sim --> DED{"Já rodou para<br/>este evento?"}:::dec
+    DED -- sim --> FIM2["ignorado (dedupe)"]:::stop
+    DED -- não --> CTX["Monta o contexto<br/>(cliente, processo, prazo, variáveis)"]
+    CTX --> COND{"Condições<br/>atendidas?"}:::dec
+    COND -- não --> SK["RuleRun: condições não atendidas"]:::stop
+    COND -- sim --> PLAN["Planeja os passos<br/>calcular · tabela · tarefa · aviso · mensagem<br/>planilha/agenda Google · ERP · chat da equipe"]
+    PLAN --> INT["Passos internos<br/>executa já"]:::ok
+    PLAN --> EXT{"Passo externo<br/>(mensagem, ERP…)"}:::dec
+    EXT -- precisa aprovação --> APR["RuleRun: aguardando aprovação<br/>(tela, sino ou relógio)"]:::dec
+    APR -- aprovado --> SEND
+    APR -- recusado/expirou --> STOP["não envia"]:::stop
+    EXT -- autonomia permite --> SEND["Envia"]
+    SEND --> CONS{"Consentimento do canal<br/>+ horário comercial?"}:::dec
+    CONS -- sim --> OUT["WhatsApp (Evolution) ou e-mail<br/>no visual do escritório"]:::ok
+    CONS -- fora do horário --> LATER["agenda para 8h do próximo dia útil"]
+    CONS -- sem consentimento --> BLK["bloqueado (motivo registrado)"]:::stop
+    OUT --> AUD["auditoria + RuleRun concluída"]

@@ -1,0 +1,97 @@
+erDiagram
+    AccessGroup {
+        bigint id PK
+        texto name
+        texto description
+        json permissions
+        int organization_id FK
+        int created_by_id FK
+    }
+    CustomUser {
+        data_hora last_login
+        bool is_superuser
+        texto username
+        texto email
+        bool is_staff
+        bool is_active
+        data_hora date_joined
+        uuid id PK
+        cifrado first_name
+    }
+    MFADevice {
+        bigint id PK
+        cifrado secret
+        data_hora confirmed_at
+        bigint last_step
+        int user_id FK
+    }
+    MFARecoveryCode {
+        bigint id PK
+        texto code_hash
+        data_hora used_at
+        int user_id FK
+    }
+    Organization {
+        uuid id PK
+        texto account_type
+        texto name
+        texto nome_fantasia
+        texto razao_social
+        cifrado cnpj
+        texto company_type
+        texto tax_regime
+        texto company_size
+        int plan_id FK
+        int pending_promotion_id FK
+    }
+    OrganizationMembership {
+        uuid id PK
+        texto role
+        texto job_title
+        int credit_limit
+        bool is_active
+        data_hora joined_at
+        int user_id FK
+        int organization_id FK
+        int access_group_id FK
+    }
+    SocialIdentity {
+        bigint id PK
+        texto provider
+        texto subject
+        texto email_at_link
+        int user_id FK
+    }
+    UserMessageSendCount {
+        bigint id PK
+        int whatsapp_count
+        int email_count
+        int automations_run_count
+        int document_analysis_count
+        int user_id FK
+    }
+    Group {
+        int id PK "em outro diagrama"
+    }
+    Permission {
+        int id PK "em outro diagrama"
+    }
+    Promotion {
+        int id PK "em outro diagrama"
+    }
+    SubscriptionPlan {
+        int id PK "em outro diagrama"
+    }
+    AccessGroup }o--|| Organization : "organization"
+    AccessGroup }o--o| CustomUser : "created_by"
+    CustomUser }o--o{ Group : "groups"
+    CustomUser }o--o{ Permission : "user_permissions"
+    MFADevice ||--|| CustomUser : "user"
+    MFARecoveryCode }o--|| CustomUser : "user"
+    Organization }o--|| SubscriptionPlan : "plan"
+    Organization }o--o| Promotion : "pending_promotion"
+    OrganizationMembership }o--|| CustomUser : "user"
+    OrganizationMembership }o--|| Organization : "organization"
+    OrganizationMembership }o--o| AccessGroup : "access_group"
+    SocialIdentity }o--|| CustomUser : "user"
+    UserMessageSendCount ||--|| CustomUser : "user"
