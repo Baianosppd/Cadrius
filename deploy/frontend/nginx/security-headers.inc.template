@@ -1,5 +1,7 @@
 # Template (envsubst de ${API_ORIGIN}) incluído em CADA location: o nginx não herda add_header quando o location define o seu.
 add_header X-Content-Type-Options "nosniff" always;
+# SEO: noindex fora das páginas públicas de produção ($seo_robots vem do map em default.conf.template)
+add_header X-Robots-Tag $seo_robots always;
 add_header X-Frame-Options "DENY" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;

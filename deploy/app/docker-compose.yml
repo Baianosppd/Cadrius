@@ -68,20 +68,22 @@ services:
       - "traefik.http.routers.${ENV_NAME}-api.rule=Host(`${API_HOST}`)"
       - "traefik.http.routers.${ENV_NAME}-api.entrypoints=websecure"
       - "traefik.http.routers.${ENV_NAME}-api.tls.certresolver=le"
-      - "traefik.http.routers.${ENV_NAME}-api.middlewares=secure-headers@file,rate-limit@file,body-limit@file"
+      - "traefik.http.routers.${ENV_NAME}-api.middlewares=secure-headers@file,${ENV_NAME}-noindex@docker,rate-limit@file,body-limit@file"
       - "traefik.http.services.${ENV_NAME}-api.loadbalancer.server.port=8000"
+      # SEO: a API nunca aparece no Google (middleware definido aqui para subir junto com o router)
+      - "traefik.http.middlewares.${ENV_NAME}-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow"
       # CAD-234: rotas de envio de arquivos com limite próprio (o resto da API segue com 2 MB)
       - "traefik.http.routers.${ENV_NAME}-api-docs.rule=Host(`${API_HOST}`) && (PathPrefix(`/api/v1/documentos/`) || PathPrefix(`/api/v1/minutas/`))"
       - "traefik.http.routers.${ENV_NAME}-api-docs.priority=50"
       - "traefik.http.routers.${ENV_NAME}-api-docs.entrypoints=websecure"
       - "traefik.http.routers.${ENV_NAME}-api-docs.tls.certresolver=le"
-      - "traefik.http.routers.${ENV_NAME}-api-docs.middlewares=secure-headers@file,rate-limit@file,upload-limit@file"
+      - "traefik.http.routers.${ENV_NAME}-api-docs.middlewares=secure-headers@file,${ENV_NAME}-noindex@docker,rate-limit@file,upload-limit@file"
       - "traefik.http.routers.${ENV_NAME}-api-docs.service=${ENV_NAME}-api"
       - "traefik.http.routers.${ENV_NAME}-api-zip.rule=Host(`${API_HOST}`) && Path(`/api/v1/imports/pastas/zip/`)"
       - "traefik.http.routers.${ENV_NAME}-api-zip.priority=60"
       - "traefik.http.routers.${ENV_NAME}-api-zip.entrypoints=websecure"
       - "traefik.http.routers.${ENV_NAME}-api-zip.tls.certresolver=le"
-      - "traefik.http.routers.${ENV_NAME}-api-zip.middlewares=secure-headers@file,rate-limit@file,zip-limit@file"
+      - "traefik.http.routers.${ENV_NAME}-api-zip.middlewares=secure-headers@file,${ENV_NAME}-noindex@docker,rate-limit@file,zip-limit@file"
       - "traefik.http.routers.${ENV_NAME}-api-zip.service=${ENV_NAME}-api"
 
   worker:
