@@ -96,9 +96,12 @@ class LoginTests(Base):
 
     def test_com_mfa_login_em_dois_passos_e_marca_amr(self):
         self.enroll()
+        # Um código só no teste inteiro: gerar de novo a cada passo falhava quando a janela de 30 s virava no meio
+        # (o "reuso" virava um código novo, válido).
+        code = current_code(self.user)
         first = self.login().json()
         self.assertEqual(set(first), {'mfa_required', 'mfa_token'})
-        res = self.client.post('/api/v1/auth/mfa/verify/', {'mfa_token': first['mfa_token'], 'code': current_code(self.user)}, format='json')
+        res = self.client.post('/api/v1/auth/mfa/verify/', {'mfa_token': first['mfa_token'], 'code': code}, format='json')
         self.assertEqual(res.status_code, 200)
         from rest_framework_simplejwt.tokens import AccessToken
         self.assertEqual(AccessToken(res.json()['access'])['amr'], 'mfa')
@@ -106,10 +109,10 @@ class LoginTests(Base):
         refreshed = self.client.post('/api/v1/auth/token/refresh/', {'refresh': res.json()['refresh']}, format='json').json()
         self.assertEqual(AccessToken(refreshed['access'])['amr'], 'mfa')
         # desafio é de uso único e o mesmo código não vale duas vezes
-        again = self.client.post('/api/v1/auth/mfa/verify/', {'mfa_token': first['mfa_token'], 'code': current_code(self.user)}, format='json')
+        again = self.client.post('/api/v1/auth/mfa/verify/', {'mfa_token': first['mfa_token'], 'code': code}, format='json')
         self.assertEqual(again.json()['code'], 'mfa_expired')
         second = self.login().json()
-        replay = self.client.post('/api/v1/auth/mfa/verify/', {'mfa_token': second['mfa_token'], 'code': current_code(self.user)}, format='json')
+        replay = self.client.post('/api/v1/auth/mfa/verify/', {'mfa_token': second['mfa_token'], 'code': code}, format='json')
         self.assertEqual(replay.json()['code'], 'mfa_invalid')
 
     def test_cinco_erros_invalidam_o_desafio(self):
