@@ -995,9 +995,9 @@ pillow==13.0.0 \
     --hash=sha256:ff3fe9eb621fbb9db4c4be33ab946f6bac5f98ab50ca8d3260503653656c961b \
     --hash=sha256:ffea6b2986a797c84b6d1d27d4f43e0b83c73fc16281a930891cd237cf0d08fe
     # via -r requirements.in
-postgrest==2.32.0 \
-    --hash=sha256:20c6966d0e33d5037386fbe5bd41edd05d72748e014fbdc9d4c55308690dbe7a \
-    --hash=sha256:2386155853917089510ee4e322a0f44909e9495a12ec4b3e1294ab79551a500e
+postgrest==2.33.0 \
+    --hash=sha256:802bb30028b897f929e8b0b64db20d949b0c1c58e5804bcc7da02faebf2c03ae \
+    --hash=sha256:8813be05d129e8fedc1a9649487ffe524242c33ed380e187edcd16c414915217
     # via supabase
 propcache==0.5.4 \
     --hash=sha256:004e685b315646c410771836e72a44f143bbe624f29653a42687815069a303d5 \
@@ -1474,9 +1474,9 @@ qrcode==8.2 \
     --hash=sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f \
     --hash=sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c
     # via -r requirements.in
-realtime==2.32.0 \
-    --hash=sha256:3f26f7c8693eae2553867c3be5bfb476dd886860c3d2d612256639b455cf5930 \
-    --hash=sha256:42fb260cd39c287497a1c3e9e51733cfbb8ead4259fc2a43106fb83dc5cb04f7
+realtime==2.33.0 \
+    --hash=sha256:da94bb2e6e33859d1aece87656444498a1f7a5ca1c3484a84aa4a23f8940deec \
+    --hash=sha256:e4b10077d59876a75070b7e72074945ea78b4a99369771f8b968f4092847c65d
     # via supabase
 redis==8.1.0 \
     --hash=sha256:6e1a19beef9225c83efd689c7e6b7da2d5215b1f42cd13b7fc3714d0a09c7b25 \
@@ -1635,9 +1635,9 @@ sqlparse==0.6.0 \
     --hash=sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9 \
     --hash=sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f
     # via django
-storage3==2.32.0 \
-    --hash=sha256:9188dfe6931f3366fd9740d21f737bf969dbbd69f9ecb97746dbb7eeb5f01731 \
-    --hash=sha256:a72109e4223b461488ad338ada324c27380dda0be3a8928498f19ec3b8946c98
+storage3==2.33.0 \
+    --hash=sha256:6e357ea7328961bcecc02a35fac8fae555b0c4b6b02ff553a956824693fd4cec \
+    --hash=sha256:7b5a27ca1e64e324420ca9514c38317f243a0ae7a56aeef336976034c1c565d4
     # via supabase
 strenum==0.4.15 \
     --hash=sha256:878fb5ab705442070e4dd1929bb5e2249511c0bcf2b0eeacf3bcd80875c82eff \
@@ -1647,17 +1647,17 @@ stripe==16.0.0 \
     --hash=sha256:5016068d54aebb43e61b3c377ef45bede4e0b4eb1817d7a12af81630c55a23d2 \
     --hash=sha256:6a401baf2fc19c59ccb59005e674f8da8fa256e8db319ad8c50292f4cddf8c26
     # via -r requirements.in
-supabase==2.32.0 \
-    --hash=sha256:6552fa758deb4c9b92bd5ba4da1d0c92b8d7037b4fa63fb071b90c087f316ec5 \
-    --hash=sha256:8272451d1a478972bb5ffa3be013eb1fe62924fb55c30edd6a03cabbce390074
+supabase==2.33.0 \
+    --hash=sha256:57c3aeeac3d612321deac8176b935077a7643461c8df4bf28722c2024c87ccc6 \
+    --hash=sha256:7834e2b6373773c8105449cec3089a0dc1bc4069505be057a13404cfcbc42f8c
     # via -r requirements.in
-supabase-auth==2.32.0 \
-    --hash=sha256:c68ea37b7bc61292b1d85390315c5c62756253fc9ab5613108b86f7534c72cf0 \
-    --hash=sha256:da3ede5e2976bf4d6b11c0ae5bc8f0f6612175bbb194aba2994dcce2629de86f
+supabase-auth==2.33.0 \
+    --hash=sha256:832d3097bad72cf5bf70b55ab776385f8bad2c17a9c37b858e8bb7a6abe7c4a8 \
+    --hash=sha256:d48f361309cb5e8eeb7babfd0f326e1a81870f27a0ba15f94194fbab13153f5c
     # via supabase
-supabase-functions==2.32.0 \
-    --hash=sha256:78eb2f408894d25550d91736500dc0f6896ba3fc07ca63cd31c1173447dceaa0 \
-    --hash=sha256:d3ca04e3128f90d84a96a150bfd4e7407a9dec84a342f548cb538ee1e6300d88
+supabase-functions==2.33.0 \
+    --hash=sha256:1563788b6d15c29c1aee77c7e6fbdb1a8f3e29e4a8b3231e82e01f825ed00acd \
+    --hash=sha256:3a8531f5ac7519535fb0032fa4490220d49d338e83608d38d1b178e9c7999414
     # via supabase
 tenacity==9.1.4 \
     --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55 \
