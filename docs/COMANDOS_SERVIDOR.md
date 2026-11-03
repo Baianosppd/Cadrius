@@ -75,7 +75,7 @@ Confira contra `deploy/app/env.backend.template` e acrescente o que faltar.
 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_PAID` | CAD-221 | Marketing. `GEMINI_PAID=true` só com plano pago, para receber dado de cliente |
 | `MISTRAL_API_KEY`, `MISTRAL_PAID`, `OPENROUTER_*`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | CAD-221 | Opcionais (reservas) |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | — | Cobrança. Em staging use **sk_test_** |
-| `STRIPE_PAYMENT_METHODS` | CAD-224 | `card` (padrão) ou `card,boleto`, depois de ativar no Stripe |
+| ~~`STRIPE_PAYMENT_METHODS`~~ | CAD-240 | Não é mais usado: os meios (cartão, boleto, Pix) são ligados no painel do Stripe → Configurações → Meios de pagamento |
 | `FRONTEND_URL` | — | `https://app.cadrius.ia.br` (ou app-teste): retorno do checkout |
 | `EMAIL_HOST`, `EMAIL_*`, `DEFAULT_FROM_EMAIL` | — | E-mails, inclusive a ação "Enviar e-mail" dos fluxos (CAD-224) |
 | `FOCUSNFE_TOKEN`, `FOCUSNFE_BASE` | CAD-175 | NFS-e do Cadrius. Comece em homologação |

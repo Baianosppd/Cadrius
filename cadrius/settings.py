@@ -541,8 +541,7 @@ SESSION_CACHE_ALIAS = "default"
 STRIPE_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
-# CAD-224: meios aceitos no checkout. Assinatura: 'card' (e 'boleto' só depois de ativado no painel do Stripe).
-STRIPE_PAYMENT_METHODS = env.list('STRIPE_PAYMENT_METHODS', default=['card'])
+# Meios de pagamento do checkout (cartão, boleto, Pix): ligados no painel do Stripe; o Stripe não aceita mais escolhê-los na API (CAD-240).
 # CAD-231: adicional "Estúdio de mídia com IA" (incluído no Enterprise; mensal à parte nos outros planos).
 MEDIA_ADDON_PRICE_BRL = env('MEDIA_ADDON_PRICE_BRL', default='149.00')
 # Pesquisa jurídica (CAD-166). [VALIDAR] chave pública e URL do DataJud na documentação vigente do CNJ.

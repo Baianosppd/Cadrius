@@ -269,6 +269,7 @@ class AddonBillingTests(Base):
         kw = create.call_args.kwargs
         self.assertEqual((kw['mode'], kw['metadata']['kind'], kw['line_items'][0]['price_data']['unit_amount']),
                          ('subscription', 'media_addon', 14900))
+        self.assertNotIn('payment_method_types', kw)        # CAD-240: o Stripe recusa o parâmetro
         member = make_user('adv@x.com', self.org, role='MEMBER')
         c = APIClient()
         c.force_authenticate(member)
