@@ -139,6 +139,19 @@ class StripeSyncTests(TestCase):
         base.update(over)
         return {'type': 'checkout.session.completed', 'data': {'object': base}}
 
+    def test_boleto_ou_pix_so_ativa_quando_o_pagamento_assincrono_confirma(self):
+        self.assertEqual(apply_event(self.session(payment_status='unpaid')), 'ignored:not_paid')
+        ev = self.session()
+        ev['type'] = 'checkout.session.async_payment_succeeded'
+        self.assertEqual(apply_event(ev), 'subscription_active')
+
+    def test_diagnostico_exige_so_os_eventos_necessarios(self):
+        from billing.management.commands.cadrius_pagamentos import required_events
+        card = required_events(['card'])
+        self.assertEqual(card, ['checkout.session.completed', 'customer.subscription.deleted', 'invoice.paid',
+                                'invoice.payment_failed'])
+        self.assertIn('checkout.session.async_payment_succeeded', required_events(['card', 'boleto']))
+
     def test_pagamento_confirmado_ativa_e_promove_o_plano(self):
         other = make_paid_plan(price='99', credits=300, users=1, tier='START')
         self.org.plan = other           # tinha escolhido o outro plano no cadastro
@@ -217,6 +230,9 @@ class BillingApiTests(APITestCase):
         self.assertEqual(kwargs['client_reference_id'], str(self.org.pk))
         self.assertEqual(kwargs['metadata'], {'kind': 'subscription', 'plan_id': str(self.plan.pk)})
         self.assertEqual(kwargs['subscription_data']['metadata']['plan_id'], str(self.plan.pk))
+        # CAD-237: modo assinatura exige preço recorrente (sem isto o Stripe recusa a sessão)
+        self.assertEqual(kwargs['mode'], 'subscription')
+        self.assertEqual(kwargs['line_items'][0]['price_data']['recurring'], {'interval': 'month'})
 
     def test_checkout_recusa_plano_gratuito_e_inativo(self):
         free = SubscriptionPlan.objects.create(name='F', tier='FREE', price_brl=0, max_users=1, max_ai_extractions=30)

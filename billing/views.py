@@ -127,6 +127,8 @@ class CreateCheckoutSessionView(APIView):
                             'description': f'Até {plan.max_ai_extractions} extrações com IA por mês.',
                         },
                         'unit_amount': int(plan.price_brl * 100), # Stripe cobra em cêntimos
+                        # CAD-237: assinatura exige preço recorrente; sem isto o Stripe recusava TODO checkout de plano
+                        'recurring': {'interval': 'month'},
                     },
                     'quantity': 1,
                 }],

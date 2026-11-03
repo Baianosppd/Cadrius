@@ -186,11 +186,19 @@ def _subscription_deleted(subscription) -> str:
 
 HANDLERS = {
     'checkout.session.completed': _checkout_completed,
+    # boleto/Pix: o "completed" chega com payment_status=unpaid (ignorado); a confirmação vem neste evento, já como "paid"
+    'checkout.session.async_payment_succeeded': _checkout_completed,
     'invoice.payment_succeeded': _payment_succeeded,
     'invoice.paid': _payment_succeeded,
     'invoice.payment_failed': _payment_failed,
     'customer.subscription.deleted': _subscription_deleted,
 }
+
+
+# Eventos que o webhook do painel pode dispensar: invoice.paid e invoice.payment_succeeded fazem o mesmo (basta um);
+# o assíncrono só existe com boleto/Pix no checkout.
+SAME_AS = {'invoice.payment_succeeded': 'invoice.paid'}
+ASYNC_ONLY = {'checkout.session.async_payment_succeeded'}
 
 
 def apply_event(event) -> str:

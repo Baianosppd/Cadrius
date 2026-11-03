@@ -7,9 +7,15 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from billing.models import CreditPack, Promotion, SubscriptionPlan
-from billing.stripe_sync import HANDLERS
+from billing.stripe_sync import ASYNC_ONLY, HANDLERS, SAME_AS
 
-REQUIRED_EVENTS = sorted(HANDLERS)
+
+def required_events(methods) -> list[str]:
+    """Eventos que o webhook do Stripe precisa enviar (CAD-237: sem exigir duplicados nem o assíncrono só com cartão)."""
+    wanted = set(HANDLERS) - set(SAME_AS)
+    if set(methods) <= {'card'}:
+        wanted -= ASYNC_ONLY
+    return sorted(wanted)
 
 
 def _mode(key: str) -> str:
@@ -65,9 +71,10 @@ class Command(BaseCommand):
         ok(f'Pacotes de créditos ativos: {CreditPack.objects.filter(is_active=True).count()}')
         ok(f'Cupons ativos: {Promotion.objects.filter(is_active=True).count()}')
 
+        events = required_events(methods)
         if online and key:
             self.stdout.write('Stripe (online, somente leitura)')
-            self._online(key, problems, warnings, ok)
+            self._online(key, problems, warnings, ok, events)
         elif online:
             problems.append('--online ignorado: sem STRIPE_SECRET_KEY.')
 
@@ -80,9 +87,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f'\nNÃO está pronto para cobrar ({len(problems)} pendência(s)).'))
         else:
             self.stdout.write(self.style.SUCCESS(f'\nPronto para cobrar em modo {mode}.'))
-        self.stdout.write(f'Webhook: https://<API>/api/billing/webhook/ com os eventos {", ".join(REQUIRED_EVENTS)}.')
+        self.stdout.write(f'Webhook: https://<API>/api/billing/webhook/ com os eventos {", ".join(events)}.')
 
-    def _online(self, key, problems, warnings, ok):
+    def _online(self, key, problems, warnings, ok, required):
         import stripe
         stripe.api_key = key
         try:
@@ -101,7 +108,9 @@ class Command(BaseCommand):
             return
         for h in mine:
             events = set(h.get('enabled_events') or [])
-            missing = [] if '*' in events else [e for e in REQUIRED_EVENTS if e not in events]
+            # invoice.payment_succeeded vale no lugar de invoice.paid
+            events |= {SAME_AS[e] for e in events if e in SAME_AS}
+            missing = [] if '*' in events else [e for e in required if e not in events]
             if missing:
                 problems.append(f'Webhook {h["url"]} sem os eventos: {", ".join(missing)}.')
             else:
