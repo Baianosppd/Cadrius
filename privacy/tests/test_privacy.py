@@ -100,7 +100,7 @@ class ConsentTests(APITestCase):
         accept_all(user)
         cache.clear()
         self.assertFalse(consent.has_pending(user))
-        LegalDocument.objects.create(kind='privacy', version='2.0', title='P2', content_md='x', is_current=True)
+        LegalDocument.objects.create(kind='privacy', version='9.0', title='P9', content_md='x', is_current=True)
         cache.clear()
         self.assertEqual([d.kind for d in consent.pending_documents(user)], ['privacy'])
 
@@ -239,3 +239,36 @@ class RetentionTests(TestCase):
         self.assertEqual(log_old.execution_time_ms, 1500)  # métrica de ROI preservada
         self.assertEqual(result['email_bodies'], 1)
         self.assertTrue(AuditEvent.objects.filter(action='retention.purged').exists())
+
+
+class GooglePolicyTests(APITestCase):
+    """Verificação do app OAuth no Google: política pública, com a seção de dados do Google, e retenção cumprida."""
+
+    def test_politica_vigente_e_publica_e_cobre_dados_do_google(self):
+        resp = self.client.get('/api/v1/legal/documents/')
+        self.assertEqual(resp.status_code, 200)
+        privacy = [d for d in resp.data if d['kind'] == 'privacy']
+        self.assertEqual([d['version'] for d in privacy], ['2.0'])
+        text = privacy[0]['content_md']
+        for part in ('## 3. Dados de usuários do Google', 'Dados acessados', 'Como usamos', 'Compartilhamento',
+                     'Armazenamento e proteção', 'Retenção e exclusão', 'Uso Limitado', 'calendar.events', 'drive.file',
+                     'drive.readonly', 'myaccount.google.com/permissions', 'privacidade@cadrius.ia.br', 'Limited Use'):
+            self.assertIn(part, text)
+        self.assertTrue(SubprocessorEntry.objects.filter(name__startswith='Google (login, Agenda, Drive').exists())
+
+    def test_compromissos_do_google_vencidos_sao_apagados(self):
+        from gcal.models import ExternalEvent, GoogleCalendarApp, GoogleCalendarLink
+        org = make_org()
+        user = make_user('g@example.com', org)
+        app = GoogleCalendarApp.objects.create(organization=org, client_id='c', client_secret='s')
+        link = GoogleCalendarLink.objects.create(user=user, app=app, refresh_token='rt')
+        now = timezone.now()
+        old = ExternalEvent.objects.create(link=link, organization=org, event_id='a', title='Velho',
+                                           start=now - timedelta(days=100), end=now - timedelta(days=99))
+        old_no_end = ExternalEvent.objects.create(link=link, organization=org, event_id='b', start=now - timedelta(days=95))
+        recent = ExternalEvent.objects.create(link=link, organization=org, event_id='c', title='Novo',
+                                              start=now - timedelta(days=10), end=now - timedelta(days=10))
+        result = enforce_retention()
+        self.assertEqual(result['google_events'], 2)
+        self.assertEqual(list(ExternalEvent.objects.values_list('pk', flat=True)), [recent.pk])
+        self.assertFalse(ExternalEvent.objects.filter(pk__in=[old.pk, old_no_end.pk]).exists())

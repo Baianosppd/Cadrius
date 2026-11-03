@@ -15,6 +15,7 @@ DEFAULTS = {
     'RETENTION_EMAIL_BODY_DAYS': 90,         # corpo dos e-mails processados
     'RETENTION_EXECUTION_PAYLOAD_DAYS': 90,  # payload/resultado das execuções (mantém métricas de ROI)
     'RETENTION_INTEGRATION_LOG_DAYS': 30,    # request/response de chamadas a terceiros
+    'RETENTION_GOOGLE_EVENT_DAYS': 90,       # compromissos trazidos do Google Agenda, contados do fim (política de privacidade 2.0)
 }
 
 
@@ -24,7 +25,10 @@ def _days(name: str) -> int:
 
 def enforce_retention(now=None) -> dict:
     """Executa todos os expurgos e devolve as contagens (também gravadas na trilha)."""
+    from django.db.models import Q
+
     from emails.models import EmailMessage
+    from gcal.models import ExternalEvent
     from integrations.models import IntegrationLog
     from tasks.models import IntegrationLog as LegacyIntegrationLog
     from workflows.models import ExecutionLog
@@ -42,6 +46,9 @@ def enforce_retention(now=None) -> dict:
         .exclude(request_data__isnull=True, response_body__isnull=True).update(request_data=None, response_body=None),
         'legacy_integration_logs': LegacyIntegrationLog.objects.filter(attempted_at__lt=ago('RETENTION_INTEGRATION_LOG_DAYS'))
         .exclude(request_data__isnull=True, response_body__isnull=True).update(request_data=None, response_body=None),
+        # Cópia local de compromisso do Google que já passou: a sincronização só olha de ontem em diante, então não volta.
+        'google_events': ExternalEvent.objects.filter(Q(end__lt=ago('RETENTION_GOOGLE_EVENT_DAYS'))
+                                                      | Q(end__isnull=True, start__lt=ago('RETENTION_GOOGLE_EVENT_DAYS'))).delete()[0],
     }
 
     purged_orgs = 0
