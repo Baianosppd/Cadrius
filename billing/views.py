@@ -34,10 +34,6 @@ def _stripe_ready() -> bool:
     return True
 
 
-def _payment_methods() -> list:
-    return list(getattr(settings, 'STRIPE_PAYMENT_METHODS', None) or ['card'])
-
-
 class PlansListView(APIView):
     """
     GET /api/billing/plans/
@@ -117,8 +113,9 @@ class CreateCheckoutSessionView(APIView):
             if not _stripe_ready():
                 return Response({'detail': NOT_CONFIGURED, 'code': 'payments_not_configured'},
                                 status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            # CAD-240: sem payment_method_types (o Stripe passou a recusar o parâmetro): os meios de pagamento
+            # (cartão, boleto, Pix) são os ativados no painel do Stripe → Configurações → Meios de pagamento.
             checkout_session = stripe.checkout.Session.create(
-                payment_method_types=_payment_methods(),
                 line_items=[{
                     'price_data': {
                         'currency': 'brl',
@@ -228,7 +225,6 @@ class CreditPackCheckoutView(APIView):
                             status=status.HTTP_503_SERVICE_UNAVAILABLE)
         try:
             session = stripe.checkout.Session.create(
-                payment_method_types=_payment_methods(),
                 line_items=[{'price_data': {'currency': 'brl', 'unit_amount': int(pack.price_brl * 100),
                                             'product_data': {'name': f'Cadrius — {pack.name}',
                                                              'description': f'{pack.credits} créditos de IA (valem 12 meses).'}},
@@ -353,7 +349,6 @@ class MediaAddonCheckoutView(APIView):
         meta = {'kind': 'media_addon'}
         try:
             session = stripe.checkout.Session.create(
-                payment_method_types=_payment_methods(),
                 line_items=[{'price_data': {'currency': 'brl', 'unit_amount': int(addons.price_brl() * 100),
                                             'recurring': {'interval': 'month'},
                                             'product_data': {'name': 'Cadrius — Estúdio de mídia com IA',

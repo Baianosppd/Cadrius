@@ -7,15 +7,13 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from billing.models import CreditPack, Promotion, SubscriptionPlan
-from billing.stripe_sync import ASYNC_ONLY, HANDLERS, SAME_AS
+from billing.stripe_sync import HANDLERS, SAME_AS
 
 
-def required_events(methods) -> list[str]:
-    """Eventos que o webhook do Stripe precisa enviar (CAD-237: sem exigir duplicados nem o assíncrono só com cartão)."""
-    wanted = set(HANDLERS) - set(SAME_AS)
-    if set(methods) <= {'card'}:
-        wanted -= ASYNC_ONLY
-    return sorted(wanted)
+def required_events() -> list[str]:
+    """Eventos que o webhook do Stripe precisa enviar, sem exigir duplicados. O assíncrono (boleto/Pix) entra sempre:
+    os meios de pagamento são ligados no painel do Stripe, sem passar pelo Cadrius (CAD-240)."""
+    return sorted(set(HANDLERS) - set(SAME_AS))
 
 
 def _mode(key: str) -> str:
@@ -54,11 +52,7 @@ class Command(BaseCommand):
             ok(f'FRONTEND_URL={front} (retorno do checkout)')
         else:
             (warnings if settings.DEBUG else problems).append(f'FRONTEND_URL={front!r}: em produção deve ser https://app...')
-        methods = list(getattr(settings, 'STRIPE_PAYMENT_METHODS', ['card']))
-        ok(f'Meios no checkout: {", ".join(methods)}')
-        if methods == ['card']:
-            warnings.append('Só cartão. Boleto em assinatura exige ativar no painel do Stripe e STRIPE_PAYMENT_METHODS=card,boleto. '
-                            'Pix: confira no painel do Stripe se a conta aceita Pix em assinatura antes de incluir "pix".')
+        ok('Meios no checkout: os ativados no painel do Stripe (Configurações → Meios de pagamento)')
 
         self.stdout.write('Catálogo')
         paid = SubscriptionPlan.objects.filter(is_active=True, price_brl__gt=0)
@@ -71,7 +65,7 @@ class Command(BaseCommand):
         ok(f'Pacotes de créditos ativos: {CreditPack.objects.filter(is_active=True).count()}')
         ok(f'Cupons ativos: {Promotion.objects.filter(is_active=True).count()}')
 
-        events = required_events(methods)
+        events = required_events()
         if online and key:
             self.stdout.write('Stripe (online, somente leitura)')
             self._online(key, problems, warnings, ok, events)
