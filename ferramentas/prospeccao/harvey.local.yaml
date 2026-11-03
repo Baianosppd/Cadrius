@@ -1,0 +1,169 @@
+# Configuração do Harvey para o Cadrius (CAD-238). Copie para a pasta do Harvey como harvey.local.yaml:
+# esse arquivo vence o harvey.yaml e fica fora do git do Harvey.
+# Preencha os campos marcados com TROCAR antes de rodar.
+
+persona:
+  name: "Jullio"                        # TROCAR se outra pessoa assinar os e-mails
+  company: "Cadrius"
+  role: "Fundador"
+  email: "jullio@TROCAR-DOMINIO.com.br" # caixa do domínio SEPARADO de prospecção (nunca @cadrius.ia.br)
+  linkedin: ""
+  tone: "direto, cordial e respeitoso, de colega para colega; português do Brasil, sem jargão de vendas"
+
+product:
+  name: "Cadrius"
+  description: >-
+    Plataforma de gestão jurídica com IA para advogados autônomos e escritórios pequenos e médios.
+    Traz as publicações do DJEN da OAB do advogado todo dia, conta os prazos em dias úteis (feriados e
+    suspensões dos tribunais), lê documentos com IA (o advogado revisa antes de usar), automatiza
+    lembretes e mensagens a clientes por WhatsApp e e-mail, e mantém clientes, honorários e portal do
+    cliente num lugar só. Dados cifrados e trilha de auditoria (LGPD).
+  pricing: "Teste grátis de 14 dias; planos a partir de R$ 99/mês (Start), R$ 299/mês (Pro, até 5 usuários)"
+  key_benefits:
+    - "Publicações do DJEN e prazos em dias úteis sem abrir diário oficial"
+    - "Leitura de documentos e minutas com IA, sempre com revisão do advogado"
+    - "Lembretes e mensagens automáticas aos clientes (WhatsApp e e-mail) com autorização registrada"
+    - "Clientes, honorários e portal do cliente num lugar só, com dados cifrados (LGPD)"
+  objection_responses:
+    "too expensive": "Entendo. O Start custa R$ 99/mês e o teste de 14 dias é grátis, sem cartão: dá para medir quanto tempo economiza antes de decidir."
+    "already have a solution": "Faz sentido. O que você gostaria que o seu sistema atual fizesse melhor: prazos, publicações ou atendimento ao cliente?"
+    "not interested": "Sem problema, obrigado pela resposta. Não envio mais."
+    "segurança dos dados": "Os dados ficam cifrados, com trilha de auditoria e segundo fator de login; a política de privacidade está em https://app.cadrius.ia.br/politica-de-privacidade"
+  offer:
+    primary: "Assinatura mensal a partir de R$ 99"
+    entry: "Teste grátis de 14 dias, sem cartão"
+    goal: "start_trial"
+    booking_method: "ask_preference"
+    booking_url: "https://app.cadrius.ia.br/criar-conta"
+    meeting_duration: "15 minutos"
+    meeting_owner: "Jullio"
+
+icp:
+  # Cada termo vira uma busca em cada cidade. Termos x cidades x até 3 páginas = consultas no Google Places.
+  industries:
+    - "escritório de advocacia"
+    - "advogado"
+  keyword_variants:
+    "advogado":
+      - "advogado trabalhista"
+      - "advogado previdenciário"
+      - "advogado de família"
+      - "advogado criminalista"
+      - "advogado cível"
+      - "advogado tributarista"
+      - "advogado empresarial"
+      - "advogado do consumidor"
+      - "advogado imobiliário"
+  company_size: "1 a 50 pessoas: advogados autônomos e escritórios de pequeno e médio porte"
+  titles:
+    - "Advogado"
+    - "Advogada"
+    - "Sócio"
+    - "Sócia"
+    - "Sócio-fundador"
+    - "Sócia-fundadora"
+    - "Fundador"
+    - "Fundadora"
+    - "Sócio administrador"
+    - "Owner"
+  # Comece por poucas cidades (as 3 primeiras) e aumente depois de ver a qualidade.
+  geography:
+    - "São Paulo, SP"
+    - "Rio de Janeiro, RJ"
+    - "Belo Horizonte, MG"
+    - "Brasília, DF"
+    - "Salvador, BA"
+    - "Fortaleza, CE"
+    - "Curitiba, PR"
+    - "Recife, PE"
+    - "Porto Alegre, RS"
+    - "Manaus, AM"
+    - "Belém, PA"
+    - "Goiânia, GO"
+    - "São Luís, MA"
+    - "Maceió, AL"
+    - "Natal, RN"
+    - "Teresina, PI"
+    - "João Pessoa, PB"
+    - "Aracaju, SE"
+    - "Cuiabá, MT"
+    - "Campo Grande, MS"
+    - "Florianópolis, SC"
+    - "Vitória, ES"
+    - "Porto Velho, RO"
+    - "Macapá, AP"
+    - "Boa Vista, RR"
+    - "Rio Branco, AC"
+    - "Palmas, TO"
+  geo_coordinates:
+    "São Paulo, SP": "-23.5505,-46.6333,30"
+    "Rio de Janeiro, RJ": "-22.9068,-43.1729,30"
+    "Belo Horizonte, MG": "-19.9167,-43.9345,25"
+    "Brasília, DF": "-15.7939,-47.8828,30"
+    "Salvador, BA": "-12.9777,-38.5016,25"
+    "Fortaleza, CE": "-3.7319,-38.5267,25"
+    "Curitiba, PR": "-25.4284,-49.2733,25"
+    "Recife, PE": "-8.0476,-34.8770,20"
+    "Porto Alegre, RS": "-30.0346,-51.2177,25"
+    "Manaus, AM": "-3.1190,-60.0217,25"
+    "Belém, PA": "-1.4558,-48.4902,20"
+    "Goiânia, GO": "-16.6869,-49.2648,25"
+    "São Luís, MA": "-2.5297,-44.3028,20"
+    "Maceió, AL": "-9.6658,-35.7353,20"
+    "Natal, RN": "-5.7945,-35.2110,20"
+    "Teresina, PI": "-5.0892,-42.8019,20"
+    "João Pessoa, PB": "-7.1195,-34.8450,20"
+    "Aracaju, SE": "-10.9472,-37.0731,20"
+    "Cuiabá, MT": "-15.6014,-56.0979,20"
+    "Campo Grande, MS": "-20.4697,-54.6201,20"
+    "Florianópolis, SC": "-27.5954,-48.5480,25"
+    "Vitória, ES": "-20.3155,-40.3128,20"
+    "Porto Velho, RO": "-8.7612,-63.9004,20"
+    "Macapá, AP": "0.0349,-51.0694,15"
+    "Boa Vista, RR": "2.8235,-60.6758,15"
+    "Rio Branco, AC": "-9.9754,-67.8249,15"
+    "Palmas, TO": "-10.2491,-48.3243,15"
+  hiring_signals: []
+
+channels:
+  email:
+    enabled: true
+    provider: "gmail"           # Google Workspace no domínio de prospecção
+    max_daily_sends: 30         # teto depois do aquecimento; suba devagar
+    require_approval: true      # NADA sai sem você aprovar no Outbox
+    send_to_risky: false
+    max_bounce_rate: 0.03       # pausa tudo se passar de 3% de devolução
+    warmup:
+      start_date: ""            # TROCAR: dia em que o aquecimento da caixa começou (AAAA-MM-DD)
+      min_days: 21
+      start_sends: 5
+      daily_increase: 2
+    send_window:
+      start: "09:00"
+      end: "17:00"
+      weekdays_only: true
+      recipient_timezone: false # todos no horário de Brasília
+    signature:
+      logo: ""                  # texto puro entrega melhor no começo
+  linkedin:
+    enabled: false
+
+usage:
+  max_daily_claude_percent: 60
+  heartbeat_interval_minutes: 15
+  quiet_hours:
+    start: "20:00"
+    end: "08:00"
+    timezone: "America/Sao_Paulo"
+
+compliance:
+  postal_address: "TROCAR: endereço comercial do Cadrius (aparece no rodapé)"
+  opt_out_line: 'Se não fizer sentido para você, responda "não, obrigado" e eu não envio mais.'
+  do_not_contact:
+    - "cadrius.ia.br"
+    # TROCAR/ADICIONAR: domínios de clientes atuais, parceiros e concorrentes
+  precleared:
+    enabled: false              # o serviço cobre UK/EUA/Canadá/Alemanha/França, não o Brasil
+
+writer:
+  email_rules: "skills/email_rules.md"

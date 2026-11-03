@@ -1,0 +1,516 @@
+From 7df693cc23d991a5ef8518a2299a8a214ec0a093 Mon Sep 17 00:00:00 2001
+From: Cadrius <noreply@anthropic.com>
+Date: Tue, 3 Nov 2026 12:51:58 +0000
+Subject: [PATCH 1/2] Add Google Places API (New) discovery provider
+
+---
+ .env.example                  |  11 +++
+ harvey/collectors/discover.py | 176 ++++++++++++++++++++++++++++++++++
+ harvey/config.py              |   6 ++
+ tests/test_discover.py        | 102 ++++++++++++++++++++
+ 4 files changed, 295 insertions(+)
+
+diff --git a/.env.example b/.env.example
+index 6e7b36f..9ce8ee8 100644
+--- a/.env.example
++++ b/.env.example
+@@ -143,6 +143,17 @@ SERPER_API_KEY=
+ # Pick scavio_maps or scavio_search in `harvey discover`.
+ SCAVIO_API_KEY=
+ 
++# Google Places API (New) — Google Maps businesses from Google's official API.
++# Where to get it: https://console.cloud.google.com → APIs & Services → enable
++# "Places API (New)" → Credentials → Create API key → restrict it to that API.
++# Billing must be on. Cost: phone and website make each request "Text Search
++# Enterprise": 1,000 requests a month free, then about $35 per 1,000. One
++# request = one page of up to 20 places (3 pages max per search).
++# Pick google_places in `harvey discover`.
++GOOGLE_PLACES_API_KEY=
++GOOGLE_PLACES_LANGUAGE=         # e.g. pt-BR (results' language)
++GOOGLE_PLACES_REGION=           # e.g. BR (two-letter country code)
++
+ # TinyFish — web search for discovery and Scout. Records no search rank.
+ # Where to get it: https://agent.tinyfish.ai/api-keys
+ # Cost: free, no card. Limits: 30 searches a minute, 500 an hour.
+diff --git a/harvey/collectors/discover.py b/harvey/collectors/discover.py
+index 2b6aadb..8ef6152 100644
+--- a/harvey/collectors/discover.py
++++ b/harvey/collectors/discover.py
+@@ -1401,6 +1401,181 @@ class ScavioMaps(ScavioProvider):
+         return out
+ 
+ 
++class GooglePlaces(DiscoveryProvider):
++    """Google's own Places API (New) Text Search: the official way to list
++    businesses from Google Maps, with no scraping.
++
++    Phone and website put every request in the Text Search Enterprise SKU
++    (1,000 requests a month free, then about $35 per 1,000). One request is one
++    page of up to 20 places; a search returns at most 3 pages. Results come in
++    the searcher's language and region (``GOOGLE_PLACES_LANGUAGE``,
++    ``GOOGLE_PLACES_REGION``), so a Brazilian market gets Portuguese categories.
++    """
++
++    key = "google_places"
++    needs_coordinates = True
++    label = "Google Places API"
++    kind = "listings"
++    blurb = ("Google Maps businesses through Google's official Places API: "
++             "phone, website, category, rating and review count. Up to 60 "
++             "businesses per search.")
++    cost_note = "1 request per page (up to 20 places); $0.035/request after 1,000 free a month"
++    free_tier = "1,000 requests a month free (Text Search Enterprise)"
++    signup_url = "https://console.cloud.google.com/apis/library/places.googleapis.com"
++    env_keys = ("google_places_api_key",)
++    caveat = ("Needs a Google Cloud project with billing on and the Places API "
++              "(New) enabled; restrict the key to that API. Claimed status is "
++              "not in the API, so the unclaimed-listing signal stays empty.")
++
++    API = "https://places.googleapis.com/v1/places:searchText"
++    REQUEST_PRICE = 0.035
++    PAGE_SIZE = 20
++    MAX_PAGES = 3                # the API stops at 60 results
++    MAX_RADIUS_M = 50_000        # locationBias circle limit
++    FIELDS = ",".join([
++        "places.id", "places.displayName", "places.formattedAddress",
++        "places.nationalPhoneNumber", "places.internationalPhoneNumber",
++        "places.websiteUri", "places.rating", "places.userRatingCount",
++        "places.primaryTypeDisplayName", "places.businessStatus",
++        "places.googleMapsUri", "nextPageToken",
++    ])
++
++    def _page_count(self, query: DiscoveryQuery) -> int:
++        return max(1, min(self.MAX_PAGES, -(-query.limit // self.PAGE_SIZE)))
++
++    def estimate(self, queries):
++        return sum(self.REQUEST_PRICE * self._page_count(q) for q in queries)
++
++    @classmethod
++    def location_bias(cls, coordinate: str) -> dict | None:
++        """"-23.55,-46.63,40" -> a circle of 40 km (at most 50 km) around it."""
++        parts = [p.strip() for p in (coordinate or "").split(",")]
++        try:
++            lat, lng = float(parts[0]), float(parts[1])
++        except (IndexError, ValueError):
++            return None
++        if not (-90 <= lat <= 90 and -180 <= lng <= 180):
++            return None
++        try:
++            radius_km = float(parts[2]) if len(parts) > 2 and parts[2] else 40.0
++        except ValueError:
++            radius_km = 40.0
++        if not math.isfinite(radius_km) or radius_km <= 0:
++            radius_km = 40.0
++        radius = min(radius_km * 1000, cls.MAX_RADIUS_M)
++        return {"circle": {"center": {"latitude": lat, "longitude": lng}, "radius": radius}}
++
++    async def _post(self, client, env, body: dict) -> dict:
++        if self.last_cost + self.REQUEST_PRICE > self.remaining_budget + 1e-12:
++            raise ProviderExhausted("Google Places: budget reached before the next page")
++        try:
++            r = await client.post(self.API, json=body, headers={
++                "X-Goog-Api-Key": env["google_places_api_key"],
++                "X-Goog-FieldMask": self.FIELDS,
++                "Content-Type": "application/json",
++            })
++        except httpx.HTTPError:
++            raise RuntimeError("Google Places: request failed; try again later") from None
++        # Never put response bodies in logs: upstream errors may echo the key.
++        if r.status_code in (401, 403, 429):
++            reasons = {401: "invalid API key", 403: "key refused (API not enabled, "
++                       "billing off or key restricted)", 429: "quota or rate limit reached"}
++            raise ProviderExhausted(f"Google Places {r.status_code}: {reasons[r.status_code]}")
++        if r.status_code >= 400:
++            raise RuntimeError(f"Google Places {r.status_code}: request failed")
++        self.last_cost += self.REQUEST_PRICE
++        try:
++            data = r.json()
++        except ValueError:
++            raise RuntimeError("Google Places: invalid JSON response") from None
++        if not isinstance(data, dict):
++            raise RuntimeError("Google Places: invalid response")
++        return data
++
++    async def fetch(self, client, env, query):
++        self.last_cost = 0.0
++        self.last_error = self.stop_reason = ""
++        self.complete = True
++        bias = self.location_bias(query.coordinate) if query.coordinate else None
++        body = {
++            # The circle only biases; the place name keeps results in the city.
++            "textQuery": query.keyword(),
++            "pageSize": self.PAGE_SIZE,
++            "languageCode": env.get("google_places_language") or "en",
++        }
++        region = env.get("google_places_region") or ""
++        if region:
++            body["regionCode"] = region
++        if bias:
++            body["locationBias"] = bias
++
++        out: list[Business] = []
++        token = ""
++        for page in range(self._page_count(query)):
++            try:
++                data = await self._post(client, env, dict(body, pageToken=token) if token else body)
++                places = data.get("places") or []
++                if not isinstance(places, list) or any(not isinstance(p, dict) for p in places):
++                    raise RuntimeError("Google Places: invalid results list")
++            except Exception as e:
++                self.complete = False
++                self.last_error = str(e)
++                if isinstance(e, ProviderExhausted):
++                    self.stop_reason = str(e)
++                if not out:
++                    raise
++                logger.warning("%s: page %d of %r failed, keeping %d results: %s",
++                               self.key, page + 1, query.keyword(), len(out), e)
++                break
++            for place in places:
++                business = self._business(place, query)
++                if business:
++                    out.append(business)
++            token = data.get("nextPageToken") or ""
++            if not token or not isinstance(token, str):
++                break
++        return out
++
++    def _business(self, place: dict, query: DiscoveryQuery) -> Business | None:
++        def text(value) -> str:
++            if isinstance(value, dict):
++                value = value.get("text")
++            return value.strip() if isinstance(value, str) else ""
++
++        def number(value, kind):
++            if isinstance(value, bool) or not isinstance(value, (int, float)):
++                return None
++            if not math.isfinite(value) or value < 0:
++                return None
++            return kind(value)
++
++        name = text(place.get("displayName"))
++        status = place.get("businessStatus")
++        if not name or status in ("CLOSED_PERMANENTLY", "CLOSED_TEMPORARILY"):
++            return None
++        site = text(place.get("websiteUri"))
++        place_id = text(place.get("id"))
++        return Business(
++            name=name,
++            domain=normalize_domain(site),
++            website=site,
++            phone=text(place.get("nationalPhoneNumber")) or text(place.get("internationalPhoneNumber")),
++            address=text(place.get("formattedAddress")),
++            location=query.location,
++            category=text(place.get("primaryTypeDisplayName")),
++            rating=number(place.get("rating"), float),
++            review_count=number(place.get("userRatingCount"), int),
++            has_website=bool(site),
++            # Text Search orders by relevance, not by the Maps app's ranking:
++            # no MAPS_RANK signal from it (Harvey would write about a rank
++            # nobody sees).
++            external_id=f"gmaps:{place_id}" if place_id else "",
++            source_url=text(place.get("googleMapsUri")) or (
++                f"https://www.google.com/maps/place/?q=place_id:{place_id}" if place_id else site),
++            provider=self.key,
++        )
++
++
+ class ScavioSearch(ScavioProvider):
+     """Google organic results with rank, from the same key as Scavio Maps."""
+ 
+@@ -1465,6 +1640,7 @@ PROVIDERS: dict[str, DiscoveryProvider] = {
+         Serper(),
+         ScavioMaps(),
+         ScavioSearch(),
++        GooglePlaces(),
+     )
+ }
+ 
+diff --git a/harvey/config.py b/harvey/config.py
+index 3233254..f6a0921 100644
+--- a/harvey/config.py
++++ b/harvey/config.py
+@@ -739,6 +739,9 @@ class EnvConfig(BaseModel):
+     hunter_api_key: str = ""
+     serper_api_key: str = ""
+     scavio_api_key: str = ""
++    google_places_api_key: str = ""
++    google_places_language: str = ""   # e.g. pt-BR
++    google_places_region: str = ""     # e.g. BR
+     tinyfish_api_key: str = ""
+     reoon_api_key: str = ""
+     zerobounce_api_key: str = ""
+@@ -857,6 +860,9 @@ def load_env() -> EnvConfig:
+         hunter_api_key=os.getenv("HUNTER_API_KEY", "").strip(),
+         serper_api_key=os.getenv("SERPER_API_KEY", "").strip(),
+         scavio_api_key=os.getenv("SCAVIO_API_KEY", "").strip(),
++        google_places_api_key=os.getenv("GOOGLE_PLACES_API_KEY", "").strip(),
++        google_places_language=os.getenv("GOOGLE_PLACES_LANGUAGE", "").strip(),
++        google_places_region=os.getenv("GOOGLE_PLACES_REGION", "").strip(),
+         tinyfish_api_key=os.getenv("TINYFISH_API_KEY", "").strip(),
+         reoon_api_key=os.getenv("REOON_API_KEY", "").strip(),
+         zerobounce_api_key=os.getenv("ZEROBOUNCE_API_KEY", "").strip(),
+diff --git a/tests/test_discover.py b/tests/test_discover.py
+index 46cd728..e7f5940 100644
+--- a/tests/test_discover.py
++++ b/tests/test_discover.py
+@@ -1743,3 +1743,105 @@ async def test_osm_maps_spanish_business_terms():
+     assert provider._tags("comercio al mayor") == ["shop=wholesale"]
+     assert provider._tags("mayorista") == ["shop=wholesale"]
+     assert provider._tags("mayor's office") == []
++
++
++def _places_page(start, n, token=""):
++    page = {"places": [
++        {"id": f"ChIJ{start + i}", "displayName": {"text": f"Advocacia {start + i}", "languageCode": "pt"},
++         "formattedAddress": "Av. Paulista, 1000 - São Paulo - SP", "nationalPhoneNumber": "(11) 3000-0000",
++         "websiteUri": f"https://adv{start + i}.example/", "rating": 4.8, "userRatingCount": 31,
++         "primaryTypeDisplayName": {"text": "Advogado"}, "businessStatus": "OPERATIONAL"}
++        for i in range(n)]}
++    if token:
++        page["nextPageToken"] = token
++    return page
++
++
++@pytest.mark.asyncio
++async def test_google_places_adapter():
++    provider = D.GooglePlaces()
++    seen = []
++    payload = {"places": [
++        {"id": "ChIJabc", "displayName": {"text": "Souza Advocacia"},
++         "formattedAddress": "Rua A, 10 - Centro, Curitiba - PR", "nationalPhoneNumber": "(41) 3333-4444",
++         "websiteUri": "https://www.souzaadv.com.br/?utm_source=gbp", "rating": 4.9, "userRatingCount": 57,
++         "primaryTypeDisplayName": {"text": "Advogado"}, "businessStatus": "OPERATIONAL",
++         "googleMapsUri": "https://maps.google.com/?cid=1"},
++        {"id": "ChIJnosite", "displayName": {"text": "Dra. Ana Lima"}, "businessStatus": "OPERATIONAL"},
++        {"id": "ChIJclosed", "displayName": {"text": "Fechado Advogados"}, "businessStatus": "CLOSED_PERMANENTLY"},
++    ]}
++
++    def handler(request):
++        seen.append((str(request.url), request.headers.get("x-goog-api-key"),
++                     request.headers.get("x-goog-fieldmask"), json.loads(request.content)))
++        return httpx.Response(200, json=payload)
++
++    env = {"google_places_api_key": "k", "google_places_language": "pt-BR", "google_places_region": "BR"}
++    async with _client(handler) as client:
++        out = await provider.fetch(client, env, D.DiscoveryQuery(
++            term="advogado trabalhista", location="Curitiba, PR", coordinate="-25.43,-49.27,80"))
++
++    url, key, mask, body = seen[0]
++    assert url == "https://places.googleapis.com/v1/places:searchText"
++    assert key == "k"
++    assert "places.websiteUri" in mask and "nextPageToken" in mask
++    assert body == {"textQuery": "advogado trabalhista Curitiba, PR", "pageSize": 20, "languageCode": "pt-BR",
++                    "regionCode": "BR", "locationBias": {"circle": {
++                        "center": {"latitude": -25.43, "longitude": -49.27}, "radius": 50000}}}
++    assert len(seen) == 1, "no nextPageToken = last page"
++    assert provider.last_cost == pytest.approx(0.035)
++
++    souza, ana = out          # the closed office is dropped
++    assert souza.domain == "souzaadv.com.br"
++    assert souza.phone == "(41) 3333-4444" and souza.category == "Advogado"
++    assert souza.rating == 4.9 and souza.review_count == 57
++    assert souza.external_id == "gmaps:ChIJabc" and souza.source_url == "https://maps.google.com/?cid=1"
++    assert souza.maps_rank is None and souza.rank is None and souza.is_claimed is None
++    assert ana.has_website is False and ana.identity() == "gmaps:ChIJnosite"
++
++
++@pytest.mark.asyncio
++async def test_google_places_follows_page_tokens_and_stops_at_three_pages():
++    bodies = []
++    pages = [_places_page(0, 20, "t1"), _places_page(20, 20, "t2"), _places_page(40, 20, "t3")]
++
++    def handler(request):
++        bodies.append(json.loads(request.content))
++        return httpx.Response(200, json=pages[len(bodies) - 1])
++
++    provider = D.GooglePlaces()
++    async with _client(handler) as client:
++        out = await provider.fetch(client, {"google_places_api_key": "k"},
++                                   D.DiscoveryQuery(term="advogado", location="Recife, PE", limit=200))
++    assert len(out) == 60 and len(bodies) == 3
++    assert "pageToken" not in bodies[0] and bodies[1]["pageToken"] == "t1" and bodies[2]["pageToken"] == "t2"
++    assert "locationBias" not in bodies[0] and "regionCode" not in bodies[0]
++    assert provider.estimate([D.DiscoveryQuery(term="a", limit=200)]) == pytest.approx(3 * 0.035)
++
++
++@pytest.mark.asyncio
++async def test_google_places_refused_key_stops_the_run():
++    def handler(request):
++        return httpx.Response(403, json={"error": {"message": "secret echo k"}})
++
++    provider = D.GooglePlaces()
++    async with _client(handler) as client:
++        with pytest.raises(D.ProviderExhausted) as e:
++            await provider.fetch(client, {"google_places_api_key": "k"}, D.DiscoveryQuery(term="advogado"))
++    assert "403" in str(e.value) and "secret" not in str(e.value)
++    assert provider.last_cost == 0
++
++
++@pytest.mark.asyncio
++async def test_google_places_respects_the_budget():
++    provider = D.GooglePlaces()
++    provider.remaining_budget = 0.05          # one request fits, the second does not
++
++    def handler(request):
++        return httpx.Response(200, json=_places_page(0, 20, "t1"))
++
++    async with _client(handler) as client:
++        out = await provider.fetch(client, {"google_places_api_key": "k"},
++                                   D.DiscoveryQuery(term="advogado", limit=60))
++    assert len(out) == 20 and provider.complete is False
++    assert "budget" in provider.stop_reason
+-- 
+2.43.0
+
+
+From 9444dfddccdfce1c94d2252d5de08bc730d7b9ba Mon Sep 17 00:00:00 2001
+From: Cadrius <noreply@anthropic.com>
+Date: Tue, 3 Nov 2026 12:56:43 +0000
+Subject: [PATCH 2/2] Recognise Portuguese (Brazil) opt-outs
+
+---
+ harvey/agents/handler.py         | 30 ++++++++++++++++++++++++-
+ harvey/config.py                 |  8 +++++--
+ tests/test_portuguese_opt_out.py | 38 ++++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 3 deletions(-)
+ create mode 100644 tests/test_portuguese_opt_out.py
+
+diff --git a/harvey/agents/handler.py b/harvey/agents/handler.py
+index 840cf39..b419abc 100644
+--- a/harvey/agents/handler.py
++++ b/harvey/agents/handler.py
+@@ -83,9 +83,12 @@ NO_THANKS_RE = re.compile(
+ BARE_OPT_OUTS = {"stop", "unsubscribe", "remove", "remove me", "opt out",
+                  "no thanks", "no thank you", "baja", "no gracias", "de baja", "dar de baja",
+                  "darme de baja",
++                 "sair", "descadastrar", "descadastre", "remover", "me remova", "pare",
++                 "não obrigado", "não obrigada", "nao obrigado", "nao obrigada",
+                  "הסר", "הסירו", "הסירי", "תסיר", "תסירו", "להסיר", "הסרה", "להסרה"}
+ # Said around a bare opt-out without changing it ("הסר בבקשה", "הסר, תודה").
+-_BARE_COURTESIES = {"בבקשה", "נא", "תודה", "רבה", "por", "favor", "gracias", "saludos"}
++_BARE_COURTESIES = {"בבקשה", "נא", "תודה", "רבה", "por", "favor", "gracias", "saludos",
++                    "att", "atenciosamente", "abs", "abraço", "abraços"}
+ _MOBILE_SIGNATURE_RE = re.compile(
+     r"^[ \t\u200e\u200f]*(?:sent from my \w[^\n]*|get outlook for \w[^\n]*"
+     r"|sent from \w+ mail[^\n]*|נשלח מ[^\n]*|קבל(?:ו)? את outlook[^\n]*"
+@@ -224,6 +227,23 @@ SPANISH_NO_THANKS_RE = re.compile(
+     r"\bno,?[ \t]+(?:muchas[ \t]+)?gracias\b(?![ \t]+(?:a|por)\b)")
+ 
+ 
++# Portuguese (Brazil), matched accent-free like the Spanish: "não, obrigado"
++# as the opt-out line asks, and the usual ways to ask to be taken off.
++# Not "se não, obrigado" or "ou não", and not "não, obrigado pela ajuda"
++# answering a question.
++PORTUGUESE_NO_THANKS_RE = re.compile(
++    r"(?<!\bou )(?<!\bse )(?<!porque )(?<!ainda )"
++    r"\bnao,?[ \t]+(?:muito[ \t]+)?obrigad[oa]s?\b(?![ \t]+(?:a|por|pel[oa]s?)\b)")
++PORTUGUESE_OPT_OUT_RE = re.compile(
++    r"(?<!\w)(?:descadastr\w*"
++    r"|(?:me|nos)[ \t]+(?:remova|removam|tire|tirem|retire|retirem|exclua|excluam)\b"
++    r"|(?:remova|removam|tire|tirem|retire|retirem|exclua|excluam)-?(?:me|nos)\b"
++    r"|(?:pare|parem|para)[ \t]+de[ \t]+(?:me[ \t]+|nos[ \t]+)?(?:enviar|mandar|escrever|contatar)\b"
++    r"|nao[ \t]+(?:me[ \t]+|nos[ \t]+)?(?:envie|enviem|mande|mandem|escreva|escrevam)[ \t]+mais\b"
++    r"|nao[ \t]+quero[ \t]+(?:mais[ \t]+)?receber\b"
++    r"|sair[ \t]+da[ \t]+(?:sua[ \t]+)?lista\b)")
++
++
+ def _no_accents(text: str) -> str:
+     """Accents dropped, for matching Spanish typed with or without them. Only
+     Latin letters: combining marks are what spell Hebrew and others' words."""
+@@ -337,12 +357,20 @@ def _opt_out_reason(their_text: str, own_words: str) -> dict | None:
+         return {"rule": "phrase", "matched": m.group(0),
+                 "why": f'Their reply contains "{m.group(0)}".'}
+     m = _spanish_opt_out(_spanish_lines(their_text))
++    if m:
++        return {"rule": "phrase", "matched": m.group(0),
++                "why": f'Their reply contains "{m.group(0)}".'}
++    m = PORTUGUESE_OPT_OUT_RE.search(_spanish_lines(their_text))
+     if m:
+         return {"rule": "phrase", "matched": m.group(0),
+                 "why": f'Their reply contains "{m.group(0)}".'}
+     for line in their_text.split("\n"):
+         line = _flat(line)
+         m = SPANISH_NO_THANKS_RE.search(_no_accents(line))
++        if m:
++            return {"rule": "no_thanks", "matched": m.group(0),
++                    "why": f'Their reply says "{m.group(0)}" (no thanks).'}
++        m = PORTUGUESE_NO_THANKS_RE.search(_no_accents(line))
+         if m:
+             return {"rule": "no_thanks", "matched": m.group(0),
+                     "why": f'Their reply says "{m.group(0)}" (no thanks).'}
+diff --git a/harvey/config.py b/harvey/config.py
+index f6a0921..fcd1d95 100644
+--- a/harvey/config.py
++++ b/harvey/config.py
+@@ -429,9 +429,13 @@ OPT_OUT_WORDS = ("no thanks", "no thank you", "unsubscribe", "stop", "remove me"
+ HEBREW_OPT_OUT_WORDS = ("הסר", "הסירו", "הסרה", "לא תודה", "הסירו אותי", "תורידו אותי")
+ # The same in Spanish ('Responda "no, gracias"', 'Responda BAJA').
+ SPANISH_OPT_OUT_WORDS = ("no gracias", "baja", "darme de baja")
++# The same in Portuguese ('responda "não, obrigado"', 'responda SAIR').
++PORTUGUESE_OPT_OUT_WORDS = ("não obrigado", "não obrigada", "nao obrigado", "nao obrigada",
++                            "sair", "descadastrar")
+ _OPT_OUT_WORD_RE = "(?:" + "|".join(
+     r"[\s,]+".join(map(re.escape, w.split()))
+-    for w in OPT_OUT_WORDS + HEBREW_OPT_OUT_WORDS + SPANISH_OPT_OUT_WORDS) + ")"
++    for w in OPT_OUT_WORDS + HEBREW_OPT_OUT_WORDS + SPANISH_OPT_OUT_WORDS
++    + PORTUGUESE_OPT_OUT_WORDS) + ")"
+ _ASKS_FOR_OPT_OUT_RE = re.compile(
+     r"\b(?:reply(?:\s+with)?|(?:responda|responde|respondan|conteste|contesta|escriba)(?:\s+con)?)"
+     r"\s*[\"'\u201c\u2018]?\s*" + _OPT_OUT_WORD_RE + r"\b", re.IGNORECASE)
+@@ -515,7 +519,7 @@ class ComplianceConfig(BaseModel):
+                 "opt_out_line must ask for a reply Harvey recognises as an opt-out, "
+                 'e.g. Reply "no thanks" / Reply STOP, in Hebrew השיבו "הסר", or in Spanish Responda BAJA. Recognised: '
+                 + ", ".join(f'"{w}"' for w in OPT_OUT_WORDS + HEBREW_OPT_OUT_WORDS
+-                            + SPANISH_OPT_OUT_WORDS) + "."
++                            + SPANISH_OPT_OUT_WORDS + PORTUGUESE_OPT_OUT_WORDS) + "."
+             )
+         return v
+ 
+diff --git a/tests/test_portuguese_opt_out.py b/tests/test_portuguese_opt_out.py
+new file mode 100644
+index 0000000..58adacb
+--- /dev/null
++++ b/tests/test_portuguese_opt_out.py
+@@ -0,0 +1,38 @@
++"""Portuguese (Brazil) opt-outs: the footer asks for "não, obrigado", and the
++usual ways of asking to be taken off a list always stop the sequence."""
++import pytest
++
++from harvey.agents.handler import _opt_out_reason
++from harvey.config import ComplianceConfig
++
++
++@pytest.mark.parametrize("reply", [
++    "Não, obrigado.",
++    "nao obrigada",
++    "Não, obrigado. Att, Dra. Ana",
++    "Por favor, me remova da lista.",
++    "Quero me descadastrar",
++    "Parem de me enviar esses e-mails",
++    "Não me mandem mais nada",
++    "não quero receber",
++    "SAIR",
++    "Pode tirar-me? Remova-me, obrigado",
++])
++def test_portuguese_opt_outs_are_honoured(reply):
++    assert _opt_out_reason(reply, reply) is not None
++
++
++@pytest.mark.parametrize("reply", [
++    "Tenho interesse sim, pode mandar o link do teste?",
++    "Se não, obrigado de qualquer forma; me liga amanhã",
++    "Não, obrigado pela ajuda com o prazo: era isso que eu precisava",
++    "Vocês integram com o PJe? Se não, como fica?",
++])
++def test_ordinary_portuguese_replies_are_not_opt_outs(reply):
++    assert _opt_out_reason(reply, reply) is None
++
++
++def test_portuguese_opt_out_line_is_accepted():
++    line = 'Se não fizer sentido para você, responda "não, obrigado" e eu não envio mais.'
++    assert ComplianceConfig(opt_out_line=line).opt_out_line == line
++    assert ComplianceConfig(opt_out_line="Para não receber mais, responda SAIR.").opt_out_line
+-- 
+2.43.0
+
