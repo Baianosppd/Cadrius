@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[3]
@@ -148,7 +148,6 @@ def main():
     area_de = {x: a[0] for a in AREAS for x in a[3]}
     nomes = Counter(m.__name__ for m in modelos.values())
     dup = {n for n, c in nomes.items() if c > 1}
-    titulo = {a[0]: a[1] for a in AREAS}
     catalogo, cruzam = [], Counter()
 
     for codigo, nome, texto, membros in AREAS:
