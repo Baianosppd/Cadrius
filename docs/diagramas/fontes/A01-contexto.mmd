@@ -1,0 +1,23 @@
+flowchart TB
+    ADV["<b>Advogado e equipe</b><br/><i>[Pessoa]</i><br/>Usa no dia a dia"]:::pessoa
+    CLI["<b>Cliente do escritório</b><br/><i>[Pessoa]</i><br/>Portal e captação"]:::pessoa
+    STF["<b>Equipe Cadrius</b><br/><i>[Pessoa]</i><br/>Gestão, com MFA"]:::pessoa
+
+    CAD["<b>Cadrius</b><br/><i>[Sistema de software]</i><br/>Gestão jurídica com IA"]:::sistema
+
+    IA["<b>Provedores de IA</b><br/><i>[Externo]</i><br/>Claude, OpenAI, Gemini…"]:::externo
+    GOO["<b>Google e Microsoft</b><br/><i>[Externo]</i><br/>Login, Agenda, Drive"]:::externo
+    PAG["<b>Pagamentos</b><br/><i>[Externo]</i><br/>Stripe e Asaas"]:::externo
+    JUD["<b>Serviços públicos</b><br/><i>[Externo]</i><br/>DJEN, DataJud, NFS-e"]:::externo
+    MSG["<b>Mensageria</b><br/><i>[Externo]</i><br/>WhatsApp e e-mail"]:::externo
+    ASS["<b>Assinatura digital</b><br/><i>[Externo]</i><br/>ZapSign, D4Sign"]:::externo
+
+    ADV -- "Usa" --> CAD
+    CLI -- "Acompanha" --> CAD
+    STF -- "Administra" --> CAD
+    CAD -- "Extrai e responde" --> IA
+    CAD -- "OAuth 2.0" --> GOO
+    CAD -- "Cobra" --> PAG
+    CAD -- "Consulta" --> JUD
+    CAD -- "Envia, com consentimento" --> MSG
+    CAD -- "Envia para assinar" --> ASS

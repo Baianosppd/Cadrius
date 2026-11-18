@@ -1,0 +1,230 @@
+<svg width="1514pt" height="538pt"
+ viewBox="0.00 0.00 1514.40 538.40" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(7.2 531.2)">
+<title>G</title>
+<!-- D01 -->
+<g id="node1" class="node">
+<title>D01</title>
+<polygon fill="#1f5fad" stroke="#123f78" points="305,-387 83,-387 83,-339 305,-339 305,-387"/>
+<text text-anchor="start" x="101" y="-367" font-family="Inter" font-weight="bold" font-size="15.00" fill="#ffffff">D01 Escritórios e vínculos</text>
+<text text-anchor="start" x="160.5" y="-352" font-family="Inter" font-size="15.00" fill="#ffffff">4 tabelas</text>
+</g>
+<!-- D03 -->
+<g id="node3" class="node">
+<title>D03</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="388,-296 0,-296 0,-248 388,-248 388,-296"/>
+<text text-anchor="start" x="18" y="-276" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D03 Assinatura, pagamentos e fiscal da Cadrius</text>
+<text text-anchor="start" x="161" y="-261" font-family="Inter" font-size="15.00" fill="#0b2545">8 tabelas</text>
+</g>
+<!-- D01&#45;&gt;D03 -->
+<g id="edge1" class="edge">
+<title>D01&#45;&gt;D03</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M194,-338.62C194,-328.5 194,-316.48 194,-305.52"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="197.15,-305.23 194,-296.23 190.85,-305.23 197.15,-305.23"/>
+</g>
+<!-- D02 -->
+<g id="node2" class="node">
+<title>D02</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="669,-387 397,-387 397,-339 669,-339 669,-387"/>
+<text text-anchor="start" x="415" y="-367" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D02 Login e segurança da conta</text>
+<text text-anchor="start" x="499.5" y="-352" font-family="Inter" font-size="15.00" fill="#0b2545">4 tabelas</text>
+</g>
+<!-- D04 -->
+<g id="node4" class="node">
+<title>D04</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="318.5,-478 69.5,-478 69.5,-430 318.5,-430 318.5,-478"/>
+<text text-anchor="start" x="87.5" y="-458" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D04 Créditos e IA governada</text>
+<text text-anchor="start" x="161" y="-443" font-family="Inter" font-size="15.00" fill="#0b2545">8 tabelas</text>
+</g>
+<!-- D04&#45;&gt;D01 -->
+<g id="edge2" class="edge">
+<title>D04&#45;&gt;D01</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M194,-429.62C194,-419.5 194,-407.48 194,-396.52"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="197.15,-396.23 194,-387.23 190.85,-396.23 197.15,-396.23"/>
+</g>
+<!-- D05 -->
+<g id="node5" class="node">
+<title>D05</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1107.5,-251 870.5,-251 870.5,-203 1107.5,-203 1107.5,-251"/>
+<text text-anchor="start" x="888.5" y="-231" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D05 Clientes e documentos</text>
+<text text-anchor="start" x="956" y="-216" font-family="Inter" font-size="15.00" fill="#0b2545">8 tabelas</text>
+</g>
+<!-- D06 -->
+<g id="node6" class="node">
+<title>D06</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1242.5,-433 931.5,-433 931.5,-385 1242.5,-385 1242.5,-433"/>
+<text text-anchor="start" x="949.5" y="-413" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D06 Processos, publicações e prazos</text>
+<text text-anchor="start" x="1054" y="-398" font-family="Inter" font-size="15.00" fill="#0b2545">8 tabelas</text>
+</g>
+<!-- D06&#45;&gt;D05 -->
+<g id="edge3" class="edge">
+<title>D06&#45;&gt;D05</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M970.14,-384.93C948.43,-375.25 928.41,-361.5 915,-342 902.92,-324.42 906.28,-313.47 915,-294 921.47,-279.55 932.84,-266.97 944.76,-256.78"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="946.8,-259.17 951.8,-251.05 942.83,-254.28 946.8,-259.17"/>
+</g>
+<!-- D07 -->
+<g id="node7" class="node">
+<title>D07</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1247.5,-342 926.5,-342 926.5,-294 1247.5,-294 1247.5,-342"/>
+<text text-anchor="start" x="944.5" y="-322" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D07 Tarefas, minutas e Google Agenda</text>
+<text text-anchor="start" x="1054" y="-307" font-family="Inter" font-size="15.00" fill="#0b2545">8 tabelas</text>
+</g>
+<!-- D06&#45;&gt;D07 -->
+<g id="edge4" class="edge">
+<title>D06&#45;&gt;D07</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M1079.64,-384.62C1078.72,-374.5 1078.51,-362.48 1079.02,-351.52"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1082.19,-351.42 1079.65,-342.23 1075.9,-350.99 1082.19,-351.42"/>
+</g>
+<!-- D07&#45;&gt;D05 -->
+<g id="edge5" class="edge">
+<title>D07&#45;&gt;D05</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M1061.51,-293.85C1049.14,-282.62 1034.16,-269.02 1021.04,-257.09"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1023.15,-254.75 1014.36,-251.04 1018.91,-259.42 1023.15,-254.75"/>
+</g>
+<!-- D07&#45;&gt;D06 -->
+<g id="edge6" class="edge">
+<title>D07&#45;&gt;D06</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M1094.35,-342.23C1095.27,-352.33 1095.49,-364.33 1094.99,-375.31"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1091.82,-375.43 1094.36,-384.62 1098.11,-375.85 1091.82,-375.43"/>
+</g>
+<!-- D08 -->
+<g id="node8" class="node">
+<title>D08</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="958.5,-524 733.5,-524 733.5,-476 958.5,-476 958.5,-524"/>
+<text text-anchor="start" x="751.5" y="-504" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D08 Carteira e honorários</text>
+<text text-anchor="start" x="812.5" y="-489" font-family="Inter" font-size="15.00" fill="#0b2545">4 tabelas</text>
+</g>
+<!-- D08&#45;&gt;D05 -->
+<g id="edge7" class="edge">
+<title>D08&#45;&gt;D05</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M847.08,-475.72C850.06,-435.01 861.21,-349.93 903,-294 913.74,-279.62 928.42,-266.79 942.61,-256.36"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="944.45,-258.91 949.96,-251.13 940.8,-253.78 944.45,-258.91"/>
+<text text-anchor="middle" x="888" y="-405.5" font-family="Inter" font-size="15.00"> &#160;4 FK &#160;</text>
+</g>
+<!-- D08&#45;&gt;D06 -->
+<g id="edge8" class="edge">
+<title>D08&#45;&gt;D06</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M908.38,-475.96C941.29,-463.81 981.81,-448.84 1015.94,-436.24"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1017.11,-439.17 1024.47,-433.09 1014.93,-433.26 1017.11,-439.17"/>
+</g>
+<!-- D10 -->
+<g id="node10" class="node">
+<title>D10</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="819,-433 677,-433 677,-385 819,-385 819,-433"/>
+<text text-anchor="start" x="695" y="-413" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D10 Marketing</text>
+<text text-anchor="start" x="715" y="-398" font-family="Inter" font-size="15.00" fill="#0b2545">5 tabelas</text>
+</g>
+<!-- D08&#45;&gt;D10 -->
+<g id="edge9" class="edge">
+<title>D08&#45;&gt;D10</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M820.51,-475.85C808.14,-464.62 793.16,-451.02 780.04,-439.09"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="782.15,-436.75 773.36,-433.04 777.91,-441.42 782.15,-436.75"/>
+</g>
+<!-- D09 -->
+<g id="node9" class="node">
+<title>D09</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="315,-149 73,-149 73,-101 315,-101 315,-149"/>
+<text text-anchor="start" x="91" y="-129" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D09 Financeiro do escritório</text>
+<text text-anchor="start" x="161" y="-114" font-family="Inter" font-size="15.00" fill="#0b2545">3 tabelas</text>
+</g>
+<!-- D10&#45;&gt;D05 -->
+<g id="edge10" class="edge">
+<title>D10&#45;&gt;D05</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M759.3,-384.94C772.77,-359.58 797.46,-319.1 829,-294 849.82,-277.43 875.39,-264.43 899.92,-254.5"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="901.31,-257.34 908.54,-251.12 899.01,-251.48 901.31,-257.34"/>
+</g>
+<!-- D11 -->
+<g id="node11" class="node">
+<title>D11</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="645,-104 421,-104 421,-56 645,-56 645,-104"/>
+<text text-anchor="start" x="439" y="-84" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D11 Regras de automação</text>
+<text text-anchor="start" x="500" y="-69" font-family="Inter" font-size="15.00" fill="#0b2545">3 tabelas</text>
+</g>
+<!-- D12 -->
+<g id="node12" class="node">
+<title>D12</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1204.5,-195 971.5,-195 971.5,-147 1204.5,-147 1204.5,-195"/>
+<text text-anchor="start" x="989.5" y="-175" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D12 Fluxos com aplicativos</text>
+<text text-anchor="start" x="1055" y="-160" font-family="Inter" font-size="15.00" fill="#0b2545">5 tabelas</text>
+</g>
+<!-- D17 -->
+<g id="node17" class="node">
+<title>D17</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1200.5,-104 975.5,-104 975.5,-56 1200.5,-56 1200.5,-104"/>
+<text text-anchor="start" x="993.5" y="-84" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D17 Conectores e suporte</text>
+<text text-anchor="start" x="1055" y="-69" font-family="Inter" font-size="15.00" fill="#0b2545">8 tabelas</text>
+</g>
+<!-- D12&#45;&gt;D17 -->
+<g id="edge11" class="edge">
+<title>D12&#45;&gt;D17</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M1088,-146.62C1088,-136.5 1088,-124.48 1088,-113.52"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1091.15,-113.23 1088,-104.23 1084.85,-113.23 1091.15,-113.23"/>
+</g>
+<!-- D13 -->
+<g id="node13" class="node">
+<title>D13</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1319,-524 1069,-524 1069,-476 1319,-476 1319,-524"/>
+<text text-anchor="start" x="1087" y="-504" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D13 Conversas do Assistente</text>
+<text text-anchor="start" x="1160.5" y="-489" font-family="Inter" font-size="15.00" fill="#0b2545">4 tabelas</text>
+</g>
+<!-- D13&#45;&gt;D05 -->
+<g id="edge12" class="edge">
+<title>D13&#45;&gt;D05</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M1221.83,-475.85C1233.65,-464.31 1246.24,-449.33 1253,-433 1276.63,-375.88 1296.15,-342.64 1258,-294 1239.76,-270.74 1176.99,-254.6 1116.67,-244.1"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1117.19,-241 1107.79,-242.59 1116.14,-247.21 1117.19,-241"/>
+</g>
+<!-- D13&#45;&gt;D06 -->
+<g id="edge13" class="edge">
+<title>D13&#45;&gt;D06</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M1166.17,-475.85C1152.67,-464.62 1136.31,-451.02 1121.98,-439.09"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1123.63,-436.37 1114.69,-433.04 1119.6,-441.21 1123.63,-436.37"/>
+</g>
+<!-- D14 -->
+<g id="node14" class="node">
+<title>D14</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="329.5,-48 58.5,-48 58.5,0 329.5,0 329.5,-48"/>
+<text text-anchor="start" x="76.5" y="-28" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D14 Configuração do Assistente</text>
+<text text-anchor="start" x="161" y="-13" font-family="Inter" font-size="15.00" fill="#0b2545">3 tabelas</text>
+</g>
+<!-- D15 -->
+<g id="node15" class="node">
+<title>D15</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="635,-195 431,-195 431,-147 635,-147 635,-195"/>
+<text text-anchor="start" x="449" y="-175" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D15 Aprendizado da IA</text>
+<text text-anchor="start" x="500.5" y="-160" font-family="Inter" font-size="15.00" fill="#0b2545">7 tabelas</text>
+</g>
+<!-- D15&#45;&gt;D11 -->
+<g id="edge14" class="edge">
+<title>D15&#45;&gt;D11</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M533,-146.62C533,-136.5 533,-124.48 533,-113.52"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="536.15,-113.23 533,-104.23 529.85,-113.23 536.15,-113.23"/>
+</g>
+<!-- D16 -->
+<g id="node16" class="node">
+<title>D16</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1500,-342 1316,-342 1316,-294 1500,-294 1500,-342"/>
+<text text-anchor="start" x="1334" y="-322" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D16 E&#45;mails e avisos</text>
+<text text-anchor="start" x="1375.5" y="-307" font-family="Inter" font-size="15.00" fill="#0b2545">7 tabelas</text>
+</g>
+<!-- D16&#45;&gt;D05 -->
+<g id="edge15" class="edge">
+<title>D16&#45;&gt;D05</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M1315.79,-297.41C1254.11,-284.31 1172.41,-266.96 1106.13,-252.88"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="1106.76,-249.79 1097.3,-251 1105.45,-255.95 1106.76,-249.79"/>
+</g>
+<!-- D18 -->
+<g id="node18" class="node">
+<title>D18</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="647.5,-48 418.5,-48 418.5,0 647.5,0 647.5,-48"/>
+<text text-anchor="start" x="436.5" y="-28" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D18 Auditoria e segurança</text>
+<text text-anchor="start" x="500.5" y="-13" font-family="Inter" font-size="15.00" fill="#0b2545">7 tabelas</text>
+</g>
+<!-- D19 -->
+<g id="node19" class="node">
+<title>D19</title>
+<polygon fill="#d6e6f7" stroke="#2e6db4" points="1193.5,-48 982.5,-48 982.5,0 1193.5,0 1193.5,-48"/>
+<text text-anchor="start" x="1000.5" y="-28" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b2545">D19 Privacidade (LGPD)</text>
+<text text-anchor="start" x="1055" y="-13" font-family="Inter" font-size="15.00" fill="#0b2545">5 tabelas</text>
+</g>
+</g>
+</svg>

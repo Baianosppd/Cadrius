@@ -1,0 +1,28 @@
+flowchart LR
+    SPA["<b>Aplicação web</b><br/><i>[Contêiner]</i>"]:::conteiner
+    subgraph API["API [Contêiner: Django]"]
+        direction LR
+        ACC["<b>Contas e acesso</b><br/><i>[accounts]</i>"]:::componente
+        BIL["<b>Assinatura e créditos</b><br/><i>[billing]</i>"]:::componente
+        CON["<b>Contatos</b><br/><i>[contacts]</i>"]:::componente
+        DOC["<b>Documentos</b><br/><i>[documents]</i>"]:::componente
+        PRO["<b>Processos e prazos</b><br/><i>[research, publications,<br/>forense]</i>"]:::componente
+        TAR["<b>Tarefas e minutas</b><br/><i>[tasks, minutas]</i>"]:::componente
+        CAR["<b>Carteira e portal</b><br/><i>[carteira, portal]</i>"]:::componente
+        IMP["<b>Importação</b><br/><i>[imports]</i>"]:::componente
+    end
+    AUT["<b>Automação e IA</b><br/><i>[ver A04]</i>"]:::conteiner
+    DB[("<b>Banco</b><br/><i>[PostgreSQL]</i>")]:::dados
+    SPA -- "Login" --> ACC
+    SPA -- "Telas" --> DOC
+    SPA -- "Telas" --> PRO
+    IMP -- "Cria" --> CON
+    IMP -- "Cria" --> DOC
+    CAR -- "Usa" --> CON
+    TAR -- "Liga" --> PRO
+    DOC -- "Eventos" --> AUT
+    PRO -- "Eventos" --> AUT
+    CAR -- "Eventos" --> AUT
+    BIL -- "Créditos" --> AUT
+    ACC -- "SQL" --> DB
+    CON -- "SQL" --> DB

@@ -1,0 +1,24 @@
+flowchart LR
+    NET["<b>Internet</b><br/>app e api<br/>.cadrius.ia.br"]:::pessoa
+    GH["<b>GitHub Actions</b><br/><i>[CI/CD]</i>"]:::externo
+    subgraph VPS["Servidor [Linux, Docker]"]
+        direction LR
+        TRF["<b>Traefik</b><br/><i>[proxy, TLS]</i>"]:::conteiner
+        subgraph PRD["prod (staging igual)"]
+            direction TB
+            FE["<b>frontend</b><br/><i>[nginx]</i>"]:::conteiner
+            WEB["<b>web</b><br/><i>[uvicorn]</i>"]:::conteiner
+            WK["<b>worker</b><br/><i>[Django-Q]</i>"]:::conteiner
+        end
+        PG[("<b>PostgreSQL</b><br/><i>[prod e staging]</i>")]:::dados
+        BK["<b>Backup diário</b><br/><i>[pg_dump + gpg]</i>"]:::componente
+    end
+    OFF[("<b>Cópia externa</b><br/><i>[cifrada]</i>")]:::externo
+    NET -- "HTTPS" --> TRF
+    GH -- "SSH" --> TRF
+    TRF --> FE
+    TRF --> WEB
+    WEB --> PG
+    WK --> PG
+    BK -- "Lê" --> PG
+    BK -- "Envia" --> OFF

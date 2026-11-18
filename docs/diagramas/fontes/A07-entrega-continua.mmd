@@ -1,0 +1,15 @@
+flowchart LR
+    PR["<b>Pull request</b>"]:::evento
+    CI["<b>CI</b><br/>testes, SAST,<br/>segredos, Trivy"]:::passo
+    OK{"<b>Verde e<br/>aprovado?</b>"}:::decisao
+    MG["<b>Merge</b><br/>na main"]:::passo
+    UP["<b>Deploy</b><br/>backup, build,<br/>migrações"]:::passo
+    HC{"<b>/readyz<br/>ok?</b>"}:::decisao
+    FIM["<b>No ar</b>"]:::ok
+    RB["<b>Rollback</b><br/>automático"]:::bloqueio
+    AJ["<b>Corrigir</b><br/>no PR"]:::bloqueio
+    PR --> CI --> OK
+    OK -- "sim" --> MG --> UP --> HC
+    OK -- "não" --> AJ
+    HC -- "sim" --> FIM
+    HC -- "não" --> RB

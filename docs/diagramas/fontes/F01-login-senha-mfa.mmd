@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant U as Pessoa
+    participant FE as Aplicação web
+    participant API as API
+    U->>FE: E-mail, senha e "manter conectado"
+    FE->>API: POST /auth/token/
+    Note right of API: Bloqueio por tentativas e senha
+    alt MFA ativo
+        API-->>FE: mfa_token (vale 5 min)
+        U->>FE: Código do app autenticador
+        FE->>API: POST /auth/mfa/verify/
+    end
+    API-->>FE: access (curto) e refresh (30 dias ou 1 dia)
+    FE->>API: Chamadas com Bearer access
+    Note over FE,API: access venceu: POST /auth/token/refresh/<br/>refresh rotativo com blacklist, uma aba renova por vez

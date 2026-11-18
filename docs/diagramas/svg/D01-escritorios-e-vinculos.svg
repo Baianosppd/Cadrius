@@ -1,0 +1,201 @@
+<svg width="877pt" height="330pt"
+ viewBox="0.00 0.00 877.40 330.40" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(7.2 323.2)">
+<title>G</title>
+<!-- Organization -->
+<g id="node1" class="node">
+<title>Organization</title>
+<polygon fill="#1f5fad" stroke="transparent" points="1,-125.5 1,-157.5 371,-157.5 371,-125.5 1,-125.5"/>
+<text text-anchor="start" x="8" y="-138.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Organization</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-100.5 1,-125.5 168,-125.5 168,-100.5 1,-100.5"/>
+<text text-anchor="start" x="5" y="-110.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="168,-100.5 168,-125.5 197,-125.5 197,-100.5 168,-100.5"/>
+<text text-anchor="start" x="172" y="-110.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="197,-100.5 197,-125.5 371,-125.5 371,-100.5 197,-100.5"/>
+<text text-anchor="start" x="201" y="-109.5" font-family="Inter" font-size="15.00" fill="#475569">uuid</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-75.5 1,-100.5 168,-100.5 168,-75.5 1,-75.5"/>
+<text text-anchor="start" x="5" y="-84.5" font-family="Inter" font-size="15.00">plan_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="168,-75.5 168,-100.5 197,-100.5 197,-75.5 168,-75.5"/>
+<text text-anchor="start" x="172" y="-85.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="197,-75.5 197,-100.5 371,-100.5 371,-75.5 197,-75.5"/>
+<text text-anchor="start" x="201" y="-84.5" font-family="Inter" font-size="15.00" fill="#475569">SubscriptionPlan (D03)</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-50.5 1,-75.5 168,-75.5 168,-50.5 1,-50.5"/>
+<text text-anchor="start" x="5" y="-59.5" font-family="Inter" font-size="15.00">pending_promotion_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="168,-50.5 168,-75.5 197,-75.5 197,-50.5 168,-50.5"/>
+<text text-anchor="start" x="172" y="-60.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="197,-50.5 197,-75.5 371,-75.5 371,-50.5 197,-50.5"/>
+<text text-anchor="start" x="201" y="-59.5" font-family="Inter" font-size="15.00" fill="#475569">Promotion (D03)</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-25.5 1,-50.5 168,-50.5 168,-25.5 1,-25.5"/>
+<text text-anchor="start" x="5" y="-34.5" font-family="Inter" font-size="15.00">account_type</text>
+<polygon fill="#ffffff" stroke="transparent" points="168,-25.5 168,-50.5 197,-50.5 197,-25.5 168,-25.5"/>
+<text text-anchor="start" x="172" y="-34.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="197,-25.5 197,-50.5 371,-50.5 371,-25.5 197,-25.5"/>
+<text text-anchor="start" x="201" y="-34.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-0.5 1,-25.5 168,-25.5 168,-0.5 1,-0.5"/>
+<text text-anchor="start" x="5" y="-9.5" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="168,-0.5 168,-25.5 197,-25.5 197,-0.5 168,-0.5"/>
+<text text-anchor="start" x="172" y="-9.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="197,-0.5 197,-25.5 371,-25.5 371,-0.5 197,-0.5"/>
+<text text-anchor="start" x="201" y="-9.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="0,0 0,-159 372,-159 372,0 0,0"/>
+</g>
+<!-- OrganizationMembership -->
+<g id="node3" class="node">
+<title>OrganizationMembership</title>
+<polygon fill="#1f5fad" stroke="transparent" points="650,-282.5 650,-314.5 862,-314.5 862,-282.5 650,-282.5"/>
+<text text-anchor="start" x="657" y="-295.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">OrganizationMembership</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="650,-257.5 650,-282.5 783,-282.5 783,-257.5 650,-257.5"/>
+<text text-anchor="start" x="654" y="-267.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="783,-257.5 783,-282.5 815,-282.5 815,-257.5 783,-257.5"/>
+<text text-anchor="start" x="787" y="-267.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="815,-257.5 815,-282.5 862,-282.5 862,-257.5 815,-257.5"/>
+<text text-anchor="start" x="819" y="-266.5" font-family="Inter" font-size="15.00" fill="#475569">uuid</text>
+<polygon fill="#ffffff" stroke="transparent" points="650,-232.5 650,-257.5 783,-257.5 783,-232.5 650,-232.5"/>
+<text text-anchor="start" x="654" y="-241.5" font-family="Inter" font-size="15.00">user_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="783,-232.5 783,-257.5 815,-257.5 815,-232.5 783,-232.5"/>
+<text text-anchor="start" x="787" y="-242.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="815,-232.5 815,-257.5 862,-257.5 862,-232.5 815,-232.5"/>
+<text text-anchor="start" x="819" y="-241.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="650,-207.5 650,-232.5 783,-232.5 783,-207.5 650,-207.5"/>
+<text text-anchor="start" x="654" y="-216.5" font-family="Inter" font-size="15.00">organization_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="783,-207.5 783,-232.5 815,-232.5 815,-207.5 783,-207.5"/>
+<text text-anchor="start" x="787" y="-217.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="815,-207.5 815,-232.5 862,-232.5 862,-207.5 815,-207.5"/>
+<text text-anchor="start" x="819" y="-216.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="650,-182.5 650,-207.5 783,-207.5 783,-182.5 650,-182.5"/>
+<text text-anchor="start" x="654" y="-191.5" font-family="Inter" font-size="15.00">access_group_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="783,-182.5 783,-207.5 815,-207.5 815,-182.5 783,-182.5"/>
+<text text-anchor="start" x="787" y="-192.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="815,-182.5 815,-207.5 862,-207.5 862,-182.5 815,-182.5"/>
+<text text-anchor="start" x="819" y="-191.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="650,-157.5 650,-182.5 783,-182.5 783,-157.5 650,-157.5"/>
+<text text-anchor="start" x="654" y="-166.5" font-family="Inter" font-size="15.00">role</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="783,-157.5 783,-182.5 815,-182.5 815,-157.5 783,-157.5"/>
+<text text-anchor="start" x="787" y="-166.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="815,-157.5 815,-182.5 862,-182.5 862,-157.5 815,-157.5"/>
+<text text-anchor="start" x="819" y="-166.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="649,-157 649,-316 863,-316 863,-157 649,-157"/>
+</g>
+<!-- Organization&#45;&gt;OrganizationMembership -->
+<g id="edge2" class="edge">
+<title>Organization:e&#45;&gt;OrganizationMembership:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M381.92,-115.01C408.23,-124.51 383.54,-176.17 415,-197.5 496.32,-252.62 539.26,-223.52 630.96,-219.86"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="372.23,-118.59 373.74,-108.71 375.72,-109.01 374.21,-118.9 372.23,-118.59"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="372,-113.5 376.94,-114.25 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="377.18,-119.35 378.69,-109.46 380.66,-109.76 379.15,-119.65 377.18,-119.35"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="376.94,-114.25 381.89,-115.01 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="639,-219.7 649.09,-224 644,-219.6 649,-219.5 649,-219.5 649,-219.5 644,-219.6 648.91,-215 639,-219.7 639,-219.7"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="635" cy="-219.78" rx="4" ry="4"/>
+</g>
+<!-- AccessGroup -->
+<g id="node4" class="node">
+<title>AccessGroup</title>
+<polygon fill="#1f5fad" stroke="transparent" points="416.5,-152.5 416.5,-184.5 605.5,-184.5 605.5,-152.5 416.5,-152.5"/>
+<text text-anchor="start" x="423.5" y="-165.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">AccessGroup</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="416.5,-127.5 416.5,-152.5 533.5,-152.5 533.5,-127.5 416.5,-127.5"/>
+<text text-anchor="start" x="420.5" y="-137.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="533.5,-127.5 533.5,-152.5 562.5,-152.5 562.5,-127.5 533.5,-127.5"/>
+<text text-anchor="start" x="537.5" y="-137.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="562.5,-127.5 562.5,-152.5 605.5,-152.5 605.5,-127.5 562.5,-127.5"/>
+<text text-anchor="start" x="566.5" y="-136.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="416.5,-102.5 416.5,-127.5 533.5,-127.5 533.5,-102.5 416.5,-102.5"/>
+<text text-anchor="start" x="420.5" y="-111.5" font-family="Inter" font-size="15.00">organization_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="533.5,-102.5 533.5,-127.5 562.5,-127.5 562.5,-102.5 533.5,-102.5"/>
+<text text-anchor="start" x="537.5" y="-112.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="562.5,-102.5 562.5,-127.5 605.5,-127.5 605.5,-102.5 562.5,-102.5"/>
+<text text-anchor="start" x="566.5" y="-111.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="416.5,-77.5 416.5,-102.5 533.5,-102.5 533.5,-77.5 416.5,-77.5"/>
+<text text-anchor="start" x="420.5" y="-86.5" font-family="Inter" font-size="15.00">created_by_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="533.5,-77.5 533.5,-102.5 562.5,-102.5 562.5,-77.5 533.5,-77.5"/>
+<text text-anchor="start" x="537.5" y="-87.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="562.5,-77.5 562.5,-102.5 605.5,-102.5 605.5,-77.5 562.5,-77.5"/>
+<text text-anchor="start" x="566.5" y="-86.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="416.5,-52.5 416.5,-77.5 533.5,-77.5 533.5,-52.5 416.5,-52.5"/>
+<text text-anchor="start" x="420.5" y="-61.5" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#ffffff" stroke="transparent" points="533.5,-52.5 533.5,-77.5 562.5,-77.5 562.5,-52.5 533.5,-52.5"/>
+<text text-anchor="start" x="537.5" y="-61.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="562.5,-52.5 562.5,-77.5 605.5,-77.5 605.5,-52.5 562.5,-52.5"/>
+<text text-anchor="start" x="566.5" y="-61.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="416.5,-27.5 416.5,-52.5 533.5,-52.5 533.5,-27.5 416.5,-27.5"/>
+<text text-anchor="start" x="420.5" y="-36.5" font-family="Inter" font-size="15.00">description</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="533.5,-27.5 533.5,-52.5 562.5,-52.5 562.5,-27.5 533.5,-27.5"/>
+<text text-anchor="start" x="537.5" y="-36.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="562.5,-27.5 562.5,-52.5 605.5,-52.5 605.5,-27.5 562.5,-27.5"/>
+<text text-anchor="start" x="566.5" y="-36.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="415,-27 415,-186 606,-186 606,-27 415,-27"/>
+</g>
+<!-- Organization&#45;&gt;AccessGroup -->
+<g id="edge4" class="edge">
+<title>Organization:e&#45;&gt;AccessGroup:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M382.24,-113.71C388.07,-113.97 392.53,-114.42 397.46,-114.8"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="372.9,-118.52 373.1,-108.52 375.1,-108.56 374.89,-118.56 372.9,-118.52"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="372,-113.5 377,-113.6 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="377.89,-118.62 378.1,-108.63 380.1,-108.67 379.89,-118.67 377.89,-118.62"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="377,-113.6 382,-113.71 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="405.51,-115.11 415.33,-120 410.5,-115.31 415.5,-115.5 415.5,-115.5 415.5,-115.5 410.5,-115.31 415.67,-111 405.51,-115.11 405.51,-115.11"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="401.51" cy="-114.96" rx="4" ry="4"/>
+</g>
+<!-- CustomUser -->
+<g id="node2" class="node">
+<title>CustomUser</title>
+<polygon fill="#1f5fad" stroke="transparent" points="85,-282.5 85,-314.5 287,-314.5 287,-282.5 85,-282.5"/>
+<text text-anchor="start" x="92" y="-295.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">CustomUser</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="85,-257.5 85,-282.5 186,-282.5 186,-257.5 85,-257.5"/>
+<text text-anchor="start" x="89" y="-267.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="186,-257.5 186,-282.5 215,-282.5 215,-257.5 186,-257.5"/>
+<text text-anchor="start" x="190" y="-267.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="215,-257.5 215,-282.5 287,-282.5 287,-257.5 215,-257.5"/>
+<text text-anchor="start" x="219" y="-266.5" font-family="Inter" font-size="15.00" fill="#475569">uuid</text>
+<polygon fill="#ffffff" stroke="transparent" points="85,-232.5 85,-257.5 186,-257.5 186,-232.5 85,-232.5"/>
+<text text-anchor="start" x="89" y="-241.5" font-family="Inter" font-size="15.00">password</text>
+<polygon fill="#ffffff" stroke="transparent" points="186,-232.5 186,-257.5 215,-257.5 215,-232.5 186,-232.5"/>
+<text text-anchor="start" x="190" y="-241.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="215,-232.5 215,-257.5 287,-257.5 287,-232.5 215,-232.5"/>
+<text text-anchor="start" x="219" y="-241.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="85,-207.5 85,-232.5 186,-232.5 186,-207.5 85,-207.5"/>
+<text text-anchor="start" x="89" y="-216.5" font-family="Inter" font-size="15.00">last_login</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="186,-207.5 186,-232.5 215,-232.5 215,-207.5 186,-207.5"/>
+<text text-anchor="start" x="190" y="-216.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="215,-207.5 215,-232.5 287,-232.5 287,-207.5 215,-207.5"/>
+<text text-anchor="start" x="219" y="-216.5" font-family="Inter" font-size="15.00" fill="#475569">datahora</text>
+<polygon fill="#ffffff" stroke="transparent" points="85,-182.5 85,-207.5 186,-207.5 186,-182.5 85,-182.5"/>
+<text text-anchor="start" x="89" y="-191.5" font-family="Inter" font-size="15.00">is_superuser</text>
+<polygon fill="#ffffff" stroke="transparent" points="186,-182.5 186,-207.5 215,-207.5 215,-182.5 186,-182.5"/>
+<text text-anchor="start" x="190" y="-191.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="215,-182.5 215,-207.5 287,-207.5 287,-182.5 215,-182.5"/>
+<text text-anchor="start" x="219" y="-191.5" font-family="Inter" font-size="15.00" fill="#475569">bool</text>
+<polygon fill="none" stroke="#2e6db4" points="84,-181.5 84,-315.5 288,-315.5 288,-181.5 84,-181.5"/>
+</g>
+<!-- CustomUser&#45;&gt;OrganizationMembership -->
+<g id="edge1" class="edge">
+<title>CustomUser:e&#45;&gt;OrganizationMembership:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M298.2,-270.47C444.47,-269.48 488.16,-247.38 630.64,-245.61"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="289.02,-275.5 288.98,-265.5 290.98,-265.49 291.02,-275.49 289.02,-275.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="288,-270.5 293,-270.48 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="294.02,-275.48 293.98,-265.48 295.98,-265.47 296.02,-275.47 294.02,-275.48"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="293,-270.48 298,-270.47 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="639,-245.56 649.03,-250 644,-245.53 649,-245.5 649,-245.5 649,-245.5 644,-245.53 648.97,-241 639,-245.56 639,-245.56"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="635" cy="-245.59" rx="4" ry="4"/>
+</g>
+<!-- CustomUser&#45;&gt;AccessGroup -->
+<g id="edge5" class="edge">
+<title>CustomUser:e&#45;&gt;AccessGroup:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M301.1,-269.47C345.48,-261.89 341.92,-213.86 372,-169.5 390.28,-142.55 381.1,-107.17 397.91,-94.38"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="289.39,-275.41 288.6,-265.44 290.6,-265.28 291.38,-275.25 289.39,-275.41"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="288,-270.5 292.98,-270.11 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="296.97" cy="-269.79" rx="4" ry="4"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="405.86,-92.17 416.7,-93.84 410.68,-90.84 415.5,-89.5 415.5,-89.5 415.5,-89.5 410.68,-90.84 414.3,-85.16 405.86,-92.17 405.86,-92.17"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="402.01" cy="-93.24" rx="4" ry="4"/>
+</g>
+<!-- AccessGroup&#45;&gt;OrganizationMembership -->
+<g id="edge3" class="edge">
+<title>AccessGroup:e&#45;&gt;OrganizationMembership:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M618.36,-145.1C627.4,-153.98 626.68,-173.61 633.19,-185.27"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="605.19,-145.53 608.68,-136.16 610.56,-136.86 607.07,-146.23 605.19,-145.53"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="606,-140.5 610.69,-142.25 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="614.43" cy="-143.64" rx="4" ry="4"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="640.36,-189.46 646.73,-198.39 644.68,-191.98 649,-194.5 649,-194.5 649,-194.5 644.68,-191.98 651.27,-190.61 640.36,-189.46 640.36,-189.46"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="636.91" cy="-187.44" rx="4" ry="4"/>
+</g>
+</g>
+</svg>

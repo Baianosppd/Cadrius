@@ -1,0 +1,19 @@
+flowchart LR
+    ADV["<b>Usuários</b><br/><i>[Pessoas]</i>"]:::pessoa
+    subgraph CAD["Cadrius [Sistema de software]"]
+        SPA["<b>Aplicação web</b><br/><i>[React]</i>"]:::conteiner
+        API["<b>API</b><br/><i>[Django]</i>"]:::conteiner
+        WRK["<b>Worker</b><br/><i>[Django-Q]</i>"]:::conteiner
+        DB[("<b>Banco</b><br/><i>[PostgreSQL 15]</i>")]:::dados
+        RDS[("<b>Fila e cache</b><br/><i>[Redis 7]</i>")]:::dados
+        ARQ[("<b>Arquivos</b><br/><i>[volume cifrado]</i>")]:::dados
+        EVO["<b>WhatsApp</b><br/><i>[Evolution]</i>"]:::conteiner
+    end
+    EXT["<b>Sistemas externos</b><br/><i>[IA, Google,<br/>Stripe, DJEN]</i>"]:::externo
+    ADV --> SPA
+    SPA -- "JSON" --> API
+    API -- "Tarefas" --> WRK
+    API --> DB & RDS & ARQ
+    WRK --> DB & RDS & ARQ & EVO
+    API -- "HTTPS" --> EXT
+    WRK -- "HTTPS" --> EXT

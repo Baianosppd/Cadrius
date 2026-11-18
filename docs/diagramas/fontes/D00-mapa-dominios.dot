@@ -1,0 +1,40 @@
+digraph G {
+  graph [rankdir=LR, pack=true, packmode="array_u", nodesep=0.3, ranksep=0.6, bgcolor="transparent",
+         fontname="Inter", pad=0.1, splines=spline]
+  node [shape=box, style="filled", margin="0.25,0.12", fontname="Inter", fontsize=15]
+  edge [color="#475569", penwidth=1.4, arrowsize=0.9, fontname="Inter", fontsize=15]
+  D01 [label=<<b>D01 Escritórios e vínculos</b><br/>4 tabelas>, fillcolor="#1F5FAD", fontcolor="#FFFFFF", color="#123F78"]
+  D02 [label=<<b>D02 Login e segurança da conta</b><br/>4 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D03 [label=<<b>D03 Assinatura, pagamentos e fiscal da Cadrius</b><br/>8 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D04 [label=<<b>D04 Créditos e IA governada</b><br/>8 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D05 [label=<<b>D05 Clientes e documentos</b><br/>8 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D06 [label=<<b>D06 Processos, publicações e prazos</b><br/>8 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D07 [label=<<b>D07 Tarefas, minutas e Google Agenda</b><br/>8 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D08 [label=<<b>D08 Carteira e honorários</b><br/>4 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D09 [label=<<b>D09 Financeiro do escritório</b><br/>3 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D10 [label=<<b>D10 Marketing</b><br/>5 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D11 [label=<<b>D11 Regras de automação</b><br/>3 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D12 [label=<<b>D12 Fluxos com aplicativos</b><br/>5 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D13 [label=<<b>D13 Conversas do Assistente</b><br/>4 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D14 [label=<<b>D14 Configuração do Assistente</b><br/>3 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D15 [label=<<b>D15 Aprendizado da IA</b><br/>7 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D16 [label=<<b>D16 E-mails e avisos</b><br/>7 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D17 [label=<<b>D17 Conectores e suporte</b><br/>8 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D18 [label=<<b>D18 Auditoria e segurança</b><br/>7 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D19 [label=<<b>D19 Privacidade (LGPD)</b><br/>5 tabelas>, fillcolor="#D6E6F7", fontcolor="#0B2545", color="#2E6DB4"]
+  D01 -> D03 [label="  2 FK  "]
+  D04 -> D01
+  D06 -> D05
+  D06 -> D07
+  D07 -> D05
+  D07 -> D06
+  D08 -> D05 [label="  4 FK  "]
+  D08 -> D06 [label="  3 FK  "]
+  D08 -> D10
+  D10 -> D05
+  D12 -> D17
+  D13 -> D05
+  D13 -> D06
+  D15 -> D11
+  D16 -> D05
+}

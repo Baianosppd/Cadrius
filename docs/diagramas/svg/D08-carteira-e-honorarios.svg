@@ -1,0 +1,185 @@
+<svg width="1329pt" height="350pt"
+ viewBox="0.00 0.00 1329.40 350.40" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(7.2 343.2)">
+<title>G</title>
+<!-- Opportunity -->
+<g id="node1" class="node">
+<title>Opportunity</title>
+<polygon fill="#1f5fad" stroke="transparent" points="1,-125.5 1,-157.5 251,-157.5 251,-125.5 1,-125.5"/>
+<text text-anchor="start" x="8" y="-138.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Opportunity</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-100.5 1,-125.5 100,-125.5 100,-100.5 1,-100.5"/>
+<text text-anchor="start" x="5" y="-110.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="100,-100.5 100,-125.5 129,-125.5 129,-100.5 100,-100.5"/>
+<text text-anchor="start" x="104" y="-110.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="129,-100.5 129,-125.5 251,-125.5 251,-100.5 129,-100.5"/>
+<text text-anchor="start" x="133" y="-109.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-75.5 1,-100.5 100,-100.5 100,-75.5 1,-75.5"/>
+<text text-anchor="start" x="5" y="-84.5" font-family="Inter" font-size="15.00">contact_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="100,-75.5 100,-100.5 129,-100.5 129,-75.5 100,-75.5"/>
+<text text-anchor="start" x="104" y="-85.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="129,-75.5 129,-100.5 251,-100.5 251,-75.5 129,-75.5"/>
+<text text-anchor="start" x="133" y="-84.5" font-family="Inter" font-size="15.00" fill="#475569">Contact (D05)</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-50.5 1,-75.5 100,-75.5 100,-50.5 1,-50.5"/>
+<text text-anchor="start" x="5" y="-59.5" font-family="Inter" font-size="15.00">campaign_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="100,-50.5 100,-75.5 129,-75.5 129,-50.5 100,-50.5"/>
+<text text-anchor="start" x="104" y="-60.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="129,-50.5 129,-75.5 251,-75.5 251,-50.5 129,-50.5"/>
+<text text-anchor="start" x="133" y="-59.5" font-family="Inter" font-size="15.00" fill="#475569">Campaign (D10)</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-25.5 1,-50.5 100,-50.5 100,-25.5 1,-25.5"/>
+<text text-anchor="start" x="5" y="-34.5" font-family="Inter" font-size="15.00">title</text>
+<polygon fill="#ffffff" stroke="transparent" points="100,-25.5 100,-50.5 129,-50.5 129,-25.5 100,-25.5"/>
+<text text-anchor="start" x="104" y="-34.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="129,-25.5 129,-50.5 251,-50.5 251,-25.5 129,-25.5"/>
+<text text-anchor="start" x="133" y="-34.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-0.5 1,-25.5 100,-25.5 100,-0.5 1,-0.5"/>
+<text text-anchor="start" x="5" y="-9.5" font-family="Inter" font-size="15.00">area</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="100,-0.5 100,-25.5 129,-25.5 129,-0.5 100,-0.5"/>
+<text text-anchor="start" x="104" y="-9.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="129,-0.5 129,-25.5 251,-25.5 251,-0.5 129,-0.5"/>
+<text text-anchor="start" x="133" y="-9.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="0,0 0,-159 252,-159 252,0 0,0"/>
+</g>
+<!-- FeeAgreement -->
+<g id="node2" class="node">
+<title>FeeAgreement</title>
+<polygon fill="#1f5fad" stroke="transparent" points="296,-201.5 296,-233.5 598,-233.5 598,-201.5 296,-201.5"/>
+<text text-anchor="start" x="303" y="-214.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">FeeAgreement</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="296,-176.5 296,-201.5 407,-201.5 407,-176.5 296,-176.5"/>
+<text text-anchor="start" x="300" y="-186.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="407,-176.5 407,-201.5 436,-201.5 436,-176.5 407,-176.5"/>
+<text text-anchor="start" x="411" y="-186.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="436,-176.5 436,-201.5 598,-201.5 598,-176.5 436,-176.5"/>
+<text text-anchor="start" x="440" y="-185.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="296,-151.5 296,-176.5 407,-176.5 407,-151.5 296,-151.5"/>
+<text text-anchor="start" x="300" y="-160.5" font-family="Inter" font-size="15.00">contact_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="407,-151.5 407,-176.5 436,-176.5 436,-151.5 407,-151.5"/>
+<text text-anchor="start" x="411" y="-161.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="436,-151.5 436,-176.5 598,-176.5 598,-151.5 436,-151.5"/>
+<text text-anchor="start" x="440" y="-160.5" font-family="Inter" font-size="15.00" fill="#475569">Contact (D05)</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="296,-126.5 296,-151.5 407,-151.5 407,-126.5 296,-126.5"/>
+<text text-anchor="start" x="300" y="-135.5" font-family="Inter" font-size="15.00">case_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="407,-126.5 407,-151.5 436,-151.5 436,-126.5 407,-126.5"/>
+<text text-anchor="start" x="411" y="-136.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="436,-126.5 436,-151.5 598,-151.5 598,-126.5 436,-126.5"/>
+<text text-anchor="start" x="440" y="-135.5" font-family="Inter" font-size="15.00" fill="#475569">MonitoredCase (D06)</text>
+<polygon fill="#ffffff" stroke="transparent" points="296,-101.5 296,-126.5 407,-126.5 407,-101.5 296,-101.5"/>
+<text text-anchor="start" x="300" y="-110.5" font-family="Inter" font-size="15.00">opportunity_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="407,-101.5 407,-126.5 436,-126.5 436,-101.5 407,-101.5"/>
+<text text-anchor="start" x="411" y="-111.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="436,-101.5 436,-126.5 598,-126.5 598,-101.5 436,-101.5"/>
+<text text-anchor="start" x="440" y="-110.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="296,-76.5 296,-101.5 407,-101.5 407,-76.5 296,-76.5"/>
+<text text-anchor="start" x="300" y="-85.5" font-family="Inter" font-size="15.00">title</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="407,-76.5 407,-101.5 436,-101.5 436,-76.5 407,-76.5"/>
+<text text-anchor="start" x="411" y="-85.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="436,-76.5 436,-101.5 598,-101.5 598,-76.5 436,-76.5"/>
+<text text-anchor="start" x="440" y="-85.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="295,-76 295,-235 599,-235 599,-76 295,-76"/>
+</g>
+<!-- Opportunity&#45;&gt;FeeAgreement -->
+<g id="edge1" class="edge">
+<title>Opportunity:e&#45;&gt;FeeAgreement:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M265.05,-113.5C269.31,-113.5 272.92,-113.5 276.79,-113.5"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="253,-118.5 253,-108.5 255,-108.5 255,-118.5 253,-118.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="252,-113.5 257,-113.5 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="261" cy="-113.5" rx="4" ry="4"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="285,-113.5 295,-118 290,-113.5 295,-113.5 295,-113.5 295,-113.5 290,-113.5 295,-109 285,-113.5 285,-113.5"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="281" cy="-113.5" rx="4" ry="4"/>
+</g>
+<!-- Receivable -->
+<g id="node3" class="node">
+<title>Receivable</title>
+<polygon fill="#1f5fad" stroke="transparent" points="643.5,-226.5 643.5,-258.5 940.5,-258.5 940.5,-226.5 643.5,-226.5"/>
+<text text-anchor="start" x="650.5" y="-239.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Receivable</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="643.5,-201.5 643.5,-226.5 749.5,-226.5 749.5,-201.5 643.5,-201.5"/>
+<text text-anchor="start" x="647.5" y="-211.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="749.5,-201.5 749.5,-226.5 778.5,-226.5 778.5,-201.5 749.5,-201.5"/>
+<text text-anchor="start" x="753.5" y="-211.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="778.5,-201.5 778.5,-226.5 940.5,-226.5 940.5,-201.5 778.5,-201.5"/>
+<text text-anchor="start" x="782.5" y="-210.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="643.5,-176.5 643.5,-201.5 749.5,-201.5 749.5,-176.5 643.5,-176.5"/>
+<text text-anchor="start" x="647.5" y="-185.5" font-family="Inter" font-size="15.00">agreement_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="749.5,-176.5 749.5,-201.5 778.5,-201.5 778.5,-176.5 749.5,-176.5"/>
+<text text-anchor="start" x="753.5" y="-186.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="778.5,-176.5 778.5,-201.5 940.5,-201.5 940.5,-176.5 778.5,-176.5"/>
+<text text-anchor="start" x="782.5" y="-185.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="643.5,-151.5 643.5,-176.5 749.5,-176.5 749.5,-151.5 643.5,-151.5"/>
+<text text-anchor="start" x="647.5" y="-160.5" font-family="Inter" font-size="15.00">contact_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="749.5,-151.5 749.5,-176.5 778.5,-176.5 778.5,-151.5 749.5,-151.5"/>
+<text text-anchor="start" x="753.5" y="-161.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="778.5,-151.5 778.5,-176.5 940.5,-176.5 940.5,-151.5 778.5,-151.5"/>
+<text text-anchor="start" x="782.5" y="-160.5" font-family="Inter" font-size="15.00" fill="#475569">Contact (D05)</text>
+<polygon fill="#ffffff" stroke="transparent" points="643.5,-126.5 643.5,-151.5 749.5,-151.5 749.5,-126.5 643.5,-126.5"/>
+<text text-anchor="start" x="647.5" y="-135.5" font-family="Inter" font-size="15.00">case_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="749.5,-126.5 749.5,-151.5 778.5,-151.5 778.5,-126.5 749.5,-126.5"/>
+<text text-anchor="start" x="753.5" y="-136.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="778.5,-126.5 778.5,-151.5 940.5,-151.5 940.5,-126.5 778.5,-126.5"/>
+<text text-anchor="start" x="782.5" y="-135.5" font-family="Inter" font-size="15.00" fill="#475569">MonitoredCase (D06)</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="643.5,-101.5 643.5,-126.5 749.5,-126.5 749.5,-101.5 643.5,-101.5"/>
+<text text-anchor="start" x="647.5" y="-110.5" font-family="Inter" font-size="15.00">description</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="749.5,-101.5 749.5,-126.5 778.5,-126.5 778.5,-101.5 749.5,-101.5"/>
+<text text-anchor="start" x="753.5" y="-110.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="778.5,-101.5 778.5,-126.5 940.5,-126.5 940.5,-101.5 778.5,-101.5"/>
+<text text-anchor="start" x="782.5" y="-110.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="642,-101 642,-260 941,-260 941,-101 642,-101"/>
+</g>
+<!-- FeeAgreement&#45;&gt;Receivable -->
+<g id="edge2" class="edge">
+<title>FeeAgreement:e&#45;&gt;Receivable:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M612.2,-189.5C616.51,-189.5 620.16,-189.5 624.08,-189.5"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="600,-194.5 600,-184.5 602,-184.5 602,-194.5 600,-194.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="599,-189.5 604,-189.5 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="608" cy="-189.5" rx="4" ry="4"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="632.5,-189.5 642.5,-194 637.5,-189.5 642.5,-189.5 642.5,-189.5 642.5,-189.5 637.5,-189.5 642.5,-185 632.5,-189.5 632.5,-189.5"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="628.5" cy="-189.5" rx="4" ry="4"/>
+</g>
+<!-- Expense -->
+<g id="node4" class="node">
+<title>Expense</title>
+<polygon fill="#1f5fad" stroke="transparent" points="985.5,-302.5 985.5,-334.5 1314.5,-334.5 1314.5,-302.5 985.5,-302.5"/>
+<text text-anchor="start" x="992.5" y="-315.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Expense</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="985.5,-277.5 985.5,-302.5 1123.5,-302.5 1123.5,-277.5 985.5,-277.5"/>
+<text text-anchor="start" x="989.5" y="-287.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1123.5,-277.5 1123.5,-302.5 1152.5,-302.5 1152.5,-277.5 1123.5,-277.5"/>
+<text text-anchor="start" x="1127.5" y="-287.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1152.5,-277.5 1152.5,-302.5 1314.5,-302.5 1314.5,-277.5 1152.5,-277.5"/>
+<text text-anchor="start" x="1156.5" y="-286.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="985.5,-252.5 985.5,-277.5 1123.5,-277.5 1123.5,-252.5 985.5,-252.5"/>
+<text text-anchor="start" x="989.5" y="-261.5" font-family="Inter" font-size="15.00">contact_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="1123.5,-252.5 1123.5,-277.5 1152.5,-277.5 1152.5,-252.5 1123.5,-252.5"/>
+<text text-anchor="start" x="1127.5" y="-262.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="1152.5,-252.5 1152.5,-277.5 1314.5,-277.5 1314.5,-252.5 1152.5,-252.5"/>
+<text text-anchor="start" x="1156.5" y="-261.5" font-family="Inter" font-size="15.00" fill="#475569">Contact (D05)</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="985.5,-227.5 985.5,-252.5 1123.5,-252.5 1123.5,-227.5 985.5,-227.5"/>
+<text text-anchor="start" x="989.5" y="-236.5" font-family="Inter" font-size="15.00">case_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1123.5,-227.5 1123.5,-252.5 1152.5,-252.5 1152.5,-227.5 1123.5,-227.5"/>
+<text text-anchor="start" x="1127.5" y="-237.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1152.5,-227.5 1152.5,-252.5 1314.5,-252.5 1314.5,-227.5 1152.5,-227.5"/>
+<text text-anchor="start" x="1156.5" y="-236.5" font-family="Inter" font-size="15.00" fill="#475569">MonitoredCase (D06)</text>
+<polygon fill="#ffffff" stroke="transparent" points="985.5,-202.5 985.5,-227.5 1123.5,-227.5 1123.5,-202.5 985.5,-202.5"/>
+<text text-anchor="start" x="989.5" y="-211.5" font-family="Inter" font-size="15.00">reimbursement_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="1123.5,-202.5 1123.5,-227.5 1152.5,-227.5 1152.5,-202.5 1123.5,-202.5"/>
+<text text-anchor="start" x="1127.5" y="-212.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="1152.5,-202.5 1152.5,-227.5 1314.5,-227.5 1314.5,-202.5 1152.5,-202.5"/>
+<text text-anchor="start" x="1156.5" y="-211.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="985.5,-177.5 985.5,-202.5 1123.5,-202.5 1123.5,-177.5 985.5,-177.5"/>
+<text text-anchor="start" x="989.5" y="-186.5" font-family="Inter" font-size="15.00">description</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1123.5,-177.5 1123.5,-202.5 1152.5,-202.5 1152.5,-177.5 1123.5,-177.5"/>
+<text text-anchor="start" x="1127.5" y="-186.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1152.5,-177.5 1152.5,-202.5 1314.5,-202.5 1314.5,-177.5 1152.5,-177.5"/>
+<text text-anchor="start" x="1156.5" y="-186.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="984,-177 984,-336 1315,-336 1315,-177 984,-177"/>
+</g>
+<!-- Receivable&#45;&gt;Expense -->
+<g id="edge3" class="edge">
+<title>Receivable:e&#45;&gt;Expense:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M954.2,-214.5C960.36,-214.5 965.17,-214.5 971.34,-214.5"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="942,-219.5 942,-209.5 944,-209.5 944,-219.5 942,-219.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="941,-214.5 946,-214.5 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="950" cy="-214.5" rx="4" ry="4"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="983.5,-209.5 983.5,-219.5 981.5,-219.5 981.5,-209.5 983.5,-209.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="984.5,-214.5 979.5,-214.5 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="975.5" cy="-214.5" rx="4" ry="4"/>
+</g>
+</g>
+</svg>

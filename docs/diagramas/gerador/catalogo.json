@@ -1,0 +1,154 @@
+[
+  {
+    "id": "A01",
+    "arquivo": "A01-contexto",
+    "tipo": "c4",
+    "nivel": "C4 · Nível 1 · Contexto do sistema",
+    "titulo": "Visão geral: quem usa o Cadrius e com o que ele conversa",
+    "descricao": "O Cadrius como uma caixa só: as pessoas que o usam e os sistemas externos de que depende. Ponto de partida para quem não conhece a plataforma."
+  },
+  {
+    "id": "A02",
+    "arquivo": "A02-conteineres",
+    "tipo": "c4",
+    "nivel": "C4 · Nível 2 · Contêineres",
+    "titulo": "Do que o Cadrius é feito: aplicações e bancos de dados",
+    "descricao": "As peças que rodam separadamente (aplicação web, API, worker, gateway de WhatsApp) e onde os dados ficam guardados."
+  },
+  {
+    "id": "A03",
+    "arquivo": "A03-componentes-escritorio",
+    "tipo": "c4",
+    "nivel": "C4 · Nível 3 · Componentes",
+    "titulo": "Dentro da API: núcleo e rotina do escritório",
+    "descricao": "Os módulos de negócio da API: contas, assinatura, contatos, documentos, processos, tarefas, carteira e importação. Entre colchetes, o nome do módulo no código."
+  },
+  {
+    "id": "A04",
+    "arquivo": "A04-componentes-automacao",
+    "tipo": "c4",
+    "nivel": "C4 · Nível 3 · Componentes",
+    "titulo": "Dentro da API: automação, IA e integrações",
+    "descricao": "Como os eventos do escritório viram ações: motor de automações, Assistente, IA governada, e-mails, integrações e a camada de segurança e LGPD."
+  },
+  {
+    "id": "A05",
+    "arquivo": "A05-aplicacao-web",
+    "tipo": "c4",
+    "nivel": "C4 · Nível 3 · Componentes",
+    "titulo": "Dentro da aplicação web: áreas e acesso à API",
+    "descricao": "As áreas do front-end (público, escritório e Gestão Cadrius) e o serviço único que fala com a API e renova a sessão."
+  },
+  {
+    "id": "A06",
+    "arquivo": "A06-implantacao",
+    "tipo": "c4",
+    "nivel": "C4 · Implantação",
+    "titulo": "Onde roda: servidor, contêineres e backups",
+    "descricao": "Como a produção está montada no servidor: proxy com TLS, contêineres por ambiente, banco compartilhado e backup diário com cópia externa. O ambiente de teste tem a mesma forma."
+  },
+  {
+    "id": "A07",
+    "arquivo": "A07-entrega-continua",
+    "tipo": "fluxo",
+    "nivel": "Processo · Entrega contínua",
+    "titulo": "Do pull request à produção",
+    "descricao": "O caminho de toda mudança: CI com testes e varreduras de segurança, aprovação, backup antes do deploy e rollback automático se a API não responder."
+  },
+  {
+    "id": "F01",
+    "arquivo": "F01-login-senha-mfa",
+    "tipo": "sequencia",
+    "nivel": "Fluxo · Sequência",
+    "titulo": "Login com senha e segundo fator (MFA)",
+    "descricao": "Entrada com e-mail e senha, código do app autenticador quando o MFA está ligado, e a renovação da sessão sem pedir login de novo."
+  },
+  {
+    "id": "F02",
+    "arquivo": "F02-login-google",
+    "tipo": "sequencia",
+    "nivel": "Fluxo · Sequência",
+    "titulo": "Login com Google ou Microsoft (SSO)",
+    "descricao": "A pessoa autoriza no Google ou na Microsoft; a API valida a identidade e entrega a sessão do Cadrius. Nenhuma senha do Google passa pelo Cadrius."
+  },
+  {
+    "id": "F03",
+    "arquivo": "F03-documento-ia",
+    "tipo": "sequencia",
+    "nivel": "Fluxo · Sequência",
+    "titulo": "Leitura de documento com IA",
+    "descricao": "O arquivo é gravado cifrado, lido em segundo plano com dados mascarados e só vira informação do processo depois que o advogado confere."
+  },
+  {
+    "id": "F04",
+    "arquivo": "F04-automacao-regras",
+    "tipo": "fluxo",
+    "nivel": "Fluxo · Decisão (1 de 2)",
+    "titulo": "Automação: do evento ao plano",
+    "descricao": "Cada evento passa por regra ligada, repetição e condições. Os passos internos rodam na hora; os externos (mensagens, ERP) seguem para F05."
+  },
+  {
+    "id": "F05",
+    "arquivo": "F05-automacao-envio",
+    "tipo": "fluxo",
+    "nivel": "Fluxo · Decisão (2 de 2)",
+    "titulo": "Automação: aprovação e envio",
+    "descricao": "Antes de qualquer mensagem sair: aprovação (quando a autonomia exige), autorização do contato para o canal e horário comercial."
+  },
+  {
+    "id": "F06",
+    "arquivo": "F06-assistente",
+    "tipo": "sequencia",
+    "nivel": "Fluxo · Sequência",
+    "titulo": "Assistente IA: pedido, prévia e confirmação",
+    "descricao": "O Assistente consulta os dados por ferramentas e transforma ações em um cartão de confirmação; nada é gravado sem o clique da pessoa."
+  },
+  {
+    "id": "F07",
+    "arquivo": "F07-pagamento-stripe",
+    "tipo": "sequencia",
+    "nivel": "Fluxo · Sequência",
+    "titulo": "Assinatura e pagamento (Stripe)",
+    "descricao": "O checkout acontece no Stripe; o plano só é liberado pelo webhook assinado, com valor e idempotência conferidos."
+  },
+  {
+    "id": "F08",
+    "arquivo": "F08-publicacoes-prazos",
+    "tipo": "fluxo",
+    "nivel": "Fluxo · Processo",
+    "titulo": "Publicações do DJEN e prazos",
+    "descricao": "A cada 3 horas o Cadrius busca as publicações, sugere o prazo em dias úteis e só agenda depois que o advogado confirma."
+  },
+  {
+    "id": "F09",
+    "arquivo": "F09-importacao-pastas",
+    "tipo": "sequencia",
+    "nivel": "Fluxo · Sequência",
+    "titulo": "Importação da carteira de clientes (pastas)",
+    "descricao": "Cada pasta vira um cliente e os arquivos, documentos dele. A prévia não grava nada; a importação roda em etapas e continua de onde parou."
+  },
+  {
+    "id": "S01",
+    "arquivo": "S01-camadas-seguranca",
+    "tipo": "seguranca",
+    "nivel": "Segurança · Defesa em profundidade",
+    "titulo": "As 8 camadas de proteção",
+    "descricao": "Cada camada protege mesmo que a anterior falhe: da borda da rede até a continuidade dos dados."
+  },
+  {
+    "id": "S02",
+    "arquivo": "S02-ciclo-de-vida-dados",
+    "tipo": "fluxo",
+    "nivel": "Segurança · LGPD",
+    "titulo": "Ciclo de vida dos dados pessoais",
+    "descricao": "Do momento em que o dado entra até a eliminação, com os prazos de retenção que a política de privacidade promete."
+  },
+  {
+    "id": "S03",
+    "arquivo": "S03-rotinas-agendadas",
+    "tipo": "c4",
+    "nivel": "Operação · Rotinas",
+    "titulo": "Rotinas automáticas do servidor",
+    "descricao": "O que o worker executa sozinho e com que frequência: anomalias, automações, publicações, fiscal, retenção e auditoria."
+  }
+]

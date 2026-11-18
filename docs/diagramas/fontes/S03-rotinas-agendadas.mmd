@@ -1,0 +1,14 @@
+flowchart TB
+    Q["<b>Worker</b><br/><i>[Django-Q]</i>"]:::conteiner
+    M5["<b>A cada 5 min</b><br/>detectar anomalias"]:::passo
+    M15["<b>A cada 15 min</b><br/>automações agendadas,<br/>Google Agenda, marketing"]:::passo
+    H1["<b>A cada hora</b><br/>andamentos, notícias,<br/>NFS-e e obrigações"]:::passo
+    H3["<b>A cada 3 horas</b><br/>publicações do DJEN"]:::passo
+    H6["<b>A cada 6 horas</b><br/>despesas fixas do mês"]:::passo
+    D1["<b>Diária</b><br/>cadeia de auditoria, retenção LGPD,<br/>conformidade, aprendizado da IA,<br/>limpeza de importações"]:::passo
+    Q --> M5
+    Q --> M15
+    Q --> H1
+    Q --> H3
+    Q --> H6
+    Q --> D1

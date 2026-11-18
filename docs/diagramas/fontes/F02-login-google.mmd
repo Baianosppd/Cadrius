@@ -1,0 +1,15 @@
+sequenceDiagram
+    autonumber
+    participant U as Pessoa
+    participant FE as Aplicação web
+    participant G as Google ou Microsoft
+    participant API as API
+    U->>FE: Entrar com Google
+    FE->>G: Autorização (openid, email, profile, state, nonce)
+    G-->>U: Tela de consentimento
+    U->>G: Autoriza
+    G-->>FE: Redireciona com code
+    FE->>API: Troca o code
+    API->>G: Valida o id_token (JWKS)
+    Note right of API: SocialIdentity encontra ou cria o usuário
+    API-->>FE: access e refresh

@@ -1,0 +1,12 @@
+flowchart LR
+    DJ["<b>A cada 3 horas</b><br/>busca no DJEN as<br/>OABs acompanhadas"]:::evento
+    PB["<b>Publicação</b><br/>gravada e triada<br/>(regras ou IA)"]:::passo
+    PZ["<b>Prazo sugerido</b><br/>dias úteis, feriados<br/>e suspensões"]:::passo
+    RV{"<b>Advogado<br/>confirma?</b>"}:::decisao
+    TK["<b>Na agenda</b><br/>tarefa e Google"]:::ok
+    DS["<b>Descartada</b>"]:::bloqueio
+    AU["<b>Automações</b><br/>publication_new"]:::evento
+    DJ --> PB --> PZ --> RV
+    RV -- "sim" --> TK
+    RV -- "não" --> DS
+    PB --> AU
