@@ -9,8 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Só o necessário em runtime: psycopg2-binary dispensa gcc/libpq-dev; o postgresql-client
-# fornece o pg_dump usado pelo comando de backup.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# fornece o pg_dump usado pelo comando de backup. O upgrade aplica as correções de segurança do Debian
+# publicadas depois da imagem base (ex.: zlib, CVE-2026-85091), que o Trivy do CI cobra.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
         postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
