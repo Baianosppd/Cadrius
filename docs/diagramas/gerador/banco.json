@@ -1,0 +1,181 @@
+[
+  {
+    "id": "D00",
+    "arquivo": "D00-mapa-dominios",
+    "titulo": "Banco de dados: mapa das áreas",
+    "tipo": "mapa",
+    "nivel": "Modelo de dados · Visão geral",
+    "descricao": "109 tabelas em 19 áreas de até 8 tabelas. As setas mostram as chaves estrangeiras entre áreas; as que todas têm para D01 (escritório e autoria) ficam de fora."
+  },
+  {
+    "id": "D01",
+    "arquivo": "D01-escritorios-e-vinculos",
+    "titulo": "Banco de dados: Escritórios e vínculos",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Escritórios, usuários, vínculos e grupos de acesso. Toda tabela das outras áreas aponta para Organization (o escritório) e, quando registra autoria, para CustomUser. Liga-se a D03.",
+    "tabelas": 4
+  },
+  {
+    "id": "D02",
+    "arquivo": "D02-login-e-seguranca-da-conta",
+    "titulo": "Banco de dados: Login e segurança da conta",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Segundo fator (MFA) e códigos de recuperação, identidades de login social (Google, Microsoft) e contadores de envio por usuário.",
+    "tabelas": 4
+  },
+  {
+    "id": "D03",
+    "arquivo": "D03-assinatura-pagamentos-e-fiscal-da-cadrius",
+    "titulo": "Banco de dados: Assinatura, pagamentos e fiscal da Cadrius",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Planos, histórico de preço, pagamentos do Stripe, cupons, adicional de mídia e obrigações fiscais da própria Cadrius.",
+    "tabelas": 8
+  },
+  {
+    "id": "D04",
+    "arquivo": "D04-creditos-e-ia-governada",
+    "titulo": "Banco de dados: Créditos e IA governada",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Pacotes e lotes de créditos, peso de cada operação, consumo por membro e as políticas que decidem qual provedor de IA o escritório pode usar. Liga-se a D01.",
+    "tabelas": 8
+  },
+  {
+    "id": "D05",
+    "arquivo": "D05-clientes-e-documentos",
+    "titulo": "Banco de dados: Clientes e documentos",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Contatos do escritório, documentos cifrados, leitura com IA, portal do cliente e importações (planilhas e pastas).",
+    "tabelas": 8
+  },
+  {
+    "id": "D06",
+    "arquivo": "D06-processos-publicacoes-e-prazos",
+    "titulo": "Banco de dados: Processos, publicações e prazos",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Processos monitorados e andamentos, OABs acompanhadas no DJEN, publicações, feriados e suspensões dos tribunais. Liga-se a D05, D07.",
+    "tabelas": 8
+  },
+  {
+    "id": "D07",
+    "arquivo": "D07-tarefas-minutas-e-google-agenda",
+    "titulo": "Banco de dados: Tarefas, minutas e Google Agenda",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Tarefas e prazos, modelos e minutas, e a ligação com o Google (agenda, eventos trazidos e arquivos criados no Drive). Liga-se a D05, D06.",
+    "tabelas": 8
+  },
+  {
+    "id": "D08",
+    "arquivo": "D08-carteira-e-honorarios",
+    "titulo": "Banco de dados: Carteira e honorários",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Oportunidades, contratos de honorários, contas a receber e despesas ligadas a clientes e processos. Liga-se a D05, D06, D10.",
+    "tabelas": 4
+  },
+  {
+    "id": "D09",
+    "arquivo": "D09-financeiro-do-escritorio",
+    "titulo": "Banco de dados: Financeiro do escritório",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Despesas fixas, metas e regime fiscal do escritório e eventos recebidos do Asaas (cobrança).",
+    "tabelas": 3
+  },
+  {
+    "id": "D10",
+    "arquivo": "D10-marketing",
+    "titulo": "Banco de dados: Marketing",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Campanhas, conteúdos, imagens, formulários de captação e pesquisas de satisfação. Liga-se a D05.",
+    "tabelas": 5
+  },
+  {
+    "id": "D11",
+    "arquivo": "D11-regras-de-automacao",
+    "titulo": "Banco de dados: Regras de automação",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Regras (gatilho, condições e passos), cada execução com seu resultado e os aparelhos pessoais que aprovam pelo relógio ou celular.",
+    "tabelas": 3
+  },
+  {
+    "id": "D12",
+    "arquivo": "D12-fluxos-com-aplicativos",
+    "titulo": "Banco de dados: Fluxos com aplicativos",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Fluxos visuais com gatilhos de aplicativos externos e webhooks, ações e registro de execução. Liga-se a D17.",
+    "tabelas": 5
+  },
+  {
+    "id": "D13",
+    "arquivo": "D13-conversas-do-assistente",
+    "titulo": "Banco de dados: Conversas do Assistente",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Conversas, mensagens, ações que aguardam a confirmação da pessoa e o registro de tudo o que a IA fez. Liga-se a D05, D06.",
+    "tabelas": 4
+  },
+  {
+    "id": "D14",
+    "arquivo": "D14-configuracao-do-assistente",
+    "titulo": "Banco de dados: Configuração do Assistente",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Preferências do Assistente por escritório, chaves próprias de IA (BYOK) e tokens pessoais para conectar o Cadrius a outras IAs (MCP).",
+    "tabelas": 3
+  },
+  {
+    "id": "D15",
+    "arquivo": "D15-aprendizado-da-ia",
+    "titulo": "Banco de dados: Aprendizado da IA",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Memória e regras do escritório, feedback, nível de autonomia e sugestões de automação. Liga-se a D11.",
+    "tabelas": 7
+  },
+  {
+    "id": "D16",
+    "arquivo": "D16-e-mails-e-avisos",
+    "titulo": "Banco de dados: E-mails e avisos",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Caixas de e-mail, mensagens recebidas e triagem, notificações do sistema e avisos de cobrança. Liga-se a D05.",
+    "tabelas": 7
+  },
+  {
+    "id": "D17",
+    "arquivo": "D17-conectores-e-suporte",
+    "titulo": "Banco de dados: Conectores e suporte",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Conexões com aplicativos e ERP com seus registros de chamada, e os chamados de suporte com acesso temporário.",
+    "tabelas": 8
+  },
+  {
+    "id": "D18",
+    "arquivo": "D18-auditoria-e-seguranca",
+    "titulo": "Banco de dados: Auditoria e segurança",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Trilha de auditoria encadeada por hash, pontos de verificação, alertas de anomalia, IPs bloqueados e avaliação de controles.",
+    "tabelas": 7
+  },
+  {
+    "id": "D19",
+    "arquivo": "D19-privacidade-lgpd",
+    "titulo": "Banco de dados: Privacidade (LGPD)",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Documentos legais versionados, aceites, suboperadores, pedidos dos titulares e desligamento de escritórios.",
+    "tabelas": 5
+  }
+]

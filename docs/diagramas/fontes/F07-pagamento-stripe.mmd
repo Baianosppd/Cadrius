@@ -1,0 +1,15 @@
+sequenceDiagram
+    autonumber
+    participant D as Dono do escritório
+    participant FE as Aplicação web
+    participant API as API (billing)
+    participant S as Stripe
+    D->>FE: Assinar plano ou comprar créditos
+    FE->>API: POST /api/billing/checkout/
+    API->>S: Cria a sessão de pagamento
+    S-->>D: Página de pagamento do Stripe
+    D->>S: Paga
+    S->>API: Webhook assinado
+    Note right of API: Confere assinatura, valor e repetição
+    Note right of API: Ativa, renova, marca atraso ou cancela
+    API-->>S: 200 (recebido)

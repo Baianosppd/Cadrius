@@ -1,0 +1,17 @@
+sequenceDiagram
+    autonumber
+    participant U as Advogado
+    participant API as API
+    participant W as Worker
+    participant GOV as IA governada
+    participant IA as Provedor de IA
+    U->>API: Envia arquivo (até 25 MB)
+    Note right of API: Grava cifrado e enfileira
+    API-->>U: Documento salvo
+    API->>W: Processa em segundo plano
+    Note right of W: Extrai o texto e mascara dados pessoais
+    W->>GOV: Pode usar IA? (política e créditos)
+    GOV-->>W: Provedor e reservas
+    W->>IA: Extrai partes, datas, prazos e valores
+    IA-->>W: Dados estruturados (aguardam revisão)
+    U->>API: Confere e confirma (dispara automações)

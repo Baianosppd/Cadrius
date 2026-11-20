@@ -1,0 +1,293 @@
+<svg width="1015pt" height="342pt"
+ viewBox="0.00 0.00 1015.40 342.40" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(7.2 335.2)">
+<title>G</title>
+<!-- SubscriptionPlan -->
+<g id="node1" class="node">
+<title>SubscriptionPlan</title>
+<polygon fill="#1f5fad" stroke="transparent" points="422.5,-102 422.5,-134 587.5,-134 587.5,-102 422.5,-102"/>
+<text text-anchor="start" x="429.5" y="-115.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">SubscriptionPlan</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="422.5,-77 422.5,-102 493.5,-102 493.5,-77 422.5,-77"/>
+<text text-anchor="start" x="426.5" y="-87" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="493.5,-77 493.5,-102 523.5,-102 523.5,-77 493.5,-77"/>
+<text text-anchor="start" x="497.5" y="-87" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="523.5,-77 523.5,-102 587.5,-102 587.5,-77 523.5,-77"/>
+<text text-anchor="start" x="527.5" y="-86" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="422.5,-52 422.5,-77 493.5,-77 493.5,-52 422.5,-52"/>
+<text text-anchor="start" x="426.5" y="-61" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#ffffff" stroke="transparent" points="493.5,-52 493.5,-77 523.5,-77 523.5,-52 493.5,-52"/>
+<text text-anchor="start" x="497.5" y="-61" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="523.5,-52 523.5,-77 587.5,-77 587.5,-52 523.5,-52"/>
+<text text-anchor="start" x="527.5" y="-61" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="422.5,-27 422.5,-52 493.5,-52 493.5,-27 422.5,-27"/>
+<text text-anchor="start" x="426.5" y="-36" font-family="Inter" font-size="15.00">tier</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="493.5,-27 493.5,-52 523.5,-52 523.5,-27 493.5,-27"/>
+<text text-anchor="start" x="497.5" y="-37" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2f855a">UK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="523.5,-27 523.5,-52 587.5,-52 587.5,-27 523.5,-27"/>
+<text text-anchor="start" x="527.5" y="-36" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="422.5,-2 422.5,-27 493.5,-27 493.5,-2 422.5,-2"/>
+<text text-anchor="start" x="426.5" y="-11" font-family="Inter" font-size="15.00">price_brl</text>
+<polygon fill="#ffffff" stroke="transparent" points="493.5,-2 493.5,-27 523.5,-27 523.5,-2 493.5,-2"/>
+<text text-anchor="start" x="497.5" y="-11" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="523.5,-2 523.5,-27 587.5,-27 587.5,-2 523.5,-2"/>
+<text text-anchor="start" x="527.5" y="-11" font-family="Inter" font-size="15.00" fill="#475569">decimal</text>
+<polygon fill="none" stroke="#2e6db4" points="421,-1 421,-135 588,-135 588,-1 421,-1"/>
+</g>
+<!-- PlanPriceHistory -->
+<g id="node2" class="node">
+<title>PlanPriceHistory</title>
+<polygon fill="#1f5fad" stroke="transparent" points="632,-127 632,-159 810,-159 810,-127 632,-127"/>
+<text text-anchor="start" x="639" y="-140.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">PlanPriceHistory</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="632,-102 632,-127 717,-127 717,-102 632,-102"/>
+<text text-anchor="start" x="636" y="-112" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="717,-102 717,-127 746,-127 746,-102 717,-102"/>
+<text text-anchor="start" x="721" y="-112" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="746,-102 746,-127 810,-127 810,-102 746,-102"/>
+<text text-anchor="start" x="750" y="-111" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="632,-77 632,-102 717,-102 717,-77 632,-77"/>
+<text text-anchor="start" x="636" y="-86" font-family="Inter" font-size="15.00">plan_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="717,-77 717,-102 746,-102 746,-77 717,-77"/>
+<text text-anchor="start" x="721" y="-87" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="746,-77 746,-102 810,-102 810,-77 746,-77"/>
+<text text-anchor="start" x="750" y="-86" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="632,-52 632,-77 717,-77 717,-52 632,-52"/>
+<text text-anchor="start" x="636" y="-61" font-family="Inter" font-size="15.00">old_price</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="717,-52 717,-77 746,-77 746,-52 717,-52"/>
+<text text-anchor="start" x="721" y="-61" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="746,-52 746,-77 810,-77 810,-52 746,-52"/>
+<text text-anchor="start" x="750" y="-61" font-family="Inter" font-size="15.00" fill="#475569">decimal</text>
+<polygon fill="#ffffff" stroke="transparent" points="632,-27 632,-52 717,-52 717,-27 632,-27"/>
+<text text-anchor="start" x="636" y="-36" font-family="Inter" font-size="15.00">new_price</text>
+<polygon fill="#ffffff" stroke="transparent" points="717,-27 717,-52 746,-52 746,-27 717,-27"/>
+<text text-anchor="start" x="721" y="-36" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="746,-27 746,-52 810,-52 810,-27 746,-27"/>
+<text text-anchor="start" x="750" y="-36" font-family="Inter" font-size="15.00" fill="#475569">decimal</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="632,-2 632,-27 717,-27 717,-2 632,-2"/>
+<text text-anchor="start" x="636" y="-11" font-family="Inter" font-size="15.00">old_credits</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="717,-2 717,-27 746,-27 746,-2 717,-2"/>
+<text text-anchor="start" x="721" y="-11" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="746,-2 746,-27 810,-27 810,-2 746,-2"/>
+<text text-anchor="start" x="750" y="-11" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="none" stroke="#2e6db4" points="631,-1.5 631,-160.5 811,-160.5 811,-1.5 631,-1.5"/>
+</g>
+<!-- SubscriptionPlan&#45;&gt;PlanPriceHistory -->
+<g id="edge1" class="edge">
+<title>SubscriptionPlan:e&#45;&gt;PlanPriceHistory:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M598.11,-90C603.7,-90 608.02,-90 612.71,-90"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="589,-95 589,-85 591,-85 591,-95 589,-95"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="588,-90 593,-90 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="594,-95 594,-85 596,-85 596,-95 594,-95"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="593,-90 598,-90 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="621,-90 631,-94.5 626,-90 631,-90 631,-90 631,-90 626,-90 631,-85.5 621,-90 621,-90"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="617" cy="-90" rx="4" ry="4"/>
+</g>
+<!-- Payment -->
+<g id="node3" class="node">
+<title>Payment</title>
+<polygon fill="#1f5fad" stroke="transparent" points="820,-127 820,-159 1000,-159 1000,-127 820,-127"/>
+<text text-anchor="start" x="827" y="-140.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Payment</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="820,-102 820,-127 928,-127 928,-102 820,-102"/>
+<text text-anchor="start" x="824" y="-112" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="928,-102 928,-127 957,-127 957,-102 928,-102"/>
+<text text-anchor="start" x="932" y="-112" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="957,-102 957,-127 1000,-127 1000,-102 957,-102"/>
+<text text-anchor="start" x="961" y="-111" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="820,-77 820,-102 928,-102 928,-77 820,-77"/>
+<text text-anchor="start" x="824" y="-86" font-family="Inter" font-size="15.00">kind</text>
+<polygon fill="#ffffff" stroke="transparent" points="928,-77 928,-102 957,-102 957,-77 928,-77"/>
+<text text-anchor="start" x="932" y="-86" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="957,-77 957,-102 1000,-102 1000,-77 957,-77"/>
+<text text-anchor="start" x="961" y="-86" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="820,-52 820,-77 928,-77 928,-52 820,-52"/>
+<text text-anchor="start" x="824" y="-61" font-family="Inter" font-size="15.00">description</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="928,-52 928,-77 957,-77 957,-52 928,-52"/>
+<text text-anchor="start" x="932" y="-61" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="957,-52 957,-77 1000,-77 1000,-52 957,-52"/>
+<text text-anchor="start" x="961" y="-61" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="820,-27 820,-52 928,-52 928,-27 820,-27"/>
+<text text-anchor="start" x="824" y="-36" font-family="Inter" font-size="15.00">amount_cents</text>
+<polygon fill="#ffffff" stroke="transparent" points="928,-27 928,-52 957,-52 957,-27 928,-27"/>
+<text text-anchor="start" x="932" y="-36" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="957,-27 957,-52 1000,-52 1000,-27 957,-27"/>
+<text text-anchor="start" x="961" y="-36" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="none" stroke="#2e6db4" points="819,-26 819,-160 1001,-160 1001,-26 819,-26"/>
+</g>
+<!-- Promotion -->
+<g id="node4" class="node">
+<title>Promotion</title>
+<polygon fill="#1f5fad" stroke="transparent" points="1,-101 1,-133 163,-133 163,-101 1,-101"/>
+<text text-anchor="start" x="8" y="-114.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Promotion</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-76 1,-101 90,-101 90,-76 1,-76"/>
+<text text-anchor="start" x="5" y="-86" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="90,-76 90,-101 120,-101 120,-76 90,-76"/>
+<text text-anchor="start" x="94" y="-86" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="120,-76 120,-101 163,-101 163,-76 120,-76"/>
+<text text-anchor="start" x="124" y="-85" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-51 1,-76 90,-76 90,-51 1,-51"/>
+<text text-anchor="start" x="5" y="-60" font-family="Inter" font-size="15.00">code</text>
+<polygon fill="#ffffff" stroke="transparent" points="90,-51 90,-76 120,-76 120,-51 90,-51"/>
+<text text-anchor="start" x="94" y="-61" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2f855a">UK</text>
+<polygon fill="#ffffff" stroke="transparent" points="120,-51 120,-76 163,-76 163,-51 120,-51"/>
+<text text-anchor="start" x="124" y="-60" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-26 1,-51 90,-51 90,-26 1,-26"/>
+<text text-anchor="start" x="5" y="-35" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="90,-26 90,-51 120,-51 120,-26 90,-26"/>
+<text text-anchor="start" x="94" y="-35" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="120,-26 120,-51 163,-51 163,-26 120,-26"/>
+<text text-anchor="start" x="124" y="-35" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-1 1,-26 90,-26 90,-1 1,-1"/>
+<text text-anchor="start" x="5" y="-10" font-family="Inter" font-size="15.00">description</text>
+<polygon fill="#ffffff" stroke="transparent" points="90,-1 90,-26 120,-26 120,-1 90,-1"/>
+<text text-anchor="start" x="94" y="-10" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="120,-1 120,-26 163,-26 163,-1 120,-1"/>
+<text text-anchor="start" x="124" y="-10" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="0,0 0,-134 164,-134 164,0 0,0"/>
+</g>
+<!-- PromotionRedemption -->
+<g id="node5" class="node">
+<title>PromotionRedemption</title>
+<polygon fill="#1f5fad" stroke="transparent" points="208,-127 208,-159 412,-159 412,-127 208,-127"/>
+<text text-anchor="start" x="215" y="-140.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">PromotionRedemption</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="208,-102 208,-127 340,-127 340,-102 208,-102"/>
+<text text-anchor="start" x="212" y="-112" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="340,-102 340,-127 369,-127 369,-102 340,-102"/>
+<text text-anchor="start" x="344" y="-112" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="369,-102 369,-127 412,-127 412,-102 369,-102"/>
+<text text-anchor="start" x="373" y="-111" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="208,-77 208,-102 340,-102 340,-77 208,-77"/>
+<text text-anchor="start" x="212" y="-86" font-family="Inter" font-size="15.00">promotion_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="340,-77 340,-102 369,-102 369,-77 340,-77"/>
+<text text-anchor="start" x="344" y="-87" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="369,-77 369,-102 412,-102 412,-77 369,-77"/>
+<text text-anchor="start" x="373" y="-86" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="208,-52 208,-77 340,-77 340,-52 208,-52"/>
+<text text-anchor="start" x="212" y="-61" font-family="Inter" font-size="15.00">stripe_session_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="340,-52 340,-77 369,-77 369,-52 340,-52"/>
+<text text-anchor="start" x="344" y="-61" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="369,-52 369,-77 412,-77 412,-52 369,-52"/>
+<text text-anchor="start" x="373" y="-61" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="207,-51.5 207,-160.5 413,-160.5 413,-51.5 207,-51.5"/>
+</g>
+<!-- Promotion&#45;&gt;PromotionRedemption -->
+<g id="edge2" class="edge">
+<title>Promotion:e&#45;&gt;PromotionRedemption:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M174.11,-89C179.7,-89 184.02,-89 188.71,-89"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="165,-94 165,-84 167,-84 167,-94 165,-94"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="164,-89 169,-89 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="170,-94 170,-84 172,-84 172,-94 170,-94"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="169,-89 174,-89 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="197,-89 207,-93.5 202,-89 207,-89 207,-89 207,-89 202,-89 207,-84.5 197,-89 197,-89"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="193" cy="-89" rx="4" ry="4"/>
+</g>
+<!-- MediaAddon -->
+<g id="node6" class="node">
+<title>MediaAddon</title>
+<polygon fill="#1f5fad" stroke="transparent" points="498.5,-295 498.5,-327 735.5,-327 735.5,-295 498.5,-295"/>
+<text text-anchor="start" x="505.5" y="-308.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">MediaAddon</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="498.5,-270 498.5,-295 663.5,-295 663.5,-270 498.5,-270"/>
+<text text-anchor="start" x="502.5" y="-280" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="663.5,-270 663.5,-295 692.5,-295 692.5,-270 663.5,-270"/>
+<text text-anchor="start" x="667.5" y="-280" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="692.5,-270 692.5,-295 735.5,-295 735.5,-270 692.5,-270"/>
+<text text-anchor="start" x="696.5" y="-279" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="498.5,-245 498.5,-270 663.5,-270 663.5,-245 498.5,-245"/>
+<text text-anchor="start" x="502.5" y="-254" font-family="Inter" font-size="15.00">active</text>
+<polygon fill="#ffffff" stroke="transparent" points="663.5,-245 663.5,-270 692.5,-270 692.5,-245 663.5,-245"/>
+<text text-anchor="start" x="667.5" y="-254" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="692.5,-245 692.5,-270 735.5,-270 735.5,-245 692.5,-245"/>
+<text text-anchor="start" x="696.5" y="-254" font-family="Inter" font-size="15.00" fill="#475569">bool</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="498.5,-220 498.5,-245 663.5,-245 663.5,-220 498.5,-220"/>
+<text text-anchor="start" x="502.5" y="-229" font-family="Inter" font-size="15.00">source</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="663.5,-220 663.5,-245 692.5,-245 692.5,-220 663.5,-220"/>
+<text text-anchor="start" x="667.5" y="-229" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="692.5,-220 692.5,-245 735.5,-245 735.5,-220 692.5,-220"/>
+<text text-anchor="start" x="696.5" y="-229" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="498.5,-195 498.5,-220 663.5,-220 663.5,-195 498.5,-195"/>
+<text text-anchor="start" x="502.5" y="-204" font-family="Inter" font-size="15.00">stripe_subscription_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="663.5,-195 663.5,-220 692.5,-220 692.5,-195 663.5,-195"/>
+<text text-anchor="start" x="667.5" y="-204" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="692.5,-195 692.5,-220 735.5,-220 735.5,-195 692.5,-195"/>
+<text text-anchor="start" x="696.5" y="-204" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="497,-194 497,-328 736,-328 736,-194 497,-194"/>
+</g>
+<!-- FiscalObligation -->
+<g id="node7" class="node">
+<title>FiscalObligation</title>
+<polygon fill="#1f5fad" stroke="transparent" points="3,-269 3,-301 165,-301 165,-269 3,-269"/>
+<text text-anchor="start" x="10" y="-282.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">FiscalObligation</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="3,-244 3,-269 92,-269 92,-244 3,-244"/>
+<text text-anchor="start" x="7" y="-254" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="92,-244 92,-269 122,-269 122,-244 92,-244"/>
+<text text-anchor="start" x="96" y="-254" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="122,-244 122,-269 165,-269 165,-244 122,-244"/>
+<text text-anchor="start" x="126" y="-253" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="3,-219 3,-244 92,-244 92,-219 3,-219"/>
+<text text-anchor="start" x="7" y="-228" font-family="Inter" font-size="15.00">code</text>
+<polygon fill="#ffffff" stroke="transparent" points="92,-219 92,-244 122,-244 122,-219 92,-219"/>
+<text text-anchor="start" x="96" y="-229" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2f855a">UK</text>
+<polygon fill="#ffffff" stroke="transparent" points="122,-219 122,-244 165,-244 165,-219 122,-219"/>
+<text text-anchor="start" x="126" y="-228" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="3,-194 3,-219 92,-219 92,-194 3,-194"/>
+<text text-anchor="start" x="7" y="-203" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="92,-194 92,-219 122,-219 122,-194 92,-194"/>
+<text text-anchor="start" x="96" y="-203" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="122,-194 122,-219 165,-219 165,-194 122,-194"/>
+<text text-anchor="start" x="126" y="-203" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="3,-169 3,-194 92,-194 92,-169 3,-169"/>
+<text text-anchor="start" x="7" y="-178" font-family="Inter" font-size="15.00">description</text>
+<polygon fill="#ffffff" stroke="transparent" points="92,-169 92,-194 122,-194 122,-169 92,-169"/>
+<text text-anchor="start" x="96" y="-178" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="122,-169 122,-194 165,-194 165,-169 122,-169"/>
+<text text-anchor="start" x="126" y="-178" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="2,-168 2,-302 166,-302 166,-168 2,-168"/>
+</g>
+<!-- FiscalObligationDone -->
+<g id="node8" class="node">
+<title>FiscalObligationDone</title>
+<polygon fill="#1f5fad" stroke="transparent" points="210,-294 210,-326 410,-326 410,-294 210,-294"/>
+<text text-anchor="start" x="217" y="-307.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">FiscalObligationDone</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="210,-269 210,-294 309,-294 309,-269 210,-269"/>
+<text text-anchor="start" x="214" y="-279" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="309,-269 309,-294 338,-294 338,-269 309,-269"/>
+<text text-anchor="start" x="313" y="-279" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="338,-269 338,-294 410,-294 410,-269 338,-269"/>
+<text text-anchor="start" x="342" y="-278" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="210,-244 210,-269 309,-269 309,-244 210,-244"/>
+<text text-anchor="start" x="214" y="-253" font-family="Inter" font-size="15.00">obligation_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="309,-244 309,-269 338,-269 338,-244 309,-244"/>
+<text text-anchor="start" x="313" y="-254" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="338,-244 338,-269 410,-269 410,-244 338,-244"/>
+<text text-anchor="start" x="342" y="-253" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="210,-219 210,-244 309,-244 309,-219 210,-219"/>
+<text text-anchor="start" x="214" y="-228" font-family="Inter" font-size="15.00">competence</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="309,-219 309,-244 338,-244 338,-219 309,-219"/>
+<text text-anchor="start" x="313" y="-228" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="338,-219 338,-244 410,-244 410,-219 338,-219"/>
+<text text-anchor="start" x="342" y="-228" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="210,-194 210,-219 309,-219 309,-194 210,-194"/>
+<text text-anchor="start" x="214" y="-203" font-family="Inter" font-size="15.00">done_at</text>
+<polygon fill="#ffffff" stroke="transparent" points="309,-194 309,-219 338,-219 338,-194 309,-194"/>
+<text text-anchor="start" x="313" y="-203" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="338,-194 338,-219 410,-219 410,-194 338,-194"/>
+<text text-anchor="start" x="342" y="-203" font-family="Inter" font-size="15.00" fill="#475569">datahora</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="210,-169 210,-194 309,-194 309,-169 210,-169"/>
+<text text-anchor="start" x="214" y="-178" font-family="Inter" font-size="15.00">note</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="309,-169 309,-194 338,-194 338,-169 309,-169"/>
+<text text-anchor="start" x="313" y="-178" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="338,-169 338,-194 410,-194 410,-169 338,-169"/>
+<text text-anchor="start" x="342" y="-178" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="209,-168.5 209,-327.5 411,-327.5 411,-168.5 209,-168.5"/>
+</g>
+<!-- FiscalObligation&#45;&gt;FiscalObligationDone -->
+<g id="edge3" class="edge">
+<title>FiscalObligation:e&#45;&gt;FiscalObligationDone:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M176.11,-257C181.7,-257 186.02,-257 190.71,-257"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="167,-262 167,-252 169,-252 169,-262 167,-262"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="166,-257 171,-257 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="172,-262 172,-252 174,-252 174,-262 172,-262"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="171,-257 176,-257 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="199,-257 209,-261.5 204,-257 209,-257 209,-257 209,-257 204,-257 209,-252.5 199,-257 199,-257"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="195" cy="-257" rx="4" ry="4"/>
+</g>
+</g>
+</svg>

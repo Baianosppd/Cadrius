@@ -1,0 +1,16 @@
+flowchart TB
+    subgraph SPA["Aplicação web [Contêiner: React]"]
+
+        RT["<b>Rotas e sessão</b><br/><i>[React Router]</i><br/>entrada dos usuários"]:::componente
+        PUB["<b>Públicas</b><br/>login, política,<br/>portal"]:::componente
+        DIA["<b>Dia a dia</b><br/>painel, Assistente,<br/>publicações"]:::componente
+        PRD["<b>Produção</b><br/>minutas,<br/>automações"]:::componente
+        FIN["<b>Clientes e finanças</b><br/>carteira, marketing"]:::componente
+        CFG["<b>Configurações</b><br/>equipe, integrações,<br/>privacidade"]:::componente
+        GES["<b>Gestão Cadrius</b><br/>só equipe, com MFA"]:::componente
+        SVC["<b>Serviço de API</b><br/><i>[services/api.js]</i><br/>JWT e renovação"]:::componente
+    end
+    API["<b>API</b><br/><i>[Contêiner]</i>"]:::conteiner
+    RT --> PUB & DIA & PRD & FIN & CFG & GES
+    PUB & DIA & PRD & FIN & CFG & GES --> SVC
+    SVC -- "JSON" --> API

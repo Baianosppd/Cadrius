@@ -1,0 +1,16 @@
+flowchart LR
+    X{"<b>Precisa de<br/>aprovação?</b>"}:::decisao
+    A["<b>Aguarda</b><br/>tela, sino<br/>ou relógio"]:::evento
+    K{"<b>Contato<br/>autorizou<br/>o canal?</b>"}:::decisao
+    H{"<b>Horário<br/>comercial?</b>"}:::decisao
+    S["<b>Envia</b><br/>WhatsApp ou e-mail,<br/>e audita"]:::ok
+    L["<b>Reagenda</b><br/>8h do próximo<br/>dia útil"]:::passo
+    N["<b>Não envia</b><br/>motivo registrado"]:::bloqueio
+    X -- "sim" --> A
+    X -- "não" --> K
+    A -- "aprovado" --> K
+    A -- "recusado ou expirou" --> N
+    K -- "sim" --> H
+    K -- "não" --> N
+    H -- "sim" --> S
+    H -- "não" --> L

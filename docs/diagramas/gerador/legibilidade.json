@@ -1,0 +1,314 @@
+[
+  {
+    "id": "A01",
+    "arquivo": "A01-contexto",
+    "titulo": "Visão geral: quem usa o Cadrius e com o que ele conversa",
+    "escala": 0.828,
+    "fonte_px": 13.2,
+    "ok": true
+  },
+  {
+    "id": "A02",
+    "arquivo": "A02-conteineres",
+    "titulo": "Do que o Cadrius é feito: aplicações e bancos de dados",
+    "escala": 0.834,
+    "fonte_px": 13.3,
+    "ok": true
+  },
+  {
+    "id": "A03",
+    "arquivo": "A03-componentes-escritorio",
+    "titulo": "Dentro da API: núcleo e rotina do escritório",
+    "escala": 0.949,
+    "fonte_px": 15.2,
+    "ok": true
+  },
+  {
+    "id": "A04",
+    "arquivo": "A04-componentes-automacao",
+    "titulo": "Dentro da API: automação, IA e integrações",
+    "escala": 0.751,
+    "fonte_px": 12,
+    "ok": true
+  },
+  {
+    "id": "A05",
+    "arquivo": "A05-aplicacao-web",
+    "titulo": "Dentro da aplicação web: áreas e acesso à API",
+    "escala": 0.767,
+    "fonte_px": 12.3,
+    "ok": true
+  },
+  {
+    "id": "A06",
+    "arquivo": "A06-implantacao",
+    "titulo": "Onde roda: servidor, contêineres e backups",
+    "escala": 1.018,
+    "fonte_px": 16.3,
+    "ok": true
+  },
+  {
+    "id": "A07",
+    "arquivo": "A07-entrega-continua",
+    "titulo": "Do pull request à produção",
+    "escala": 0.852,
+    "fonte_px": 13.6,
+    "ok": true
+  },
+  {
+    "id": "F01",
+    "arquivo": "F01-login-senha-mfa",
+    "titulo": "Login com senha e segundo fator (MFA)",
+    "escala": 0.931,
+    "fonte_px": 14.9,
+    "ok": true
+  },
+  {
+    "id": "F02",
+    "arquivo": "F02-login-google",
+    "titulo": "Login com Google ou Microsoft (SSO)",
+    "escala": 0.912,
+    "fonte_px": 14.6,
+    "ok": true
+  },
+  {
+    "id": "F03",
+    "arquivo": "F03-documento-ia",
+    "titulo": "Leitura de documento com IA",
+    "escala": 0.872,
+    "fonte_px": 14,
+    "ok": true
+  },
+  {
+    "id": "F04",
+    "arquivo": "F04-automacao-regras",
+    "titulo": "Automação: do evento ao plano",
+    "escala": 0.792,
+    "fonte_px": 12.7,
+    "ok": true
+  },
+  {
+    "id": "F05",
+    "arquivo": "F05-automacao-envio",
+    "titulo": "Automação: aprovação e envio",
+    "escala": 0.891,
+    "fonte_px": 14.3,
+    "ok": true
+  },
+  {
+    "id": "F06",
+    "arquivo": "F06-assistente",
+    "titulo": "Assistente IA: pedido, prévia e confirmação",
+    "escala": 0.907,
+    "fonte_px": 14.5,
+    "ok": true
+  },
+  {
+    "id": "F07",
+    "arquivo": "F07-pagamento-stripe",
+    "titulo": "Assinatura e pagamento (Stripe)",
+    "escala": 1.061,
+    "fonte_px": 17,
+    "ok": true
+  },
+  {
+    "id": "F08",
+    "arquivo": "F08-publicacoes-prazos",
+    "titulo": "Publicações do DJEN e prazos",
+    "escala": 1.041,
+    "fonte_px": 16.7,
+    "ok": true
+  },
+  {
+    "id": "F09",
+    "arquivo": "F09-importacao-pastas",
+    "titulo": "Importação da carteira de clientes (pastas)",
+    "escala": 0.912,
+    "fonte_px": 14.6,
+    "ok": true
+  },
+  {
+    "id": "S01",
+    "arquivo": "S01-camadas-seguranca",
+    "titulo": "As 8 camadas de proteção",
+    "escala": 1.4,
+    "fonte_px": 22.4,
+    "ok": true
+  },
+  {
+    "id": "S02",
+    "arquivo": "S02-ciclo-de-vida-dados",
+    "titulo": "Ciclo de vida dos dados pessoais",
+    "escala": 0.781,
+    "fonte_px": 12.5,
+    "ok": true
+  },
+  {
+    "id": "S03",
+    "arquivo": "S03-rotinas-agendadas",
+    "titulo": "Rotinas automáticas do servidor",
+    "escala": 0.76,
+    "fonte_px": 12.2,
+    "ok": true
+  },
+  {
+    "id": "D00",
+    "arquivo": "D00-mapa-dominios",
+    "titulo": "Banco de dados: mapa das áreas",
+    "escala": 0.803,
+    "fonte_px": 12,
+    "ok": true
+  },
+  {
+    "id": "D01",
+    "arquivo": "D01-escritorios-e-vinculos",
+    "titulo": "Banco de dados: Escritórios e vínculos",
+    "escala": 1.386,
+    "fonte_px": 20.8,
+    "ok": true
+  },
+  {
+    "id": "D02",
+    "arquivo": "D02-login-e-seguranca-da-conta",
+    "titulo": "Banco de dados: Login e segurança da conta",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  },
+  {
+    "id": "D03",
+    "arquivo": "D03-assinatura-pagamentos-e-fiscal-da-cadrius",
+    "titulo": "Banco de dados: Assinatura, pagamentos e fiscal da Cadrius",
+    "escala": 1.198,
+    "fonte_px": 18,
+    "ok": true
+  },
+  {
+    "id": "D04",
+    "arquivo": "D04-creditos-e-ia-governada",
+    "titulo": "Banco de dados: Créditos e IA governada",
+    "escala": 1.24,
+    "fonte_px": 18.6,
+    "ok": true
+  },
+  {
+    "id": "D05",
+    "arquivo": "D05-clientes-e-documentos",
+    "titulo": "Banco de dados: Clientes e documentos",
+    "escala": 0.912,
+    "fonte_px": 13.7,
+    "ok": true
+  },
+  {
+    "id": "D06",
+    "arquivo": "D06-processos-publicacoes-e-prazos",
+    "titulo": "Banco de dados: Processos, publicações e prazos",
+    "escala": 1.051,
+    "fonte_px": 15.8,
+    "ok": true
+  },
+  {
+    "id": "D07",
+    "arquivo": "D07-tarefas-minutas-e-google-agenda",
+    "titulo": "Banco de dados: Tarefas, minutas e Google Agenda",
+    "escala": 0.956,
+    "fonte_px": 14.3,
+    "ok": true
+  },
+  {
+    "id": "D08",
+    "arquivo": "D08-carteira-e-honorarios",
+    "titulo": "Banco de dados: Carteira e honorários",
+    "escala": 0.915,
+    "fonte_px": 13.7,
+    "ok": true
+  },
+  {
+    "id": "D09",
+    "arquivo": "D09-financeiro-do-escritorio",
+    "titulo": "Banco de dados: Financeiro do escritório",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  },
+  {
+    "id": "D10",
+    "arquivo": "D10-marketing",
+    "titulo": "Banco de dados: Marketing",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  },
+  {
+    "id": "D11",
+    "arquivo": "D11-regras-de-automacao",
+    "titulo": "Banco de dados: Regras de automação",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  },
+  {
+    "id": "D12",
+    "arquivo": "D12-fluxos-com-aplicativos",
+    "titulo": "Banco de dados: Fluxos com aplicativos",
+    "escala": 0.804,
+    "fonte_px": 12.1,
+    "ok": true
+  },
+  {
+    "id": "D13",
+    "arquivo": "D13-conversas-do-assistente",
+    "titulo": "Banco de dados: Conversas do Assistente",
+    "escala": 1.364,
+    "fonte_px": 20.5,
+    "ok": true
+  },
+  {
+    "id": "D14",
+    "arquivo": "D14-configuracao-do-assistente",
+    "titulo": "Banco de dados: Configuração do Assistente",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  },
+  {
+    "id": "D15",
+    "arquivo": "D15-aprendizado-da-ia",
+    "titulo": "Banco de dados: Aprendizado da IA",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  },
+  {
+    "id": "D16",
+    "arquivo": "D16-e-mails-e-avisos",
+    "titulo": "Banco de dados: E-mails e avisos",
+    "escala": 1.11,
+    "fonte_px": 16.6,
+    "ok": true
+  },
+  {
+    "id": "D17",
+    "arquivo": "D17-conectores-e-suporte",
+    "titulo": "Banco de dados: Conectores e suporte",
+    "escala": 0.987,
+    "fonte_px": 14.8,
+    "ok": true
+  },
+  {
+    "id": "D18",
+    "arquivo": "D18-auditoria-e-seguranca",
+    "titulo": "Banco de dados: Auditoria e segurança",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  },
+  {
+    "id": "D19",
+    "arquivo": "D19-privacidade-lgpd",
+    "titulo": "Banco de dados: Privacidade (LGPD)",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
+  }
+]

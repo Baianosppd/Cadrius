@@ -1,0 +1,24 @@
+flowchart LR
+    ESC["<b>Escritório</b><br/><i>[ver A03]</i>"]:::conteiner
+    subgraph API["API e Worker [Contêineres]"]
+        direction LR
+        RUL["<b>Motor de automações</b><br/><i>[automations, workflows]</i>"]:::componente
+        AST["<b>Assistente</b><br/><i>[assistant]</i>"]:::componente
+        GOV["<b>IA governada</b><br/><i>[aigov]</i>"]:::componente
+        BRN["<b>Aprendizado</b><br/><i>[brain]</i>"]:::componente
+        EML["<b>E-mails</b><br/><i>[emails]</i>"]:::componente
+        INT["<b>Integrações</b><br/><i>[integrations, gcal, erp]</i>"]:::componente
+        SEG["<b>Segurança e LGPD</b><br/><i>[audit, privacy]</i>"]:::componente
+    end
+    IA["<b>Provedores de IA</b><br/><i>[Externo]</i>"]:::externo
+    CAN["<b>Google, WhatsApp,<br/>e-mail</b><br/><i>[Externos]</i>"]:::externo
+    ESC -- "Eventos" --> RUL
+    EML -- "Triado" --> RUL
+    BRN -- "Sugere" --> RUL
+    AST -- "Cria regras" --> RUL
+    AST -- "Pergunta" --> GOV
+    EML -- "Classifica" --> GOV
+    GOV -- "Mascarado" --> IA
+    RUL -- "Executa" --> INT
+    INT -- "APIs" --> CAN
+    RUL -- "Registra" --> SEG

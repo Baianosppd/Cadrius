@@ -1,0 +1,8 @@
+flowchart LR
+    C["<b>1. Coleta</b><br/>cadastro, integrações<br/>autorizadas, aceite<br/>da política"]:::evento
+    U["<b>2. Uso</b><br/>só para a finalidade;<br/>IA com dados<br/>mascarados"]:::passo
+    A["<b>3. Armazenamento</b><br/>cifrado em repouso,<br/>índices cegos,<br/>TLS em trânsito"]:::passo
+    S["<b>4. Compartilhamento</b><br/>só suboperadores<br/>listados; IA sem<br/>treino"]:::passo
+    R["<b>5. Retenção</b><br/>e-mails 90 dias, logs 30,<br/>agenda Google 90,<br/>auditoria 12 meses"]:::decisao
+    E["<b>6. Eliminação</b><br/>pedido do titular em<br/>15 dias; conta encerrada<br/>em 30 dias"]:::ok
+    C --> U --> A --> S --> R --> E

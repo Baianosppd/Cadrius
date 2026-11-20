@@ -1,0 +1,350 @@
+<svg width="1099pt" height="561pt"
+ viewBox="0.00 0.00 1099.40 560.90" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(7.2 553.7)">
+<title>G</title>
+<!-- UserTask -->
+<g id="node1" class="node">
+<title>UserTask</title>
+<polygon fill="#1f5fad" stroke="transparent" points="243,-412.5 243,-444.5 447,-444.5 447,-412.5 243,-412.5"/>
+<text text-anchor="start" x="250" y="-425.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">UserTask</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="243,-387.5 243,-412.5 346,-412.5 346,-387.5 243,-387.5"/>
+<text text-anchor="start" x="247" y="-397.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="346,-387.5 346,-412.5 375,-412.5 375,-387.5 346,-387.5"/>
+<text text-anchor="start" x="350" y="-397.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="375,-387.5 375,-412.5 447,-412.5 447,-387.5 375,-387.5"/>
+<text text-anchor="start" x="379" y="-396.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="243,-362.5 243,-387.5 346,-387.5 346,-362.5 243,-362.5"/>
+<text text-anchor="start" x="247" y="-371.5" font-family="Inter" font-size="15.00">titulo</text>
+<polygon fill="#ffffff" stroke="transparent" points="346,-362.5 346,-387.5 375,-387.5 375,-362.5 346,-362.5"/>
+<text text-anchor="start" x="350" y="-371.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="375,-362.5 375,-387.5 447,-387.5 447,-362.5 375,-362.5"/>
+<text text-anchor="start" x="379" y="-371.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="243,-337.5 243,-362.5 346,-362.5 346,-337.5 243,-337.5"/>
+<text text-anchor="start" x="247" y="-346.5" font-family="Inter" font-size="15.00">descricao</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="346,-337.5 346,-362.5 375,-362.5 375,-337.5 346,-337.5"/>
+<text text-anchor="start" x="350" y="-346.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="375,-337.5 375,-362.5 447,-362.5 447,-337.5 375,-337.5"/>
+<text text-anchor="start" x="379" y="-346.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="243,-312.5 243,-337.5 346,-337.5 346,-312.5 243,-312.5"/>
+<text text-anchor="start" x="247" y="-321.5" font-family="Inter" font-size="15.00">scheduled_at</text>
+<polygon fill="#ffffff" stroke="transparent" points="346,-312.5 346,-337.5 375,-337.5 375,-312.5 346,-312.5"/>
+<text text-anchor="start" x="350" y="-321.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="375,-312.5 375,-337.5 447,-337.5 447,-312.5 375,-312.5"/>
+<text text-anchor="start" x="379" y="-321.5" font-family="Inter" font-size="15.00" fill="#475569">datahora</text>
+<polygon fill="none" stroke="#2e6db4" points="242,-311.5 242,-445.5 448,-445.5 448,-311.5 242,-311.5"/>
+</g>
+<!-- TaskEventMap -->
+<g id="node6" class="node">
+<title>TaskEventMap</title>
+<polygon fill="#1f5fad" stroke="transparent" points="521.5,-306.5 521.5,-338.5 735.5,-338.5 735.5,-306.5 521.5,-306.5"/>
+<text text-anchor="start" x="528.5" y="-319.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">TaskEventMap</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="521.5,-281.5 521.5,-306.5 634.5,-306.5 634.5,-281.5 521.5,-281.5"/>
+<text text-anchor="start" x="525.5" y="-291.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="634.5,-281.5 634.5,-306.5 663.5,-306.5 663.5,-281.5 634.5,-281.5"/>
+<text text-anchor="start" x="638.5" y="-291.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="663.5,-281.5 663.5,-306.5 735.5,-306.5 735.5,-281.5 663.5,-281.5"/>
+<text text-anchor="start" x="667.5" y="-290.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="521.5,-256.5 521.5,-281.5 634.5,-281.5 634.5,-256.5 521.5,-256.5"/>
+<text text-anchor="start" x="525.5" y="-265.5" font-family="Inter" font-size="15.00">task_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="634.5,-256.5 634.5,-281.5 663.5,-281.5 663.5,-256.5 634.5,-256.5"/>
+<text text-anchor="start" x="638.5" y="-266.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="663.5,-256.5 663.5,-281.5 735.5,-281.5 735.5,-256.5 663.5,-256.5"/>
+<text text-anchor="start" x="667.5" y="-265.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="521.5,-231.5 521.5,-256.5 634.5,-256.5 634.5,-231.5 521.5,-231.5"/>
+<text text-anchor="start" x="525.5" y="-240.5" font-family="Inter" font-size="15.00">link_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="634.5,-231.5 634.5,-256.5 663.5,-256.5 663.5,-231.5 634.5,-231.5"/>
+<text text-anchor="start" x="638.5" y="-241.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="663.5,-231.5 663.5,-256.5 735.5,-256.5 735.5,-231.5 663.5,-231.5"/>
+<text text-anchor="start" x="667.5" y="-240.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="521.5,-206.5 521.5,-231.5 634.5,-231.5 634.5,-206.5 521.5,-206.5"/>
+<text text-anchor="start" x="525.5" y="-215.5" font-family="Inter" font-size="15.00">event_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="634.5,-206.5 634.5,-231.5 663.5,-231.5 663.5,-206.5 634.5,-206.5"/>
+<text text-anchor="start" x="638.5" y="-215.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="663.5,-206.5 663.5,-231.5 735.5,-231.5 735.5,-206.5 663.5,-206.5"/>
+<text text-anchor="start" x="667.5" y="-215.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="521.5,-181.5 521.5,-206.5 634.5,-206.5 634.5,-181.5 521.5,-181.5"/>
+<text text-anchor="start" x="525.5" y="-190.5" font-family="Inter" font-size="15.00">last_synced_at</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="634.5,-181.5 634.5,-206.5 663.5,-206.5 663.5,-181.5 634.5,-181.5"/>
+<text text-anchor="start" x="638.5" y="-190.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="663.5,-181.5 663.5,-206.5 735.5,-206.5 735.5,-181.5 663.5,-181.5"/>
+<text text-anchor="start" x="667.5" y="-190.5" font-family="Inter" font-size="15.00" fill="#475569">datahora</text>
+<polygon fill="none" stroke="#2e6db4" points="520.5,-181 520.5,-340 736.5,-340 736.5,-181 520.5,-181"/>
+</g>
+<!-- UserTask&#45;&gt;TaskEventMap -->
+<g id="edge2" class="edge">
+<title>UserTask:e&#45;&gt;TaskEventMap:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M458.13,-399.29C504.09,-387.14 465.15,-287.51 507.49,-271.63"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="449.59,-405.35 448.4,-395.42 450.38,-395.18 451.57,-405.11 449.59,-405.35"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="448,-400.5 452.96,-399.91 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="454.55,-404.75 453.36,-394.82 455.35,-394.58 456.54,-404.51 454.55,-404.75"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="452.96,-399.91 457.93,-399.31 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="518.71,-264.73 520.32,-274.6 518.35,-274.92 516.73,-265.05 518.71,-264.73"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="520.5,-269.5 515.57,-270.31 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="511.62" cy="-270.95" rx="4" ry="4"/>
+</g>
+<!-- ExternalEvent -->
+<g id="node7" class="node">
+<title>ExternalEvent</title>
+<polygon fill="#1f5fad" stroke="transparent" points="492.5,-513.5 492.5,-545.5 765.5,-545.5 765.5,-513.5 492.5,-513.5"/>
+<text text-anchor="start" x="499.5" y="-526.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">ExternalEvent</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="492.5,-488.5 492.5,-513.5 574.5,-513.5 574.5,-488.5 492.5,-488.5"/>
+<text text-anchor="start" x="496.5" y="-498.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="574.5,-488.5 574.5,-513.5 603.5,-513.5 603.5,-488.5 574.5,-488.5"/>
+<text text-anchor="start" x="578.5" y="-498.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="603.5,-488.5 603.5,-513.5 765.5,-513.5 765.5,-488.5 603.5,-488.5"/>
+<text text-anchor="start" x="607.5" y="-497.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="492.5,-463.5 492.5,-488.5 574.5,-488.5 574.5,-463.5 492.5,-463.5"/>
+<text text-anchor="start" x="496.5" y="-472.5" font-family="Inter" font-size="15.00">link_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="574.5,-463.5 574.5,-488.5 603.5,-488.5 603.5,-463.5 574.5,-463.5"/>
+<text text-anchor="start" x="578.5" y="-473.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="603.5,-463.5 603.5,-488.5 765.5,-488.5 765.5,-463.5 603.5,-463.5"/>
+<text text-anchor="start" x="607.5" y="-472.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="492.5,-438.5 492.5,-463.5 574.5,-463.5 574.5,-438.5 492.5,-438.5"/>
+<text text-anchor="start" x="496.5" y="-447.5" font-family="Inter" font-size="15.00">case_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="574.5,-438.5 574.5,-463.5 603.5,-463.5 603.5,-438.5 574.5,-438.5"/>
+<text text-anchor="start" x="578.5" y="-448.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="603.5,-438.5 603.5,-463.5 765.5,-463.5 765.5,-438.5 603.5,-438.5"/>
+<text text-anchor="start" x="607.5" y="-447.5" font-family="Inter" font-size="15.00" fill="#475569">MonitoredCase (D06)</text>
+<polygon fill="#ffffff" stroke="transparent" points="492.5,-413.5 492.5,-438.5 574.5,-438.5 574.5,-413.5 492.5,-413.5"/>
+<text text-anchor="start" x="496.5" y="-422.5" font-family="Inter" font-size="15.00">contact_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="574.5,-413.5 574.5,-438.5 603.5,-438.5 603.5,-413.5 574.5,-413.5"/>
+<text text-anchor="start" x="578.5" y="-423.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="603.5,-413.5 603.5,-438.5 765.5,-438.5 765.5,-413.5 603.5,-413.5"/>
+<text text-anchor="start" x="607.5" y="-422.5" font-family="Inter" font-size="15.00" fill="#475569">Contact (D05)</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="492.5,-388.5 492.5,-413.5 574.5,-413.5 574.5,-388.5 492.5,-388.5"/>
+<text text-anchor="start" x="496.5" y="-397.5" font-family="Inter" font-size="15.00">task_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="574.5,-388.5 574.5,-413.5 603.5,-413.5 603.5,-388.5 574.5,-388.5"/>
+<text text-anchor="start" x="578.5" y="-398.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="603.5,-388.5 603.5,-413.5 765.5,-413.5 765.5,-388.5 603.5,-388.5"/>
+<text text-anchor="start" x="607.5" y="-397.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="492.5,-363.5 492.5,-388.5 574.5,-388.5 574.5,-363.5 492.5,-363.5"/>
+<text text-anchor="start" x="496.5" y="-372.5" font-family="Inter" font-size="15.00">event_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="574.5,-363.5 574.5,-388.5 603.5,-388.5 603.5,-363.5 574.5,-363.5"/>
+<text text-anchor="start" x="578.5" y="-372.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="603.5,-363.5 603.5,-388.5 765.5,-388.5 765.5,-363.5 603.5,-363.5"/>
+<text text-anchor="start" x="607.5" y="-372.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="491,-362.5 491,-546.5 766,-546.5 766,-362.5 491,-362.5"/>
+</g>
+<!-- UserTask&#45;&gt;ExternalEvent -->
+<g id="edge5" class="edge">
+<title>UserTask:e&#45;&gt;ExternalEvent:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M461.2,-400.5C465.51,-400.5 469.16,-400.5 473.08,-400.5"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="449,-405.5 449,-395.5 451,-395.5 451,-405.5 449,-405.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="448,-400.5 453,-400.5 "/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="457" cy="-400.5" rx="4" ry="4"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="481.5,-400.5 491.5,-405 486.5,-400.5 491.5,-400.5 491.5,-400.5 491.5,-400.5 486.5,-400.5 491.5,-396 481.5,-400.5 481.5,-400.5"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="477.5" cy="-400.5" rx="4" ry="4"/>
+</g>
+<!-- DraftTemplate -->
+<g id="node2" class="node">
+<title>DraftTemplate</title>
+<polygon fill="#1f5fad" stroke="transparent" points="959.5,-307.5 959.5,-339.5 1084.5,-339.5 1084.5,-307.5 959.5,-307.5"/>
+<text text-anchor="start" x="966.5" y="-320.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">DraftTemplate</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="959.5,-282.5 959.5,-307.5 1009.5,-307.5 1009.5,-282.5 959.5,-282.5"/>
+<text text-anchor="start" x="963.5" y="-292.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1009.5,-282.5 1009.5,-307.5 1039.5,-307.5 1039.5,-282.5 1009.5,-282.5"/>
+<text text-anchor="start" x="1013.5" y="-292.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1039.5,-282.5 1039.5,-307.5 1084.5,-307.5 1084.5,-282.5 1039.5,-282.5"/>
+<text text-anchor="start" x="1043.5" y="-291.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="959.5,-257.5 959.5,-282.5 1009.5,-282.5 1009.5,-257.5 959.5,-257.5"/>
+<text text-anchor="start" x="963.5" y="-266.5" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#ffffff" stroke="transparent" points="1009.5,-257.5 1009.5,-282.5 1039.5,-282.5 1039.5,-257.5 1009.5,-257.5"/>
+<text text-anchor="start" x="1013.5" y="-266.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="1039.5,-257.5 1039.5,-282.5 1084.5,-282.5 1084.5,-257.5 1039.5,-257.5"/>
+<text text-anchor="start" x="1043.5" y="-266.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="959.5,-232.5 959.5,-257.5 1009.5,-257.5 1009.5,-232.5 959.5,-232.5"/>
+<text text-anchor="start" x="963.5" y="-241.5" font-family="Inter" font-size="15.00">kind</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1009.5,-232.5 1009.5,-257.5 1039.5,-257.5 1039.5,-232.5 1009.5,-232.5"/>
+<text text-anchor="start" x="1013.5" y="-241.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1039.5,-232.5 1039.5,-257.5 1084.5,-257.5 1084.5,-232.5 1039.5,-232.5"/>
+<text text-anchor="start" x="1043.5" y="-241.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="959.5,-207.5 959.5,-232.5 1009.5,-232.5 1009.5,-207.5 959.5,-207.5"/>
+<text text-anchor="start" x="963.5" y="-216.5" font-family="Inter" font-size="15.00">body</text>
+<polygon fill="#ffffff" stroke="transparent" points="1009.5,-207.5 1009.5,-232.5 1039.5,-232.5 1039.5,-207.5 1009.5,-207.5"/>
+<text text-anchor="start" x="1013.5" y="-216.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="1039.5,-207.5 1039.5,-232.5 1084.5,-232.5 1084.5,-207.5 1039.5,-207.5"/>
+<text text-anchor="start" x="1043.5" y="-216.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="958,-206.5 958,-340.5 1085,-340.5 1085,-206.5 958,-206.5"/>
+</g>
+<!-- Draft -->
+<g id="node3" class="node">
+<title>Draft</title>
+<polygon fill="#1f5fad" stroke="transparent" points="775,-307.5 775,-339.5 949,-339.5 949,-307.5 775,-307.5"/>
+<text text-anchor="start" x="782" y="-320.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Draft</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="775,-282.5 775,-307.5 877,-307.5 877,-282.5 775,-282.5"/>
+<text text-anchor="start" x="779" y="-292.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="877,-282.5 877,-307.5 906,-307.5 906,-282.5 877,-282.5"/>
+<text text-anchor="start" x="881" y="-292.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="906,-282.5 906,-307.5 949,-307.5 949,-282.5 906,-282.5"/>
+<text text-anchor="start" x="910" y="-291.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="775,-257.5 775,-282.5 877,-282.5 877,-257.5 775,-257.5"/>
+<text text-anchor="start" x="779" y="-266.5" font-family="Inter" font-size="15.00">template_key</text>
+<polygon fill="#ffffff" stroke="transparent" points="877,-257.5 877,-282.5 906,-282.5 906,-257.5 877,-257.5"/>
+<text text-anchor="start" x="881" y="-266.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="906,-257.5 906,-282.5 949,-282.5 949,-257.5 906,-257.5"/>
+<text text-anchor="start" x="910" y="-266.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="775,-232.5 775,-257.5 877,-257.5 877,-232.5 775,-232.5"/>
+<text text-anchor="start" x="779" y="-241.5" font-family="Inter" font-size="15.00">title</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="877,-232.5 877,-257.5 906,-257.5 906,-232.5 877,-232.5"/>
+<text text-anchor="start" x="881" y="-241.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="906,-232.5 906,-257.5 949,-257.5 949,-232.5 906,-232.5"/>
+<text text-anchor="start" x="910" y="-241.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="775,-207.5 775,-232.5 877,-232.5 877,-207.5 775,-207.5"/>
+<text text-anchor="start" x="779" y="-216.5" font-family="Inter" font-size="15.00">source_type</text>
+<polygon fill="#ffffff" stroke="transparent" points="877,-207.5 877,-232.5 906,-232.5 906,-207.5 877,-207.5"/>
+<text text-anchor="start" x="881" y="-216.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="906,-207.5 906,-232.5 949,-232.5 949,-207.5 906,-207.5"/>
+<text text-anchor="start" x="910" y="-216.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="774,-206.5 774,-340.5 950,-340.5 950,-206.5 774,-206.5"/>
+</g>
+<!-- GoogleCalendarApp -->
+<g id="node4" class="node">
+<title>GoogleCalendarApp</title>
+<polygon fill="#1f5fad" stroke="transparent" points="1.5,-230.5 1.5,-262.5 198.5,-262.5 198.5,-230.5 1.5,-230.5"/>
+<text text-anchor="start" x="8.5" y="-243.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">GoogleCalendarApp</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1.5,-205.5 1.5,-230.5 111.5,-230.5 111.5,-205.5 1.5,-205.5"/>
+<text text-anchor="start" x="5.5" y="-215.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="111.5,-205.5 111.5,-230.5 140.5,-230.5 140.5,-205.5 111.5,-205.5"/>
+<text text-anchor="start" x="115.5" y="-215.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="140.5,-205.5 140.5,-230.5 198.5,-230.5 198.5,-205.5 140.5,-205.5"/>
+<text text-anchor="start" x="144.5" y="-214.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="1.5,-180.5 1.5,-205.5 111.5,-205.5 111.5,-180.5 1.5,-180.5"/>
+<text text-anchor="start" x="5.5" y="-189.5" font-family="Inter" font-size="15.00">client_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="111.5,-180.5 111.5,-205.5 140.5,-205.5 140.5,-180.5 111.5,-180.5"/>
+<text text-anchor="start" x="115.5" y="-189.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="140.5,-180.5 140.5,-205.5 198.5,-205.5 198.5,-180.5 140.5,-180.5"/>
+<text text-anchor="start" x="144.5" y="-189.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1.5,-155.5 1.5,-180.5 111.5,-180.5 111.5,-155.5 1.5,-155.5"/>
+<text text-anchor="start" x="5.5" y="-164.5" font-family="Inter" font-size="15.00">client_secret</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="111.5,-155.5 111.5,-180.5 140.5,-180.5 140.5,-155.5 111.5,-155.5"/>
+<text text-anchor="start" x="115.5" y="-164.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="140.5,-155.5 140.5,-180.5 198.5,-180.5 198.5,-155.5 140.5,-155.5"/>
+<text text-anchor="start" x="144.5" y="-164.5" font-family="Inter" font-size="15.00" fill="#475569">cifrado</text>
+<polygon fill="#ffffff" stroke="transparent" points="1.5,-130.5 1.5,-155.5 111.5,-155.5 111.5,-130.5 1.5,-130.5"/>
+<text text-anchor="start" x="5.5" y="-139.5" font-family="Inter" font-size="15.00">uses_platform</text>
+<polygon fill="#ffffff" stroke="transparent" points="111.5,-130.5 111.5,-155.5 140.5,-155.5 140.5,-130.5 111.5,-130.5"/>
+<text text-anchor="start" x="115.5" y="-139.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="140.5,-130.5 140.5,-155.5 198.5,-155.5 198.5,-130.5 140.5,-130.5"/>
+<text text-anchor="start" x="144.5" y="-139.5" font-family="Inter" font-size="15.00" fill="#475569">bool</text>
+<polygon fill="none" stroke="#2e6db4" points="0,-129.5 0,-263.5 199,-263.5 199,-129.5 0,-129.5"/>
+</g>
+<!-- GoogleCalendarLink -->
+<g id="node5" class="node">
+<title>GoogleCalendarLink</title>
+<polygon fill="#1f5fad" stroke="transparent" points="249,-255.5 249,-287.5 442,-287.5 442,-255.5 249,-255.5"/>
+<text text-anchor="start" x="256" y="-268.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">GoogleCalendarLink</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="249,-230.5 249,-255.5 355,-255.5 355,-230.5 249,-230.5"/>
+<text text-anchor="start" x="253" y="-240.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="355,-230.5 355,-255.5 384,-255.5 384,-230.5 355,-230.5"/>
+<text text-anchor="start" x="359" y="-240.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="384,-230.5 384,-255.5 442,-255.5 442,-230.5 384,-230.5"/>
+<text text-anchor="start" x="388" y="-239.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="249,-205.5 249,-230.5 355,-230.5 355,-205.5 249,-205.5"/>
+<text text-anchor="start" x="253" y="-214.5" font-family="Inter" font-size="15.00">app_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="355,-205.5 355,-230.5 384,-230.5 384,-205.5 355,-205.5"/>
+<text text-anchor="start" x="359" y="-215.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="384,-205.5 384,-230.5 442,-230.5 442,-205.5 384,-205.5"/>
+<text text-anchor="start" x="388" y="-214.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="249,-180.5 249,-205.5 355,-205.5 355,-180.5 249,-180.5"/>
+<text text-anchor="start" x="253" y="-189.5" font-family="Inter" font-size="15.00">refresh_token</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="355,-180.5 355,-205.5 384,-205.5 384,-180.5 355,-180.5"/>
+<text text-anchor="start" x="359" y="-189.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="384,-180.5 384,-205.5 442,-205.5 442,-180.5 384,-180.5"/>
+<text text-anchor="start" x="388" y="-189.5" font-family="Inter" font-size="15.00" fill="#475569">cifrado</text>
+<polygon fill="#ffffff" stroke="transparent" points="249,-155.5 249,-180.5 355,-180.5 355,-155.5 249,-155.5"/>
+<text text-anchor="start" x="253" y="-164.5" font-family="Inter" font-size="15.00">calendar_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="355,-155.5 355,-180.5 384,-180.5 384,-155.5 355,-155.5"/>
+<text text-anchor="start" x="359" y="-164.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="384,-155.5 384,-180.5 442,-180.5 442,-155.5 384,-155.5"/>
+<text text-anchor="start" x="388" y="-164.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="249,-130.5 249,-155.5 355,-155.5 355,-130.5 249,-130.5"/>
+<text text-anchor="start" x="253" y="-139.5" font-family="Inter" font-size="15.00">status</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="355,-130.5 355,-155.5 384,-155.5 384,-130.5 355,-130.5"/>
+<text text-anchor="start" x="359" y="-139.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="384,-130.5 384,-155.5 442,-155.5 442,-130.5 384,-130.5"/>
+<text text-anchor="start" x="388" y="-139.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="247.5,-130 247.5,-289 442.5,-289 442.5,-130 247.5,-130"/>
+</g>
+<!-- GoogleCalendarApp&#45;&gt;GoogleCalendarLink -->
+<g id="edge1" class="edge">
+<title>GoogleCalendarApp:e&#45;&gt;GoogleCalendarLink:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M209.35,-218.5C217.39,-218.5 223.08,-218.5 229.9,-218.5"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="200,-223.5 200,-213.5 202,-213.5 202,-223.5 200,-223.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="199,-218.5 204,-218.5 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="205,-223.5 205,-213.5 207,-213.5 207,-223.5 205,-223.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="204,-218.5 209,-218.5 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="238,-218.5 248,-223 243,-218.5 248,-218.5 248,-218.5 248,-218.5 243,-218.5 248,-214 238,-218.5 238,-218.5"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="234" cy="-218.5" rx="4" ry="4"/>
+</g>
+<!-- GoogleCalendarLink&#45;&gt;TaskEventMap -->
+<g id="edge3" class="edge">
+<title>GoogleCalendarLink:e&#45;&gt;TaskEventMap:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M453.1,-243.5C473.56,-243.5 484.26,-243.5 502.31,-243.5"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="444,-248.5 444,-238.5 446,-238.5 446,-248.5 444,-248.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="443,-243.5 448,-243.5 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="449,-248.5 449,-238.5 451,-238.5 451,-248.5 449,-248.5"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="448,-243.5 453,-243.5 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="510.5,-243.5 520.5,-248 515.5,-243.5 520.5,-243.5 520.5,-243.5 520.5,-243.5 515.5,-243.5 520.5,-239 510.5,-243.5 510.5,-243.5"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="506.5" cy="-243.5" rx="4" ry="4"/>
+</g>
+<!-- GoogleCalendarLink&#45;&gt;ExternalEvent -->
+<g id="edge4" class="edge">
+<title>GoogleCalendarLink:e&#45;&gt;ExternalEvent:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M453.18,-244.34C531.7,-258.52 409.13,-446.99 473.52,-473.43"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="443.58,-248.57 444.41,-238.6 446.4,-238.76 445.58,-248.73 443.58,-248.57"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="443,-243.5 447.98,-243.91 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="448.57,-248.98 449.39,-239.01 451.39,-239.18 450.56,-249.14 448.57,-248.98"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="447.98,-243.91 452.97,-244.33 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="481.64,-474.82 490.74,-480.94 486.57,-475.66 491.5,-476.5 491.5,-476.5 491.5,-476.5 486.57,-475.66 492.26,-472.06 481.64,-474.82 481.64,-474.82"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="477.7" cy="-474.14" rx="4" ry="4"/>
+</g>
+<!-- GoogleFile -->
+<g id="node8" class="node">
+<title>GoogleFile</title>
+<polygon fill="#1f5fad" stroke="transparent" points="565.5,-125.5 565.5,-157.5 691.5,-157.5 691.5,-125.5 565.5,-125.5"/>
+<text text-anchor="start" x="572.5" y="-138.7" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">GoogleFile</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="565.5,-100.5 565.5,-125.5 619.5,-125.5 619.5,-100.5 565.5,-100.5"/>
+<text text-anchor="start" x="569.5" y="-110.5" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="619.5,-100.5 619.5,-125.5 648.5,-125.5 648.5,-100.5 619.5,-100.5"/>
+<text text-anchor="start" x="623.5" y="-110.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="648.5,-100.5 648.5,-125.5 691.5,-125.5 691.5,-100.5 648.5,-100.5"/>
+<text text-anchor="start" x="652.5" y="-109.5" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="565.5,-75.5 565.5,-100.5 619.5,-100.5 619.5,-75.5 565.5,-75.5"/>
+<text text-anchor="start" x="569.5" y="-84.5" font-family="Inter" font-size="15.00">link_id</text>
+<polygon fill="#ffffff" stroke="transparent" points="619.5,-75.5 619.5,-100.5 648.5,-100.5 648.5,-75.5 619.5,-75.5"/>
+<text text-anchor="start" x="623.5" y="-85.5" font-family="Inter" font-weight="bold" font-size="15.00" fill="#2e6db4">FK</text>
+<polygon fill="#ffffff" stroke="transparent" points="648.5,-75.5 648.5,-100.5 691.5,-100.5 691.5,-75.5 648.5,-75.5"/>
+<text text-anchor="start" x="652.5" y="-84.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="565.5,-50.5 565.5,-75.5 619.5,-75.5 619.5,-50.5 565.5,-50.5"/>
+<text text-anchor="start" x="569.5" y="-59.5" font-family="Inter" font-size="15.00">kind</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="619.5,-50.5 619.5,-75.5 648.5,-75.5 648.5,-50.5 619.5,-50.5"/>
+<text text-anchor="start" x="623.5" y="-59.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="648.5,-50.5 648.5,-75.5 691.5,-75.5 691.5,-50.5 648.5,-50.5"/>
+<text text-anchor="start" x="652.5" y="-59.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="565.5,-25.5 565.5,-50.5 619.5,-50.5 619.5,-25.5 565.5,-25.5"/>
+<text text-anchor="start" x="569.5" y="-34.5" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#ffffff" stroke="transparent" points="619.5,-25.5 619.5,-50.5 648.5,-50.5 648.5,-25.5 619.5,-25.5"/>
+<text text-anchor="start" x="623.5" y="-34.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="648.5,-25.5 648.5,-50.5 691.5,-50.5 691.5,-25.5 648.5,-25.5"/>
+<text text-anchor="start" x="652.5" y="-34.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="565.5,-0.5 565.5,-25.5 619.5,-25.5 619.5,-0.5 565.5,-0.5"/>
+<text text-anchor="start" x="569.5" y="-9.5" font-family="Inter" font-size="15.00">file_id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="619.5,-0.5 619.5,-25.5 648.5,-25.5 648.5,-0.5 619.5,-0.5"/>
+<text text-anchor="start" x="623.5" y="-9.5" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="648.5,-0.5 648.5,-25.5 691.5,-25.5 691.5,-0.5 648.5,-0.5"/>
+<text text-anchor="start" x="652.5" y="-9.5" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="564.5,0 564.5,-159 692.5,-159 692.5,0 564.5,0"/>
+</g>
+<!-- GoogleCalendarLink&#45;&gt;GoogleFile -->
+<g id="edge6" class="edge">
+<title>GoogleCalendarLink:e&#45;&gt;GoogleFile:w</title>
+<path fill="none" stroke="#475569" stroke-width="1.4" d="M452.93,-242.34C479.36,-235.36 469.62,-198.26 491,-170.5 516.54,-137.33 516.36,-100.9 546.41,-91.06"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="444.57,-248.35 443.41,-238.42 445.4,-238.19 446.56,-248.12 444.57,-248.35"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="443,-243.5 447.97,-242.92 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="449.54,-247.77 448.38,-237.84 450.37,-237.61 451.53,-247.54 449.54,-247.77"/>
+<polyline fill="none" stroke="#475569" stroke-width="1.4" points="447.97,-242.92 452.93,-242.34 "/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.4" points="554.6,-89.9 565.13,-92.96 559.55,-89.2 564.5,-88.5 564.5,-88.5 564.5,-88.5 559.55,-89.2 563.87,-84.04 554.6,-89.9 554.6,-89.9"/>
+<ellipse fill="none" stroke="#475569" stroke-width="1.4" cx="550.64" cy="-90.47" rx="4" ry="4"/>
+</g>
+</g>
+</svg>

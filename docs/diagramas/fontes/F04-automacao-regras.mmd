@@ -1,0 +1,18 @@
+flowchart LR
+    EV["<b>Evento</b><br/>e-mail, publicação,<br/>prazo, agenda, voz"]:::evento
+    R{"<b>Regra ligada<br/>para o gatilho?</b>"}:::decisao
+    D{"<b>Primeira vez<br/>neste evento?</b>"}:::decisao
+    C{"<b>Condições<br/>atendidas?</b>"}:::decisao
+    P["<b>Planeja</b><br/>os passos"]:::passo
+    I["<b>Passos internos</b><br/>executa na hora"]:::ok
+    E["<b>Passos externos</b><br/>seguem para F05"]:::evento
+    N["<b>Não executa</b><br/>motivo registrado"]:::bloqueio
+    EV --> R
+    R -- "sim" --> D
+    D -- "sim" --> C
+    C -- "sim" --> P
+    P --> I
+    P --> E
+    R -- "não" --> N
+    D -- "não" --> N
+    C -- "não" --> N

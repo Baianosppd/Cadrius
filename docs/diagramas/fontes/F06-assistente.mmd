@@ -1,0 +1,18 @@
+sequenceDiagram
+    autonumber
+    participant U as Advogado
+    participant API as Assistente
+    participant GOV as IA governada
+    participant LLM as Provedor de IA
+    participant T as Ferramentas
+    U->>API: "Intimação por e-mail vira tarefa e avisa o João"
+    API->>GOV: Política, créditos e provedor
+    API->>LLM: Mensagens e ferramentas permitidas ao grupo
+    LLM-->>API: Chama buscar_contatos
+    API->>T: Executa (só dados do escritório)
+    T-->>API: Resultado marcado como não confiável
+    LLM-->>API: Chama criar_regra (com novo_contato)
+    API-->>U: Cartão "Aguardando sua confirmação"
+    U->>API: Confirma
+    API->>T: Cadastra o contato e cria a regra desligada
+    API-->>U: Feito, com link para o fluxo

@@ -1,0 +1,17 @@
+sequenceDiagram
+    autonumber
+    participant U as Advogado
+    participant API as API (imports)
+    participant G as Google Drive
+    participant W as Worker
+    alt Pelo Google Drive
+        U->>API: Cola o link da pasta-mãe
+        API->>G: Lista subpastas e arquivos
+    else Pelo arquivo .zip
+        U->>API: Envia o .zip baixado do Drive
+    end
+    API-->>U: Prévia: clientes e arquivos (nada gravado)
+    U->>API: Confere e importa
+    API->>W: Enfileira em etapas de 40 s
+    W->>G: Baixa os arquivos (Docs vira PDF)
+    Note right of W: Cria contatos e documentos cifrados
