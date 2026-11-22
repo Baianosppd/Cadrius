@@ -1,8 +1,8 @@
 # Cadrius: arquitetura e diagramas
 
-> Gerado por `gerador/render.mjs` em 2026-11-18. Não edite à mão: mude `fontes/` ou `gerador/catalogo.json` e gere de novo.
+> Gerado por `gerador/render.mjs` em 2026-11-22. Não edite à mão: mude `fontes/` ou `gerador/catalogo.json` e gere de novo.
 
-- **Caderno em PDF:** [CADERNO_DE_ARQUITETURA.pdf](CADERNO_DE_ARQUITETURA.pdf) (39 pranchas, vetorial, para imprimir ou apresentar).
+- **Caderno em PDF:** [CADERNO_DE_ARQUITETURA.pdf](CADERNO_DE_ARQUITETURA.pdf) (40 pranchas, vetorial, para imprimir ou apresentar).
 - **Padrão visual, pesquisa e regras:** [PADRAO_VISUAL.md](PADRAO_VISUAL.md).
 - **Formatos:** cada prancha está em `pranchas/` (PNG 3200×1800, com título e legenda) e `svg/` (só o desenho, vetorial).
 
@@ -58,6 +58,7 @@
 - [D17 · Banco de dados: Conectores e suporte](#d17)
 - [D18 · Banco de dados: Auditoria e segurança](#d18)
 - [D19 · Banco de dados: Privacidade (LGPD)](#d19)
+- [D20 · Banco de dados: Filas e agendamentos (Django-Q)](#d20)
 
 ## Arquitetura (modelo C4)
 
@@ -241,7 +242,7 @@
 <a id="d00"></a>
 ### D00 · Banco de dados: mapa das áreas
 
-*Modelo de dados · Visão geral.* 109 tabelas em 19 áreas de até 8 tabelas. As setas mostram as chaves estrangeiras entre áreas; as que todas têm para D01 (escritório e autoria) ficam de fora.
+*Modelo de dados · Visão geral.* 109 tabelas do Cadrius em 19 áreas de até 8 tabelas. As setas mostram as chaves estrangeiras entre áreas; as que todas têm para D01 (escritório e autoria) ficam de fora. As tabelas da biblioteca de filas estão à parte, em D20.
 
 ![D00: Banco de dados: mapa das áreas](pranchas/D00-mapa-dominios.png)
 
@@ -417,3 +418,12 @@
 ![D19: Banco de dados: Privacidade (LGPD)](pranchas/D19-privacidade-lgpd.png)
 
 [SVG](svg/D19-privacidade-lgpd.svg) · [fonte](fontes/D19-privacidade-lgpd.dot)
+
+<a id="d20"></a>
+### D20 · Banco de dados: Filas e agendamentos (Django-Q)
+
+*Modelo de dados · Entidade-relacionamento.* Tabelas da biblioteca Django-Q, que roda as rotinas da S03. Schedule guarda o que repete e quando; cada disparo vira uma Task com o resultado (Schedule.task aponta para a última, Task.name repete o nome do agendamento; não há chave estrangeira). OrmQ fica vazia: a fila do Cadrius é o Redis.
+
+![D20: Banco de dados: Filas e agendamentos (Django-Q)](pranchas/D20-filas-e-agendamentos-django-q.png)
+
+[SVG](svg/D20-filas-e-agendamentos-django-q.svg) · [fonte](fontes/D20-filas-e-agendamentos-django-q.dot)

@@ -112,7 +112,7 @@ A cor nunca é a única pista:
 | **A01–A07** | Arquitetura: contexto (C4 nível 1), contêineres (nível 2), componentes da API e da aplicação web (nível 3), implantação e entrega contínua |
 | **F01–F09** | Fluxos: login, SSO, leitura de documento, automação (em 2 partes), Assistente, pagamento, publicações e importação de pastas |
 | **S01–S03** | Segurança e operação: camadas de proteção, ciclo de vida dos dados (LGPD) e rotinas agendadas |
-| **D00–D19** | Banco de dados: mapa das áreas e 19 áreas com as 109 tabelas |
+| **D00–D20** | Banco de dados: mapa das áreas, 19 áreas com as 109 tabelas do Cadrius e as filas do Django-Q (D20) |
 
 O índice com todas as pranchas está em [ARQUITETURA_E_DIAGRAMAS.md](ARQUITETURA_E_DIAGRAMAS.md).
 

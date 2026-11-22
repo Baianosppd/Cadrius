@@ -5,7 +5,7 @@
     "titulo": "Banco de dados: mapa das áreas",
     "tipo": "mapa",
     "nivel": "Modelo de dados · Visão geral",
-    "descricao": "109 tabelas em 19 áreas de até 8 tabelas. As setas mostram as chaves estrangeiras entre áreas; as que todas têm para D01 (escritório e autoria) ficam de fora."
+    "descricao": "109 tabelas do Cadrius em 19 áreas de até 8 tabelas. As setas mostram as chaves estrangeiras entre áreas; as que todas têm para D01 (escritório e autoria) ficam de fora. As tabelas da biblioteca de filas estão à parte, em D20."
   },
   {
     "id": "D01",
@@ -177,5 +177,14 @@
     "nivel": "Modelo de dados · Entidade-relacionamento",
     "descricao": "Documentos legais versionados, aceites, suboperadores, pedidos dos titulares e desligamento de escritórios.",
     "tabelas": 5
+  },
+  {
+    "id": "D20",
+    "arquivo": "D20-filas-e-agendamentos-django-q",
+    "titulo": "Banco de dados: Filas e agendamentos (Django-Q)",
+    "tipo": "dados",
+    "nivel": "Modelo de dados · Entidade-relacionamento",
+    "descricao": "Tabelas da biblioteca Django-Q, que roda as rotinas da S03. Schedule guarda o que repete e quando; cada disparo vira uma Task com o resultado (Schedule.task aponta para a última, Task.name repete o nome do agendamento; não há chave estrangeira). OrmQ fica vazia: a fila do Cadrius é o Redis.",
+    "tabelas": 3
   }
 ]
