@@ -1,0 +1,93 @@
+<svg width="487pt" height="148pt"
+ viewBox="0.00 0.00 487.40 148.40" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(7.2 141.2)">
+<title>G</title>
+<!-- Schedule -->
+<g id="node1" class="node">
+<title>Schedule</title>
+<polygon fill="#1f5fad" stroke="transparent" points="1,-101 1,-133 173,-133 173,-101 1,-101"/>
+<text text-anchor="start" x="8" y="-114.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Schedule</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-76 1,-101 72,-101 72,-76 1,-76"/>
+<text text-anchor="start" x="5" y="-86" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="72,-76 72,-101 101,-101 101,-76 72,-76"/>
+<text text-anchor="start" x="76" y="-86" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="101,-76 101,-101 173,-101 173,-76 101,-76"/>
+<text text-anchor="start" x="105" y="-85" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-51 1,-76 72,-76 72,-51 1,-51"/>
+<text text-anchor="start" x="5" y="-60" font-family="Inter" font-size="15.00">func</text>
+<polygon fill="#ffffff" stroke="transparent" points="72,-51 72,-76 101,-76 101,-51 72,-51"/>
+<text text-anchor="start" x="76" y="-60" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="101,-51 101,-76 173,-76 173,-51 101,-51"/>
+<text text-anchor="start" x="105" y="-60" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="1,-26 1,-51 72,-51 72,-26 1,-26"/>
+<text text-anchor="start" x="5" y="-35" font-family="Inter" font-size="15.00">next_run</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="72,-26 72,-51 101,-51 101,-26 72,-26"/>
+<text text-anchor="start" x="76" y="-35" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="101,-26 101,-51 173,-51 173,-26 101,-26"/>
+<text text-anchor="start" x="105" y="-35" font-family="Inter" font-size="15.00" fill="#475569">datahora</text>
+<polygon fill="#ffffff" stroke="transparent" points="1,-1 1,-26 72,-26 72,-1 1,-1"/>
+<text text-anchor="start" x="5" y="-10" font-family="Inter" font-size="15.00">task</text>
+<polygon fill="#ffffff" stroke="transparent" points="72,-1 72,-26 101,-26 101,-1 72,-1"/>
+<text text-anchor="start" x="76" y="-10" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="101,-1 101,-26 173,-26 173,-1 101,-1"/>
+<text text-anchor="start" x="105" y="-10" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="none" stroke="#2e6db4" points="0,0 0,-134 174,-134 174,0 0,0"/>
+</g>
+<!-- Task -->
+<g id="node2" class="node">
+<title>Task</title>
+<polygon fill="#1f5fad" stroke="transparent" points="183,-101 183,-133 323,-133 323,-101 183,-101"/>
+<text text-anchor="start" x="190" y="-114.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">Task</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="183,-76 183,-101 251,-101 251,-76 183,-76"/>
+<text text-anchor="start" x="187" y="-86" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="251,-76 251,-101 280,-101 280,-76 251,-76"/>
+<text text-anchor="start" x="255" y="-86" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="280,-76 280,-101 323,-101 323,-76 280,-76"/>
+<text text-anchor="start" x="284" y="-85" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="183,-51 183,-76 251,-76 251,-51 183,-51"/>
+<text text-anchor="start" x="187" y="-60" font-family="Inter" font-size="15.00">name</text>
+<polygon fill="#ffffff" stroke="transparent" points="251,-51 251,-76 280,-76 280,-51 251,-51"/>
+<text text-anchor="start" x="255" y="-60" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="280,-51 280,-76 323,-76 323,-51 280,-51"/>
+<text text-anchor="start" x="284" y="-60" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="183,-26 183,-51 251,-51 251,-26 183,-26"/>
+<text text-anchor="start" x="187" y="-35" font-family="Inter" font-size="15.00">func</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="251,-26 251,-51 280,-51 280,-26 251,-26"/>
+<text text-anchor="start" x="255" y="-35" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="280,-26 280,-51 323,-51 323,-26 280,-26"/>
+<text text-anchor="start" x="284" y="-35" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#ffffff" stroke="transparent" points="183,-1 183,-26 251,-26 251,-1 183,-1"/>
+<text text-anchor="start" x="187" y="-10" font-family="Inter" font-size="15.00">success</text>
+<polygon fill="#ffffff" stroke="transparent" points="251,-1 251,-26 280,-26 280,-1 251,-1"/>
+<text text-anchor="start" x="255" y="-10" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="280,-1 280,-26 323,-26 323,-1 280,-1"/>
+<text text-anchor="start" x="284" y="-10" font-family="Inter" font-size="15.00" fill="#475569">bool</text>
+<polygon fill="none" stroke="#2e6db4" points="182,0 182,-134 324,-134 324,0 182,0"/>
+</g>
+<!-- OrmQ -->
+<g id="node3" class="node">
+<title>OrmQ</title>
+<polygon fill="#1f5fad" stroke="transparent" points="333.5,-88 333.5,-120 472.5,-120 472.5,-88 333.5,-88"/>
+<text text-anchor="start" x="340.5" y="-101.2" font-family="Inter" font-weight="bold" font-size="16.00" fill="#ffffff">OrmQ</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="333.5,-63 333.5,-88 371.5,-88 371.5,-63 333.5,-63"/>
+<text text-anchor="start" x="337.5" y="-73" font-family="Inter" font-weight="bold" font-size="15.00">id</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="371.5,-63 371.5,-88 400.5,-88 400.5,-63 371.5,-63"/>
+<text text-anchor="start" x="375.5" y="-73" font-family="Inter" font-weight="bold" font-size="15.00" fill="#0b3d6e">PK</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="400.5,-63 400.5,-88 472.5,-88 472.5,-63 400.5,-63"/>
+<text text-anchor="start" x="404.5" y="-72" font-family="Inter" font-size="15.00" fill="#475569">int</text>
+<polygon fill="#ffffff" stroke="transparent" points="333.5,-38 333.5,-63 371.5,-63 371.5,-38 333.5,-38"/>
+<text text-anchor="start" x="337.5" y="-47" font-family="Inter" font-size="15.00">key</text>
+<polygon fill="#ffffff" stroke="transparent" points="371.5,-38 371.5,-63 400.5,-63 400.5,-38 371.5,-38"/>
+<text text-anchor="start" x="375.5" y="-47" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#ffffff" stroke="transparent" points="400.5,-38 400.5,-63 472.5,-63 472.5,-38 400.5,-38"/>
+<text text-anchor="start" x="404.5" y="-47" font-family="Inter" font-size="15.00" fill="#475569">texto</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="333.5,-13 333.5,-38 371.5,-38 371.5,-13 333.5,-13"/>
+<text text-anchor="start" x="337.5" y="-22" font-family="Inter" font-size="15.00">lock</text>
+<polygon fill="#f1f5f9" stroke="transparent" points="371.5,-13 371.5,-38 400.5,-38 400.5,-13 371.5,-13"/>
+<text text-anchor="start" x="375.5" y="-22" font-family="Inter" font-size="15.00"> </text>
+<polygon fill="#f1f5f9" stroke="transparent" points="400.5,-13 400.5,-38 472.5,-38 472.5,-13 400.5,-13"/>
+<text text-anchor="start" x="404.5" y="-22" font-family="Inter" font-size="15.00" fill="#475569">datahora</text>
+<polygon fill="none" stroke="#2e6db4" points="332,-12.5 332,-121.5 473,-121.5 473,-12.5 332,-12.5"/>
+</g>
+</g>
+</svg>

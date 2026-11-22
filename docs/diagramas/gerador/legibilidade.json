@@ -310,5 +310,13 @@
     "escala": 1.4,
     "fonte_px": 21,
     "ok": true
+  },
+  {
+    "id": "D20",
+    "arquivo": "D20-filas-e-agendamentos-django-q",
+    "titulo": "Banco de dados: Filas e agendamentos (Django-Q)",
+    "escala": 1.4,
+    "fonte_px": 21,
+    "ok": true
   }
 ]

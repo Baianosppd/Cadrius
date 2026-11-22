@@ -102,7 +102,19 @@ AREAS = [
      'desligamento de escritórios.',
      ['privacy.LegalDocument', 'privacy.ConsentRecord', 'privacy.SubprocessorEntry', 'privacy.DataSubjectRequest',
       'privacy.OrganizationOffboarding']),
+    ('D20', 'Filas e agendamentos (Django-Q)', 'Tabelas da biblioteca Django-Q, que roda as rotinas da S03. Schedule '
+     'guarda o que repete e quando; cada disparo vira uma Task com o resultado (Schedule.task aponta para a última, '
+     'Task.name repete o nome do agendamento; não há chave estrangeira). OrmQ fica vazia: a fila do Cadrius é o Redis.',
+     ['django_q.Schedule', 'django_q.Task', 'django_q.OrmQ']),
 ]
+
+# Tabelas de bibliotecas: os campos de negócio mostrados são escolhidos à mão (os primeiros seriam técnicos).
+BIBLIOTECAS = ('django_q.',)   # áreas só de bibliotecas: sem ligação com o resto, ficam fora do mapa D00
+CAMPOS = {
+    'django_q.Schedule': ['func', 'next_run', 'task'],
+    'django_q.Task': ['name', 'func', 'success'],
+    'django_q.OrmQ': ['key', 'lock'],
+}
 
 TIPOS = {
     'AutoField': 'int', 'BigAutoField': 'int', 'IntegerField': 'int', 'PositiveIntegerField': 'int',
@@ -174,6 +186,8 @@ def main():
                 if f.primary_key:
                     linhas.insert(0, (f.column, 'PK', tipo(f)))
                     continue
+                if lab in CAMPOS and f.name not in CAMPOS[lab]:
+                    continue
                 if f.name in IGNORAR or f.column.endswith(('_bidx', '_idx', '_sha256', '_hash')) or campos >= MAX_CAMPOS:
                     continue
                 linhas.append((f.column, 'UK' if f.unique else '', tipo(f)))
@@ -192,15 +206,17 @@ def main():
         })
 
     (DIAG / 'fontes' / 'D00-mapa-dominios.dot').write_text(dot_mapa(cruzam))
-    total = sum(len(a[3]) for a in AREAS)
+    proprias = [a for a in AREAS if not all(x.startswith(BIBLIOTECAS) for x in a[3])]
+    total = sum(len(a[3]) for a in proprias)
     catalogo.insert(0, {
         'id': 'D00', 'arquivo': 'D00-mapa-dominios', 'titulo': 'Banco de dados: mapa das áreas',
         'tipo': 'mapa', 'nivel': 'Modelo de dados · Visão geral',
-        'descricao': f'{total} tabelas em {len(AREAS)} áreas de até {MAX_TABELAS} tabelas. As setas mostram as chaves '
-                     'estrangeiras entre áreas; as que todas têm para D01 (escritório e autoria) ficam de fora.',
+        'descricao': f'{total} tabelas do Cadrius em {len(proprias)} áreas de até {MAX_TABELAS} tabelas. As setas mostram '
+                     'as chaves estrangeiras entre áreas; as que todas têm para D01 (escritório e autoria) ficam de fora. '
+                     'As tabelas da biblioteca de filas estão à parte, em D20.',
     })
     (DIAG / 'gerador' / 'banco.json').write_text(json.dumps(catalogo, ensure_ascii=False, indent=2) + '\n')
-    print(f'{total} tabelas, {len(AREAS)} áreas, {len(cruzam)} ligações entre áreas')
+    print(f'{total} tabelas próprias em {len(proprias)} áreas, {len(AREAS)} pranchas de área, {len(cruzam)} ligações entre áreas')
 
 
 # --------------------------------------------------------------------------- Graphviz (pé de galinha)
@@ -249,6 +265,8 @@ def dot_mapa(cruzam):
     saida = saida.replace('edge [color="#475569", penwidth=1.4, arrowsize=1.0, dir=both]',
                           'edge [color="#475569", penwidth=1.4, arrowsize=0.9, fontname="Inter", fontsize=15]')
     for codigo, nome, _, membros in AREAS:
+        if all(x.startswith(BIBLIOTECAS) for x in membros):
+            continue
         cor, texto, borda = ('#1F5FAD', '#FFFFFF', '#123F78') if codigo == 'D01' else ('#D6E6F7', '#0B2545', '#2E6DB4')
         saida += (f'  {codigo} [label=<<b>{codigo} {esc(nome)}</b><br/>{len(membros)} tabelas>, fillcolor="{cor}", '
                   f'fontcolor="{texto}", color="{borda}"]\n')
